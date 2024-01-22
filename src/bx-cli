@@ -1,0 +1,74 @@
+#!/bin/lua
+
+
+local function script_path()
+    local str = debug.getinfo(1, "S").source:sub(2)
+    return str:match("(.*/)")
+end
+
+local bx_path = script_path()
+package.path = bx_path .. "?.lua;" .. package.path
+
+require("utils").using("utils")
+using("dataframes")
+using("bx_utils")
+using("init")
+using("note")
+using("todo")
+
+local function print_help()
+	print("Usage: bx < command > < arguments >")
+    print("")
+	print("Usage: bx init")
+	print("Usage: bx note <>")
+	print("Usage: bx todo < list | add | done >")
+end
+
+local function main()
+    local command_parser = {
+        ["init"] = init_bx,
+        ["note"] = {
+            add = take_note
+        },
+        ["todo"] = {
+            add = add_task,
+            list = list_tasks,
+            done = mark_done
+        }
+    }
+
+    if length(arg) == 0 then
+        print("missing command\n")
+        print_help()
+    elseif length(arg) == 1 then
+	    local command = arg[1]
+        if command == "init" then
+            local func = command_parser[command]
+            func()
+        else
+            print("'" .. command .. "' is missing arguments\n")
+            print_help()
+        end
+    elseif length(arg) == 2 then
+        local command = arg[1]
+        local argument = arg[2]
+	    if command_parser[command] then
+            if command_parser[command][argument] then
+                local func = command_parser[command][argument]
+                func()
+            else
+                print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")
+                print_help()
+            end
+        else
+            print("'" .. command .. "' is not a valid command\n")
+            print_help()
+        end
+    else
+        print("too many arguments given\n")
+        print_help()
+    end
+end
+
+-- run program
+main()

@@ -1,0 +1,15 @@
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY,
+    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    title TEXT,
+    content TEXT
+);
+
+CREATE TABLE todos (
+    id INTEGER PRIMARY KEY,
+    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    task TEXT,
+    due_to TIMESTAMP,
+    done INTEGER
+);
+
