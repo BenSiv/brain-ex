@@ -3,17 +3,7 @@ local note = {}
 
 local sqlite = require("sqlite3")
 
-local function get_brain_file()
-	local home_dir = os.getenv("HOME")
-    local dot_file = io.open(home_dir .. "/.bx", "r")
-    local brain_file = dot_file:read("*a")
-    return brain_file
-end
-
-function take_note()
-    -- get database name
-    local brain_file = get_brain_file()
-
+function take_note(brain_file)
     -- get note info
     io.write("Title: ")
     local title = "'" .. io.read() .. "'"
@@ -21,7 +11,6 @@ function take_note()
     local content = "'" .. io.read() .. "'"
 
     local id = generate_id("notes")
-
     local insert_statement = "INSERT INTO notes (id, title, content) VALUES (" .. id .. ", " .. title .. ", " .. content .. ");"
 
     -- write note info
@@ -30,10 +19,7 @@ function take_note()
     db:close()
 end
 
-function connect_notes()
-    -- get database name
-    local brain_file = get_brain_file()
-
+function connect_notes(brain_file)
     -- get note info
     io.write("Source note id: ")
     local source = "'" .. io.read() .. "'"
@@ -41,7 +27,6 @@ function connect_notes()
     local target = "'" .. io.read() .. "'"
 
     local id = generate_id("connections")
-
     local insert_statement = "INSERT INTO connections (id, source, target) VALUES (" .. id .. ", " .. source .. ", " .. target .. ");"
 
     -- write note info

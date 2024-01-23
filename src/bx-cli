@@ -16,6 +16,8 @@ using("init")
 using("note")
 using("todo")
 
+brain_file = get_brain_file()
+
 local function print_help()
 	print("Usage: bx < command > < arguments >")
     print("")
@@ -56,7 +58,7 @@ local function main()
 	    if command_parser[command] then
             if command_parser[command][argument] then
                 local func = command_parser[command][argument]
-                func()
+                func(brain_file)
             else
                 print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")
                 print_help()

@@ -3,17 +3,7 @@ local todo = {}
 
 local sqlite = require("sqlite3")
 
-local function get_brain_file()
-	local home_dir = os.getenv("HOME")
-    local dot_file = io.open(home_dir .. "/.bx", "r")
-    local brain_file = dot_file:read("*a")
-    return brain_file
-end
-
-function add_task()
-    -- get database name
-    local brain_file = get_brain_file()
-
+function add_task(brain_file)
     -- get note info
     io.write("Task: ")
     local task = "'" .. io.read() .. "'"
@@ -28,7 +18,6 @@ function add_task()
     end
 
     local id = generate_id("todos")
-
     local insert_statement = "INSERT INTO todos (id, task, due_to, done) VALUES (" .. id .. ", " .. task .. ", " .. due_to .. ", '0');"
 
     -- write note info
@@ -37,10 +26,7 @@ function add_task()
     db:close()
 end
 
-function list_tasks()
-    -- get database name
-    local brain_file = get_brain_file()
-
+function list_tasks(brain_file)
     local query = "SELECT id, task, due_to FROM todos WHERE done=0;"
 
     -- write note info
@@ -55,10 +41,7 @@ function list_tasks()
     db:close()
 end
 
-function mark_done()
-    -- get database name
-    local brain_file = get_brain_file()
-
+function mark_done(brain_file)
     -- get note info
     io.write("Enter the ID of the task to mark as done: ")
     local task_id = io.read()
