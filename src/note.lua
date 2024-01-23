@@ -30,6 +30,26 @@ function take_note()
     db:close()
 end
 
+function connect_notes()
+    -- get database name
+    local brain_file = get_brain_file()
+
+    -- get note info
+    io.write("Source note id: ")
+    local source = "'" .. io.read() .. "'"
+    io.write("Target note id: ")
+    local target = "'" .. io.read() .. "'"
+
+    local id = generate_id("connections")
+
+    local insert_statement = "INSERT INTO connections (id, source, target) VALUES (" .. id .. ", " .. source .. ", " .. target .. ");"
+
+    -- write note info
+    local db = sqlite.open(brain_file)
+    db:exec(insert_statement)
+    db:close()
+end
+
 note.take_note = take_note
 
 -- Export the module

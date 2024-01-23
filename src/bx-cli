@@ -28,7 +28,8 @@ local function main()
     local command_parser = {
         ["init"] = init_bx,
         ["note"] = {
-            add = take_note
+            add = take_note,
+            connect = connect_notes
         },
         ["todo"] = {
             add = add_task,
