@@ -4,9 +4,15 @@ local init = {}
 local lfs = require("lfs")
 local sqlite = require("sqlite3")
 
+-- local function script_path()
+--     local str = debug.getinfo(1, "S").source:sub(2)
+--     return str:match("(.*/)")
+-- end
+
 local function script_path()
-    local str = debug.getinfo(1, "S").source:sub(2)
-    return str:match("(.*/)")
+    local file_path = arg[0]
+    local dir_path = match("(.*/)", file_path)
+    return dir_path
 end
 
 function init_bx()

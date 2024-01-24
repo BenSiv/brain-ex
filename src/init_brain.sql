@@ -1,24 +1,22 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE notes (
-    id INTEGER PRIMARY KEY,
-    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    title TEXT,
-    content TEXT
+    "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "group" TEXT,
+    "name" TEXT PRIMARY KEY,
+    "content" TEXT
 );
 
 CREATE TABLE connections (
-    id INTEGER PRIMARY KEY,
-    source INTEGER,
-    target INTEGER,
-    FOREIGN KEY (source) REFERENCES notes(id),
-    FOREIGN KEY (target) REFERENCES notes(id)
+    "source" TEXT,
+    "target" TEXT,
+    PRIMARY KEY ("source", "target")
 );
 
 CREATE TABLE todos (
-    id INTEGER PRIMARY KEY,
-    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    task TEXT,
-    due_to TIMESTAMP,
-    done INTEGER
+    "id" INTEGER PRIMARY KEY,
+    "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "task" TEXT,
+    "due_to" TIMESTAMP,
+    "done" INTEGER
 );

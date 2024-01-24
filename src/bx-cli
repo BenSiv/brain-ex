@@ -12,6 +12,7 @@ package.path = bx_path .. "?.lua;" .. package.path
 require("utils").using("utils")
 using("dataframes")
 using("bx_utils")
+using("vault_to_sql")
 using("init")
 using("note")
 using("todo")
@@ -22,13 +23,15 @@ local function print_help()
 	print("Usage: bx < command > < arguments >")
     print("")
 	print("Usage: bx init")
-	print("Usage: bx note <>")
+	print("Usage: bx update")
+	print("Usage: bx note < add | connect >")
 	print("Usage: bx todo < list | add | done >")
 end
 
 local function main()
     local command_parser = {
         ["init"] = init_bx,
+        ["update"] = vault_to_sql,
         ["note"] = {
             add = take_note,
             connect = connect_notes
@@ -40,16 +43,23 @@ local function main()
         }
     }
 
+    local func
     if length(arg) == 0 then
         print("missing command\n")
         print_help()
     elseif length(arg) == 1 then
 	    local command = arg[1]
         if command == "init" then
-            local func = command_parser[command]
+            func = command_parser[command]
             func()
-        else
+        elseif command == "update" then
+            func = command_parser[command]
+            func(brain_file)
+        elseif occursin(command, command_parser) then
             print("'" .. command .. "' is missing arguments\n")
+            print_help()
+        else
+            print("'" .. command .. "' is not a valid command\n")
             print_help()
         end
     elseif length(arg) == 2 then
@@ -57,7 +67,7 @@ local function main()
         local argument = arg[2]
 	    if command_parser[command] then
             if command_parser[command][argument] then
-                local func = command_parser[command][argument]
+                func = command_parser[command][argument]
                 func(brain_file)
             else
                 print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")
