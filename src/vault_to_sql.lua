@@ -53,7 +53,10 @@ local function read_vault(vault_path)
         if group == "root" then
             vault_content["root"] = {}
             for _, note in pairs(vault_files["root"]) do
-                table.insert(vault_content["root"], read_note(vault_path, note))
+                local note_content = read_note(vault_path, note)
+                if note_content then
+                    table.insert(vault_content["root"], note_content)
+                end
             end
         else
             vault_content[group] = {}
