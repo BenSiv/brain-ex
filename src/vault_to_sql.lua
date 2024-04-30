@@ -101,9 +101,7 @@ local function process_content(content)
     return processed_content, link_found
 end
 
-function vault_to_sql(brain_file)
-    io.write("Vault path: ")
-    local vault_path = io.read()
+function vault_to_sql(vault_path, brain_file)
     local vault_content = read_vault(vault_path)
     local db = sqlite.open(brain_file)
     local insert_statement = ""

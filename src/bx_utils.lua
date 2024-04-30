@@ -2,6 +2,7 @@
 local bx_utils = {}
 
 local sqlite = require("sqlite3")
+local yaml = require("yaml")
 
 local function get_dot_file()
     local home_dir = os.getenv("HOME")
@@ -22,10 +23,42 @@ local function get_dot_file()
     return dot_file
 end
 
-local function get_brain_file()
+function get_brain_file()
     local dot_file = get_dot_file()
-    local brain_file = dot_file:read("*a")
+
+    if not dot_file then
+        return nil, "Unable to open dot file"
+    end
+
+    local content = dot_file:read("*a")
+    dot_file:close()
+    if content then
+        local data = yaml.load(content)
+        if data then
+            local brain_file = data["brain"]
+        end
+    end
+
     return brain_file
+end
+
+function get_vault_path()
+    local dot_file = get_dot_file()
+
+    if not dot_file then
+        return nil, "Unable to open dot file"
+    end
+
+    local content = dot_file:read("*a")
+    dot_file:close()
+    if content then
+        local data = yaml.load(content)
+        if data then
+            local vault_dir = data["vault"]
+        end
+    end
+
+    return vault_dir
 end
 
 local function is_id_unique(table_name, target_id)
@@ -69,6 +102,7 @@ function is_timestamp(str)
 end
 
 bx_utils.get_brain_file = get_brain_file
+bx_utils.get_vault_path = get_vault_path
 bx_utils.generate_id = generate_id
 bx_utils.is_timestamp = is_timestamp
 
