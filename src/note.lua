@@ -40,7 +40,7 @@ local function write_note(vault_dir, group, title, content, links)
         obsidian_links = obsidian_links .. "[[" .. link .. "]] "
     end
     note_path = path(vault_dir, group, title .. ".md")
-    local note_file = io.open(note_path, "w")
+    local note_file = io.open(note_path, "a")
     note_file:write(content .. "\n")
     note_file:write(obsidian_links)
     note_file:close()

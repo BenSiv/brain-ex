@@ -12,30 +12,34 @@ local function get_dot_file()
 
     if not dot_file then
         -- File doesn't exist, create it
-        dot_file = io.open(dot_file_path, "w")
+        local dot_file = io.open(dot_file_path, "w")
         if not dot_file then
             print("Error: Unable to create .bx file.")
             return nil
         end
-        -- dot_file:write("Initial content\n")
+        dot_file:close()
     end
 
-    return dot_file
+    dot_file:close()
+    return dot_file_path
 end
 
 function get_brain_file()
-    local dot_file = get_dot_file()
+    local dot_file_path = get_dot_file()
+    local dot_file = io.open(dot_file_path, "r")
 
     if not dot_file then
-        return nil, "Unable to open dot file"
+        print("Unable to open dot file")
     end
 
     local content = dot_file:read("*a")
     dot_file:close()
+
+    local brain_file = nil
     if content then
         local data = yaml.load(content)
         if data then
-            local brain_file = data["brain"]
+            brain_file = data["brain"]
         end
     end
 
@@ -43,18 +47,21 @@ function get_brain_file()
 end
 
 function get_vault_path()
-    local dot_file = get_dot_file()
+    local dot_file_path = get_dot_file()
+    local dot_file = io.open(dot_file_path, "r")
 
     if not dot_file then
-        return nil, "Unable to open dot file"
+        print("Unable to open dot file")
     end
 
     local content = dot_file:read("*a")
     dot_file:close()
+    
+    local vault_dir = nil
     if content then
         local data = yaml.load(content)
         if data then
-            local vault_dir = data["vault"]
+            vault_dir = data["vault"]
         end
     end
 
