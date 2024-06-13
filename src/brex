@@ -19,20 +19,18 @@ using("todo")
 local function print_help()
 	print("Usage: brex < command > < arguments >")
     print("")
-    print("Usage: brex init < --vault >")
-	print("Usage: brex note < add >")
-	print("Usage: brex todo < list | add | done >")
+    print("Usage: brex init")
+	print("Usage: brex note")
+	print("Usage: brex todo")
 end
 
 local function main()
     local command_parser = {
         ["init"] = {
-            default = init_bx,
-            ["--vault"] = init_bx_with_vault
+            default = init_bx
         },
         ["note"] = {
-            add = take_note,
-            connect = connect_notes
+            add = take_note
         },
         ["todo"] = {
             add = add_task,
