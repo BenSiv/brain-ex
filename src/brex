@@ -17,11 +17,11 @@ using("note")
 using("todo")
 
 local function print_help()
-	print("Usage: bx < command > < arguments >")
+	print("Usage: brex < command > < arguments >")
     print("")
-    print("Usage: bx init < --vault >")
-	print("Usage: bx note < add >")
-	print("Usage: bx todo < list | add | done >")
+    print("Usage: brex init < --vault >")
+	print("Usage: brex note < add >")
+	print("Usage: brex todo < list | add | done >")
 end
 
 local function main()

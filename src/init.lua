@@ -6,11 +6,6 @@ local sqlite = require("sqlite3")
 local path = require("path")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
 
--- local function script_path()
---     local str = debug.getinfo(1, "S").source:sub(2)
---     return str:match("(.*/)")
--- end
-
 local function script_path()
     local file_path = arg[0]
     local dir_path = match("(.*/)", file_path)
