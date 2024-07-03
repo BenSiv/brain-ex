@@ -79,25 +79,37 @@ local function get_lines(markdown_text)
     return lines
 end
 
+-- Function to remove all instances of the link pattern
+local function remove_link(input_line, link)
+    local link_pattern = "[[" .. link .. "]]"
+    local output_line = replace(input_line, link_pattern, "")
+    return output_line
+end
+
 local function extract_links(line, link_found)
     link_found = link_found or {}
+    local processed_line = line
     for link in match_all("%[%[(.-)%]%]", line) do
         if not occursin(link, link_found) then
             table.insert(link_found, link)
         end
-        line = line:gsub("%[%[" .. link .. "%]%]", "")
+        processed_line = remove_link(processed_line, link)
     end
-    return line, link_found
+    return processed_line, link_found
 end
 
 local function process_content(content)
     local content_lines = get_lines(content)
-    local processed_content = ""
+    local processed_lines = {}
     local link_found = {}
+
     for _, line in ipairs(content_lines) do
-        line, link_found = extract_links(line, link_found)
-        processed_content = processed_content .. "/n" .. line
+        local processed_line, updated_link_found = extract_links(line, link_found)
+        link_found = updated_link_found
+        table.insert(processed_lines, processed_line)
     end
+
+    local processed_content = table.concat(processed_lines, "\n")
     return processed_content, link_found
 end
 

@@ -42,7 +42,7 @@ local function main()
     }
 
     local brain_file = get_brain_file()
-    print(brain_file)
+    -- print(brain_file)
 
     local func
     if length(arg) == 0 then
