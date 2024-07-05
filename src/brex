@@ -41,9 +41,6 @@ local function main()
         }
     }
 
-    local brain_file = get_brain_file()
-    -- print(brain_file)
-
     local func
     if length(arg) == 0 then
         print("missing command\n")
@@ -61,6 +58,7 @@ local function main()
             print_help()
         end
     elseif length(arg) == 2 then
+        local brain_file = get_brain_file()
         local command = arg[1]
         local argument = arg[2]
 	    if command_parser[command] then
