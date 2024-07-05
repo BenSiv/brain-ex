@@ -4,6 +4,16 @@ local note = {}
 local sqlite = require("sqlite3")
 local lfs = require("lfs")
 local get_vault_path = require("bx_utils").get_vault_path
+local user = require("user")
+
+local function insert_note(brain_file, group, title, content)
+    local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. content .. "');"
+    -- write note info
+    local db = sqlite.open(brain_file)
+    db:exec(insert_statement)
+    db:close()
+    return "success"
+end
 
 local function connect_notes(brain_file, source, links)
     local insert_statement = "INSERT INTO connections (source, target) VALUES "
@@ -42,56 +52,36 @@ local function write_note(vault_dir, group, title, content, links)
     end
 
     local to_write = content .. "\n" .. obsidian_links
-    print(to_write)
     note_file:write(to_write)
     note_file:close()
     return "success"
 end
 
-function user_input(prompt)
-    io.write(prompt)
-    local answer = io.read()
-    return answer
-end
-
-function user_inputs(prompt)
-    io.write(prompt)
-    local full_answer = ""
-    local answer = ""
-    while true do
-        answer = io.read()
-        if answer == "" then
-            break
-        end
-        full_answer = full_answer .. "\n" .. answer
-    end
-    return full_answer
-end
-
 function take_note(brain_file)
     -- get note info
-    local group = user_input("Context group: ")
-    local title = user_input("Title: ")
-    local content = user_inputs("Content: ")
-    local links = user_inputs("Links: ")
+    local group = user.input("Context group: ")
+    local title = user.input("Title: ")
+    local content = user.inputs("Content: ")
+    local links = user.inputs("Links: ")
 
     local vault_dir = get_vault_path()
 
+    local insert_status = insert_note(brain_file, group, title, content)
+    if not insert_status then
+        print("Error: note insertion failed")
+        return
+    end
     local connect_status = connect_notes(brain_file, title, links)
     if not connect_status then
+        print("Error: notes connection failed")
         return
     end
     local write_status = write_note(vault_dir, group, title, content, links)
     if not write_status then
+        print("Error: note writing to file failed")
         return
     end
-
-    local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. content .. "');"
-
-    -- write note info
-    local db = sqlite.open(brain_file)
-    db:exec(insert_statement)
-    db:close()
+    return "success"
 end
 
 note.take_note = take_note
