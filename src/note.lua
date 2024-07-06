@@ -7,7 +7,7 @@ local get_vault_path = require("bx_utils").get_vault_path
 local user = require("user")
 
 local function insert_note(brain_file, group, title, content)
-    local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. content .. "');"
+    local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. table.concat(content, "\n") .. "');"
     -- write note info
     local db = sqlite.open(brain_file)
     db:exec(insert_statement)
@@ -17,7 +17,7 @@ end
 
 local function connect_notes(brain_file, source, links)
     local insert_statement = "INSERT INTO connections (source, target) VALUES "
-    for index, target in pairs(split(links, ", ")) do
+    for index, target in pairs(links) do
         local statement_value = "('" .. source .. "', '" .. target .. "'), "
         insert_statement = insert_statement .. statement_value
     end
@@ -30,9 +30,9 @@ local function connect_notes(brain_file, source, links)
 end
 
 local function write_note(vault_dir, group, title, content, links)
-    local obsidian_links = ""
-    for index, link in pairs(split(links, "\n")) do
-        obsidian_links = obsidian_links .. "[[" .. link .. "]] "
+    local obsidian_links = {}
+    for index, link in pairs(links) do
+        table.insert(obsidian_links, "[[" .. link .. "]] ")
     end
 
     local note_dir = vault_dir .. "/" .. group
@@ -51,7 +51,7 @@ local function write_note(vault_dir, group, title, content, links)
         return
     end
 
-    local to_write = content .. "\n" .. obsidian_links
+    local to_write = table.concat(content, "\n") .. "\n" .. table.concat(obsidian_links, "\n")
     note_file:write(to_write)
     note_file:close()
     return "success"
