@@ -76,11 +76,14 @@ function take_note(brain_file)
         print("Error: notes connection failed")
         return
     end
-    local write_status = write_note(vault_dir, group, title, content, links)
-    if not write_status then
-        print("Error: note writing to file failed")
-        return
+    if vault_dir then
+        local write_status = write_note(vault_dir, group, title, content, links)
+        if not write_status then
+            print("Error: note writing to file failed")
+            return
+        end
     end
+
     return "success"
 end
 

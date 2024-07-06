@@ -27,23 +27,8 @@ end
 
 function get_vault_path()
     local dot_file_path = get_dot_file()
-    local dot_file = io.open(dot_file_path, "r")
-
-    if not dot_file then
-        print("Unable to open dot file")
-    end
-
-    local content = dot_file:read("*a")
-    dot_file:close()
-    
-    local vault_dir = nil
-    if content then
-        local data = yaml.load(content)
-        if data then
-            vault_dir = data["vault"]
-        end
-    end
-
+    local content = read_yaml(dot_file_path)
+    local vault_dir = content["vault"]
     return vault_dir
 end
 
