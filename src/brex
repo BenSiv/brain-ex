@@ -11,6 +11,7 @@ package.path = bx_path .. "?.lua;" .. package.path
 
 require("utils").using("utils")
 using("dataframes")
+using("dates")
 using("bx_utils")
 using("init")
 using("note")

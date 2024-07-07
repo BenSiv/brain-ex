@@ -18,5 +18,6 @@ CREATE TABLE todos (
     "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "task" TEXT,
     "due_to" TIMESTAMP,
+    "overdue" INTEGER
     "done" INTEGER
 );

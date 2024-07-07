@@ -72,10 +72,24 @@ function is_timestamp(str)
     end
 end
 
+function is_sqlite_empty(brain_file, table_name)
+    local query = "SELECT COUNT(*) FROM " .. table_name .. ";"
+    local db = sqlite.open(brain_file)
+    local answer = false
+    for row in db:rows(query) do
+        for _ ,element in pairs(row) do
+            answer = element == 0
+       end
+    end
+    db:close()
+    return answer
+end
+
 bx_utils.get_brain_file = get_brain_file
 bx_utils.get_vault_path = get_vault_path
 bx_utils.generate_id = generate_id
 bx_utils.is_timestamp = is_timestamp
+bx_utils.is_sqlite_empty = is_sqlite_empty
 
 -- Export the module
 return bx_utils
