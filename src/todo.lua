@@ -36,7 +36,11 @@ function list_tasks(brain_file)
         table.insert(result_rows, row)
     end
 
-    view(result_rows)
+    if length(result_rows) > 0 then
+        view(result_rows)
+    else
+        print("Empty task list")
+    end
 
     db:close()
 end
