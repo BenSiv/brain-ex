@@ -26,16 +26,21 @@ function add_task(brain_file)
 
     local overdue = check_overdue(due_to) and 1 or 0
     local id = generate_id("todos")
-    local insert_statement = "INSERT INTO todos (id, task, due_to, done, overdue) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '0', " .. overdue .. ");"
-
+    local insert_statement = "INSERT INTO todos (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', '0');"
+    print(insert_statement)
     -- write note info
     local db = sqlite.open(brain_file)
-    db:exec(insert_statement)
+
+    local result, err = db:exec(insert_statement)
+    if not result then
+        print("Error executing insert statement: " .. err)
+    end
+
     db:close()
 end
 
 function list_tasks(brain_file)
-    local query = "SELECT id, task, due_to FROM todos WHERE done=0;"
+    local query = "SELECT id, task, due_to, overdue FROM todos WHERE done=0;"
 
     local todos_empty = is_sqlite_empty(brain_file, "todos")
     if todos_empty then
