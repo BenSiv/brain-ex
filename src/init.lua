@@ -64,15 +64,14 @@ function init_bx_with_vault()
     db:exec(sql_commands)
     db:close()
 
-    vault_to_sql(vault_path, brain_path)
-
     -- store info in ~/.bx file
     local dot_file = io.open(home_dir .. "/.bx", "w")
     dot_file:write("vault: " .. vault_path .. "\n")
     dot_file:write("brain: " .. brain_path)
     dot_file:close()
+    
+    vault_to_sql(vault_path, brain_path)
 end
-
 
 init.init_bx = init_bx
 init.init_bx_with_vault = init_bx_with_vault
