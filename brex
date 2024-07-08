@@ -1,27 +1,12 @@
 #!/bin/lua
 
-local function get_parent_dir(path)
-    path = path:gsub("[\\/]+$", "")
-    local parent_dir = path:match("(.*/)")
-    return parent_dir
-end
-
-local function get_script_dir()
-    local script_path = debug.getinfo(1, "S").source:sub(2)
-    local script_dir = get_parent_dir(script_path)
-    return script_dir
-end
-
-local script_dir = get_script_dir()
-local bx_path = script_dir .. "src/"
-local lua_utils_path = script_dir .. "lua-utils/src/"
-
-package.path = bx_path .. "?.lua;" .. package.path
-package.path = lua_utils_path .. "?.lua;" .. package.path
-
 require("utils").using("utils")
 using("dataframes")
+using("paths")
 using("dates")
+
+script_path = debug.getinfo(1, "S").source:sub(2)
+add_to_path(script_path, "src")
 
 using("bx_utils")
 using("init")
