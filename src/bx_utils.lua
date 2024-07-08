@@ -7,17 +7,11 @@ local yaml = require("yaml")
 local function get_dot_file()
     local home_dir = os.getenv("HOME")
     local dot_file_path = home_dir .. "/.bx"
-
-    local dot_file, error_message = io.open(dot_file_path, "r")
+    local dot_file = io.open(dot_file_path, "r")
 
     if not dot_file then
-        -- File doesn't exist, create it
-        local dot_file = io.open(dot_file_path, "w")
-        if not dot_file then
-            print("Error: Unable to create .bx file.")
-            return nil
-        end
-        dot_file:close()
+        print("Error: ~/.bx file do not exist, run brex init.")
+        return nil
     end
 
     dot_file:close()
@@ -26,45 +20,15 @@ end
 
 function get_brain_file()
     local dot_file_path = get_dot_file()
-    local dot_file = io.open(dot_file_path, "r")
-
-    if not dot_file then
-        print("Unable to open dot file")
-    end
-
-    local content = dot_file:read("*a")
-    dot_file:close()
-
-    local brain_file = nil
-    if content then
-        local data = yaml.load(content)
-        if data then
-            brain_file = data["brain"]
-        end
-    end
-
+    local content = read_yaml(dot_file_path)
+    local brain_file = content["brain"]
     return brain_file
 end
 
 function get_vault_path()
     local dot_file_path = get_dot_file()
-    local dot_file = io.open(dot_file_path, "r")
-
-    if not dot_file then
-        print("Unable to open dot file")
-    end
-
-    local content = dot_file:read("*a")
-    dot_file:close()
-    
-    local vault_dir = nil
-    if content then
-        local data = yaml.load(content)
-        if data then
-            vault_dir = data["vault"]
-        end
-    end
-
+    local content = read_yaml(dot_file_path)
+    local vault_dir = content["vault"]
     return vault_dir
 end
 
@@ -108,10 +72,24 @@ function is_timestamp(str)
     end
 end
 
+function is_sqlite_empty(brain_file, table_name)
+    local query = "SELECT COUNT(*) FROM " .. table_name .. ";"
+    local db = sqlite.open(brain_file)
+    local answer = false
+    for row in db:rows(query) do
+        for _ ,element in pairs(row) do
+            answer = element == 0
+       end
+    end
+    db:close()
+    return answer
+end
+
 bx_utils.get_brain_file = get_brain_file
 bx_utils.get_vault_path = get_vault_path
 bx_utils.generate_id = generate_id
 bx_utils.is_timestamp = is_timestamp
+bx_utils.is_sqlite_empty = is_sqlite_empty
 
 -- Export the module
 return bx_utils

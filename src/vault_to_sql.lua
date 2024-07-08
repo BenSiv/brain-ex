@@ -2,6 +2,16 @@
 local vault_update = {}
 
 local sqlite = require("sqlite3")
+local lfs = require("lfs") 
+
+local function get_last_update_time(file_path)
+    local attr = lfs.attributes(file_path)
+    if attr then
+        return os.date("%Y-%m-%d %H:%M:%S", attr.modification)
+    else
+        error("Could not get attributes for file: " .. file_path)
+    end
+end
 
 local function filter_markdown_files(dir_content)
     local markdown_files = {}
@@ -79,52 +89,71 @@ local function get_lines(markdown_text)
     return lines
 end
 
+-- Function to remove all instances of the link pattern
+local function remove_link(input_line, link)
+    local link_pattern = "[[" .. link .. "]]"
+    local output_line = replace(input_line, link_pattern, "")
+    return output_line
+end
+
 local function extract_links(line, link_found)
     link_found = link_found or {}
+    local processed_line = line
     for link in match_all("%[%[(.-)%]%]", line) do
         if not occursin(link, link_found) then
             table.insert(link_found, link)
         end
-        line = line:gsub("%[%[" .. link .. "%]%]", "")
+        processed_line = remove_link(processed_line, link)
     end
-    return line, link_found
+    return processed_line, link_found
 end
 
 local function process_content(content)
     local content_lines = get_lines(content)
-    local processed_content = ""
+    local processed_lines = {}
     local link_found = {}
+
     for _, line in ipairs(content_lines) do
-        line, link_found = extract_links(line, link_found)
-        processed_content = processed_content .. "/n" .. line
+        local processed_line, updated_link_found = extract_links(line, link_found)
+        link_found = updated_link_found
+        table.insert(processed_lines, processed_line)
     end
+
+    local processed_content = table.concat(processed_lines, "\n")
     return processed_content, link_found
 end
 
 function vault_to_sql(vault_path, brain_file)
     local vault_content = read_vault(vault_path)
     local db = sqlite.open(brain_file)
-    local insert_statement = ""
-    local content = ""
-    local links = {}
     db:exec("BEGIN TRANSACTION;")
-    for _, group in pairs(keys(vault_content)) do
-        for _, note in pairs(vault_content[group]) do
-            content, links = process_content(note.content)
-            insert_notes = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. note.name .. "', '" .. content .. "');"
-            insert_connections = "INSERT INTO connections ('source', 'target') VALUES "
-            for _, link in pairs(links) do
-                source = "('" .. note.name .. "', "
-                target = "'" .. link .. "'), "
-                insert_connections = insert_connections .. source .. target
+    for group, notes in pairs(vault_content) do
+        for _, note in pairs(notes) do
+            local content, links = process_content(note.content)
+            local note_path = ""
+            if group ~= "root" then
+                note_path = vault_path .. "/" .. group .. "/" .. note.name .. ".md"
+            else
+                note_path = vault_path .. "/" .. note.name .. ".md"
             end
-            insert_connections = slice(insert_connections, 1, length(insert_connections) - 2)
-            insert_connections = insert_connections .. ";"
-
+            local last_update_time = get_last_update_time(note_path)
+            local insert_notes = "INSERT INTO notes ('time', 'group', 'name', 'content') VALUES ('" .. last_update_time .. "', '" .. group .. "', '" .. note.name .. "', '" .. content .. "');"
             db:exec(insert_notes)
-            db:exec(insert_connections)
+
+            if length(links) > 0 then
+                local insert_connections = "INSERT INTO connections ('source', 'target') VALUES "
+                for _, link in pairs(links) do
+                    local source = "('" .. note.name .. "', "
+                    local target = "'" .. link .. "'), "
+                    insert_connections = insert_connections .. source .. target
+                end
+                insert_connections = slice(insert_connections, 1, length(insert_connections) - 2)
+                insert_connections = insert_connections .. ";"
+                db:exec(insert_connections)
+            end
         end
     end
+
     db:exec("COMMIT;")
     db:close()
 end
