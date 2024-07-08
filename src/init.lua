@@ -3,7 +3,6 @@ local init = {}
 
 local lfs = require("lfs")
 local sqlite = require("sqlite3")
-local path = require("path")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
 
 local function script_path()
@@ -25,14 +24,11 @@ function init_bx()
 
     -- read sql init commands
     local bx_path = script_path()
-    local init_file = io.open(bx_path .. "init_brain.sql", "r")
-    local sql_commands = init_file:read("*a")
-    init_file:close()
+    local init_file = joinpath(bx_path, "init_brain.sql")
+    local sql_commands = read(init_file)
 
     -- create database and tables
-    local db = sqlite.open(brain_path)
-    db:exec(sql_commands)
-    db:close()
+    local_update(brain_path, sql_commands)
 
     -- store info in ~/.bx filr
     local dot_file = io.open(home_dir .. "/.bx", "w")
@@ -46,8 +42,8 @@ function init_bx_with_vault()
     local vault_dir = io.read()
     local current_dir = lfs.currentdir()
     local brain_file = vault_dir .. ".bx"
-    local brain_path = path(current_dir, brain_file)
-    local vault_path = path(current_dir, vault_dir)
+    local brain_path = joinpath(current_dir, brain_file)
+    local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
 
     -- remove old brain_path if it exists
@@ -60,16 +56,14 @@ function init_bx_with_vault()
     init_file:close()
 
     -- create database and tables
-    local db = sqlite.open(brain_path)
-    db:exec(sql_commands)
-    db:close()
+    local_update(brain_path, sql_commands)
 
     -- store info in ~/.bx file
     local dot_file = io.open(home_dir .. "/.bx", "w")
     dot_file:write("vault: " .. vault_path .. "\n")
     dot_file:write("brain: " .. brain_path)
     dot_file:close()
-    
+
     vault_to_sql(vault_path, brain_path)
 end
 

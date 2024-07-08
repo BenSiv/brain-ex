@@ -2,8 +2,10 @@
 
 require("utils").using("utils")
 using("dataframes")
+using("database")
 using("paths")
 using("dates")
+using("user")
 
 script_path = debug.getinfo(1, "S").source:sub(2)
 add_to_path(script_path, "src")

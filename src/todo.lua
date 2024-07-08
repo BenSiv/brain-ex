@@ -13,10 +13,8 @@ end
 
 function add_task(brain_file)
     -- get note info
-    io.write("Task: ")
-    local task = io.read()
-    io.write("Due To: ")
-    local time_input_str = io.read()
+    local task = input("Task: ")
+    local time_input_str = input("Due To: ")
     local due_to = normalize_datetime(time_input_str)
 
     if not is_valid_timestamp(due_to) then
@@ -27,16 +25,8 @@ function add_task(brain_file)
     local overdue = check_overdue(due_to) and 1 or 0
     local id = generate_id("todos")
     local insert_statement = "INSERT INTO todos (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', '0');"
-    print(insert_statement)
     -- write note info
-    local db = sqlite.open(brain_file)
-
-    local result, err = db:exec(insert_statement)
-    if not result then
-        print("Error executing insert statement: " .. err)
-    end
-
-    db:close()
+    local_update(brain_file, insert_statement)
 end
 
 function list_tasks(brain_file)
@@ -54,27 +44,19 @@ function list_tasks(brain_file)
     for row in db:rows(query) do
         table.insert(result_rows, row)
     end
-
+    db:close()
+    
     if length(result_rows) > 0 then
         view(result_rows)
     else
         print("Empty task list")
     end
-
-    db:close()
 end
 
 function mark_done(brain_file)
-    -- get note info
-    io.write("Enter the ID of the task to mark as done: ")
-    local task_id = io.read()
-
+    local task_id = input("Enter the ID of the task to mark as done: ")
     local update_statement = "UPDATE todos SET done = 1 WHERE id = " .. task_id .. ";"
-
-    -- update note info
-    local db = sqlite.open(brain_file)
-    db:exec(update_statement)
-    db:close()
+    local_update(brain_file, update_statement)
 end
 
 todo.add_task = add_task

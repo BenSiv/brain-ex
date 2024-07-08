@@ -1,4 +1,3 @@
 luafilesystem
 yaml
 sqlite3
-lpath
