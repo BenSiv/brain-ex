@@ -12,11 +12,9 @@ local function get_script_dir()
     return script_dir
 end
 
-local bx_path = get_script_dir()
-local project_dir = get_parent_dir(bx_path)
-local lua_utils_path = project_dir .. "lua-utils/src/"
-print(bx_path)
-print(lua_utils_path)
+local script_dir = get_script_dir()
+local bx_path = script_dir .. "src/"
+local lua_utils_path = script_dir .. "lua-utils/src/"
 
 package.path = bx_path .. "?.lua;" .. package.path
 package.path = lua_utils_path .. "?.lua;" .. package.path
@@ -24,17 +22,22 @@ package.path = lua_utils_path .. "?.lua;" .. package.path
 require("utils").using("utils")
 using("dataframes")
 using("dates")
+
 using("bx_utils")
 using("init")
 using("note")
 using("todo")
 
 local function print_help()
-	print("Usage: brex < command > < arguments >")
-    print("")
-    print("Usage: brex init < --vault >")
-	print("Usage: brex note < add >")
-	print("Usage: brex todo < list | add | done >")
+    help_str = [[
+Usage: brex < command > < arguments >
+
+       brex init < --vault >
+       brex note < add >
+       brex todo < list | add | done >
+    ]]
+
+    print(help_str)
 end
 
 local function main()
