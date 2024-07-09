@@ -60,12 +60,15 @@ local function main()
             print_help()
         end
     elseif length(arg) == 2 then
-        local brain_file = get_brain_file()
         local command = arg[1]
         local argument = arg[2]
 	    if command_parser[command] then
             if command_parser[command][argument] then
                 func = command_parser[command][argument]
+                local brain_file
+                if command ~= "init" then
+                    brain_file = get_brain_file()
+                end
                 func(brain_file)
             else
                 print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")

@@ -2,14 +2,9 @@
 local init = {}
 
 local lfs = require("lfs")
-local sqlite = require("sqlite3")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
-
-local function script_path()
-    local file_path = arg[0]
-    local dir_path = match("(.*/)", file_path)
-    return dir_path
-end
+local script_path = debug.getinfo(1, "S").source:sub(2)
+local script_dir = get_parent_dir(script_path)
 
 function init_bx()
     -- get database name
@@ -23,8 +18,7 @@ function init_bx()
     -- os.remove(brain_path)
 
     -- read sql init commands
-    local bx_path = script_path()
-    local init_file = joinpath(bx_path, "init_brain.sql")
+    local init_file = joinpath(script_dir, "init_brain.sql")
     local sql_commands = read(init_file)
 
     -- create database and tables
@@ -50,10 +44,8 @@ function init_bx_with_vault()
     -- os.remove(brain_path)
 
     -- read sql init commands
-    local bx_path = script_path()
-    local init_file = io.open(bx_path .. "init_brain.sql", "r")
-    local sql_commands = init_file:read("*a")
-    init_file:close()
+    local init_file = joinpath(script_dir, "init_brain.sql")
+    local sql_commands = read(init_file)
 
     -- create database and tables
     local_update(brain_path, sql_commands)

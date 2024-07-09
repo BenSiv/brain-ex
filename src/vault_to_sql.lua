@@ -1,8 +1,9 @@
 -- update brain file from obsidian vault
 local vault_update = {}
 
+require("utils").using("utils")
 local sqlite = require("sqlite3")
-local lfs = require("lfs") 
+local lfs = require("lfs")
 
 local function get_last_update_time(file_path)
     local attr = lfs.attributes(file_path)
@@ -17,7 +18,7 @@ local function filter_markdown_files(dir_content)
     local markdown_files = {}
 
     for _, entry in pairs(dir_content) do
-        if match("%.md$", entry) then
+        if string.match(entry, "%.md$") then
             table.insert(markdown_files, entry)
         end
     end
@@ -25,12 +26,16 @@ local function filter_markdown_files(dir_content)
     return markdown_files
 end
 
-local function filter_directories(dir_content)
+local function filter_directories(dir_path, dir_content)
     local directories = {}
 
     for _, entry in pairs(dir_content) do
-        if not match("%.", entry) then
-            table.insert(directories, entry)
+        local entry_path = dir_path .. '/' .. entry
+        local attr = lfs.attributes(entry_path)
+        if attr and attr.mode == "directory" then
+            if string.sub(entry, 1, 1) ~= '.' then
+                table.insert(directories, entry)
+            end
         end
     end
 
@@ -41,7 +46,7 @@ local function get_vault_files(vault_path)
     local vault_content = {}
     local dir_content = readdir(vault_path)
     vault_content["root"] = filter_markdown_files(dir_content)
-    local vault_groups = filter_directories(dir_content)
+    local vault_groups = filter_directories(vault_path, dir_content)
     for _, group in pairs(vault_groups) do
         dir_content = readdir(vault_path .. "/" .. group)
         vault_content[group] = filter_markdown_files(dir_content)
