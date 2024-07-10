@@ -12,7 +12,7 @@ function init_bx()
     io.write("Brain name: ")
     local brain_name = io.read()
     local current_dir = lfs.currentdir()
-    local brain_path = current_dir .. "/" .. brain_name .. ".bx"
+    local brain_path = current_dir .. "/" .. brain_name .. ".db"
     local home_dir = os.getenv("HOME")
 
     -- remove old brain_path if it exists
@@ -36,7 +36,7 @@ function init_bx_with_vault()
     io.write("Vault path: ")
     local vault_dir = io.read()
     local current_dir = lfs.currentdir()
-    local brain_file = vault_dir .. ".bx"
+    local brain_file = vault_dir .. ".db"
     local brain_path = joinpath(current_dir, brain_file)
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
