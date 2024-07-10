@@ -3,8 +3,9 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE notes (
     "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "group" TEXT,
-    "name" TEXT PRIMARY KEY,
+    "name" TEXT,
     "content" TEXT
+    PRIMARY KEY ("name", "group")
 );
 
 CREATE TABLE connections (

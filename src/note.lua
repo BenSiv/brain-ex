@@ -12,6 +12,17 @@ local function insert_note(brain_file, group, title, content)
     return "success"
 end
 
+local function append_content(brain_file, group, title, content)
+    local query = string.format("SELECT content FROM notes WHERE name='%s' AND group='%s';", title, group)
+    local result = local_query(brain_file, query)
+    local new_content = result[1].content .. "\n" .. content
+
+    local update_statement = string.format("UPDATE notes SET content='%s' WHERE name='%s' AND group='%s';", new_content, title, group)
+    -- write note info
+    local_update(brain_file, update_statement)
+    return "success"
+end
+
 local function connect_notes(brain_file, source, links)
     local insert_statement = "INSERT INTO connections (source, target) VALUES "
     for index, target in pairs(links) do
@@ -88,7 +99,44 @@ function take_note(brain_file)
     return "success"
 end
 
+function update_note(brain_file)
+    -- get note info
+    local group = user.input("Context group: ")
+    local title = user.input("Title: ")
+    local content = user.inputs("Content: ")
+    local links = user.inputs("Links: ")
+
+    local vault_dir = get_vault_path()
+
+    if not isempty(content) then
+        local append_status = append_content(brain_file, group, title, content)
+        if not append_status then
+            print("Error: append content failed")
+            return
+        end
+    end
+    
+    if not isempty(links) then
+        local connect_status = connect_notes(brain_file, title, links)
+        if not connect_status then
+            print("Error: notes connection failed")
+            return
+        end
+    end
+
+    if vault_dir then
+        local write_status = write_note(vault_dir, group, title, content, links)
+        if not write_status then
+            print("Error: note writing to file failed")
+            return
+        end
+    end
+
+    return "success"
+end
+
 note.take_note = take_note
+note.update_note = update_note
 
 -- Export the module
 return note
