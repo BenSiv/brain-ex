@@ -2,6 +2,7 @@
 local vault_update = {}
 
 require("utils").using("utils")
+local joinpath = require("paths").joinpath
 local sqlite = require("sqlite3")
 local lfs = require("lfs")
 
@@ -55,8 +56,8 @@ local function get_vault_files(vault_path)
 end
 
 local function read_note(vault_path, note)
-    local note_path = vault_path .. "/" .. note
-    local note_name = note:gsub("%.md$", "")
+    local note_path = joinpath(vault_path, note)
+    local note_name = replace_string(note, ".md", "")
     local note_content = read(note_path)
     return {name = note_name, content = note_content}
 end
@@ -64,11 +65,12 @@ end
 local function read_vault(vault_path)
     local vault_files = get_vault_files(vault_path)
     local vault_content = {}
+    local note_content
     for _, group in pairs(keys(vault_files)) do
         if group == "root" then
             vault_content["root"] = {}
             for _, note in pairs(vault_files["root"]) do
-                local note_content = read_note(vault_path, note)
+                note_content = read_note(vault_path, note)
                 if note_content then
                     table.insert(vault_content["root"], note_content)
                 end
@@ -76,7 +78,9 @@ local function read_vault(vault_path)
         else
             vault_content[group] = {}
             for _, note in pairs(vault_files[group]) do
-                table.insert(vault_content[group], read_note(vault_path .. "/" .. group, note))
+                note_path = joinpath(vault_path, group, note)
+                note_content = read_note(vault_path .. "/" .. group, note)
+                table.insert(vault_content[group], note_content)
             end
         end
     end
@@ -86,8 +90,8 @@ end
 
 local function get_lines(markdown_text)
     local lines = {}
-
-    for line in match_all("[^\r\n]+", markdown_text) do
+    
+    for line in match_all(markdown_text, "[^\r\n]+") do
         table.insert(lines, line)
     end
 
@@ -104,7 +108,7 @@ end
 local function extract_links(line, link_found)
     link_found = link_found or {}
     local processed_line = line
-    for link in match_all("%[%[(.-)%]%]", line) do
+    for link in match_all(line, "%[%[(.-)%]%]") do
         if not occursin(link, link_found) then
             table.insert(link_found, link)
         end

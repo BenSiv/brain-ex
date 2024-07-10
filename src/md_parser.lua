@@ -1,15 +1,21 @@
 -- parser for markdown source file to a workable form
 
+require("utils").using("utils")
+using("paths")
+
+script_path = debug.getinfo(1, "S").source:sub(2)
+add_to_path(script_path, "../json.lua")
+
 local json = require("json")
 
 local function print_help()
-    print("Usage: parse <file>")
+    print("Usage: md_parser < input_file > < output_file >")
 end
 
 local function get_lines(markdown_text)
     local lines = {}
 
-    for line in match_all("[^\r\n]+", markdown_text) do
+    for line in match_all(markdown_text, "[^\r\n]+") do
         table.insert(lines, line)
     end
 
@@ -18,7 +24,7 @@ end
 
 local function extract_links(line, link_found)
     link_found = link_found or {}
-    for link in match_all("%[%[(.-)%]%]", line) do
+    for link in match_all(line, "%[%[(.-)%]%]") do
         if not occursin(link, link_found) then
             table.insert(link_found, link)
         end
