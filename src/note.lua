@@ -61,16 +61,22 @@ function take_note(brain_file)
 
     local vault_dir = get_vault_path()
 
-    local insert_status = insert_note(brain_file, group, title, content)
-    if not insert_status then
-        print("Error: note insertion failed")
-        return
+    if not isempty(content) then
+        local insert_status = insert_note(brain_file, group, title, content)
+        if not insert_status then
+            print("Error: note insertion failed")
+            return
+        end
     end
-    local connect_status = connect_notes(brain_file, title, links)
-    if not connect_status then
-        print("Error: notes connection failed")
-        return
+    
+    if not isempty(links) then
+        local connect_status = connect_notes(brain_file, title, links)
+        if not connect_status then
+            print("Error: notes connection failed")
+            return
+        end
     end
+
     if vault_dir then
         local write_status = write_note(vault_dir, group, title, content, links)
         if not write_status then
