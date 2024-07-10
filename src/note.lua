@@ -1,7 +1,6 @@
 -- Define a module table
 local note = {}
 
-local sqlite = require("sqlite3")
 local lfs = require("lfs")
 local get_vault_path = require("bx_utils").get_vault_path
 local user = require("user")
@@ -9,9 +8,7 @@ local user = require("user")
 local function insert_note(brain_file, group, title, content)
     local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. table.concat(content, "\n") .. "');"
     -- write note info
-    local db = sqlite.open(brain_file)
-    db:exec(insert_statement)
-    db:close()
+    local_update(brain_file, insert_statement)
     return "success"
 end
 
@@ -23,9 +20,7 @@ local function connect_notes(brain_file, source, links)
     end
     insert_statement = slice(insert_statement, 1, length(insert_statement)-2) .. ";"
     -- write note info
-    local db = sqlite.open(brain_file)
-    db:exec(insert_statement)
-    db:close()
+    local_update(brain_file, insert_statement)
     return "success"
 end
 

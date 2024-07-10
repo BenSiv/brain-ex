@@ -1,8 +1,8 @@
 -- Define a module table
 local bx_utils = {}
 
+require("utils").using("utils")
 local sqlite = require("sqlite3")
-local yaml = require("yaml")
 
 local function get_dot_file()
     local home_dir = os.getenv("HOME")
