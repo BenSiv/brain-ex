@@ -1,6 +1,7 @@
 -- Define a module table
 local init = {}
 
+require("utils").using("utils")
 local lfs = require("lfs")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
 local script_path = debug.getinfo(1, "S").source:sub(2)
