@@ -34,7 +34,8 @@ local function main()
             ["--vault"] = init_bx_with_vault
         },
         ["note"] = {
-            add = take_note
+            add = take_note,
+            update = update_note
         },
         ["todo"] = {
             add = add_task,

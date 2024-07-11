@@ -13,11 +13,11 @@ local function insert_note(brain_file, group, title, content)
 end
 
 local function append_content(brain_file, group, title, content)
-    local query = string.format("SELECT content FROM notes WHERE name='%s' AND group='%s';", title, group)
+    local query = string.format("SELECT content FROM notes WHERE [name]='%s' AND [group]='%s';", title, group)
     local result = local_query(brain_file, query)
-    local new_content = result[1].content .. "\n" .. content
+    local new_content = result[1].content .. "\n" .. table.concat(content, "\n")
 
-    local update_statement = string.format("UPDATE notes SET content='%s' WHERE name='%s' AND group='%s';", new_content, title, group)
+    local update_statement = string.format("UPDATE notes SET content='%s' WHERE [name]='%s' AND [group]='%s';", new_content, title, group)
     -- write note info
     local_update(brain_file, update_statement)
     return "success"
@@ -57,7 +57,7 @@ local function write_note(vault_dir, group, title, content, links)
         return
     end
 
-    local to_write = table.concat(content, "\n") .. "\n" .. table.concat(obsidian_links, "\n")
+    local to_write = table.concat(content, "\n") .. "\n" .. table.concat(obsidian_links, "\n") .. "\n"
     note_file:write(to_write)
     note_file:close()
     return "success"
