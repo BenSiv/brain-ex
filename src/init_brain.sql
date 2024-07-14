@@ -4,7 +4,7 @@ CREATE TABLE notes (
     "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "group" TEXT,
     "name" TEXT,
-    "content" TEXT
+    "content" TEXT,
     PRIMARY KEY ("name", "group")
 );
 
