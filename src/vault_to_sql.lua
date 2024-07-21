@@ -118,6 +118,7 @@ local function extract_links(line, link_found)
 end
 
 local function process_content(content)
+    content = unescape_string(content)
     local content_lines = get_lines(content)
     local processed_lines = {}
     local link_found = {}
