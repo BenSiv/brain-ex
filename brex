@@ -14,6 +14,7 @@ using("bx_utils")
 using("init")
 using("note")
 using("todo")
+using("sql")
 
 local function print_help()
     help_str = [[
@@ -22,6 +23,7 @@ Usage: brex < command > < arguments >
        brex init < --vault >
        brex note < add >
        brex todo < list | add | done >
+       brex sql < --query >
     ]]
 
     print(help_str)
@@ -41,6 +43,10 @@ local function main()
             add = add_task,
             list = list_tasks,
             done = mark_done
+        },
+        ["sql"] = {
+            default = sqlite_shell,
+            ["--query"] = sqlite_query
         }
     }
 
@@ -51,8 +57,12 @@ local function main()
     elseif length(arg) == 1 then
 	    local command = arg[1]
         if command == "init" then
-            func = command_parser[command]["default"]
+            local func = command_parser[command]["default"]
             func()
+        elseif command == "sql" then
+            local func = command_parser[command]["default"]
+            local brain_file = get_brain_file()
+            func(brain_file)
         elseif occursin(command, command_parser) then
             print("'" .. command .. "' is missing arguments\n")
             print_help()
@@ -65,7 +75,7 @@ local function main()
         local argument = arg[2]
 	    if command_parser[command] then
             if command_parser[command][argument] then
-                func = command_parser[command][argument]
+                local func = command_parser[command][argument]
                 local brain_file
                 if command ~= "init" then
                     brain_file = get_brain_file()
