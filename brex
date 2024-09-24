@@ -21,7 +21,7 @@ local function print_help()
 Usage: brex < command > < arguments >
 
        brex init < --vault >
-       brex note < add >
+       brex note < add | update >
        brex todo < list | add | done >
        brex sql < --query >
     ]]
