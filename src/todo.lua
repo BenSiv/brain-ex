@@ -11,6 +11,22 @@ function check_overdue(due_to)
     return current_time > task_time
 end
 
+function update_overdue(brain_file)
+    -- Query to get all unfinished tasks
+    local query = "SELECT id, due_to FROM todos WHERE done=0;"
+    local unfinished = local_query(brain_file, query)
+
+    local overdue = false
+    local update_statement = ""
+    for _, task in pairs(unfinished) do
+        overdue = check_overdue(task.due_to)
+        if overdue then
+            update_statement = "UPDATE todos SET overdue = 1 WHERE id = " .. task.id .. ";"
+            local_update(brain_file, update_statement)
+        end
+    end
+end
+
 function add_task(brain_file)
     -- get note info
     local task = input("Task: ")
@@ -30,6 +46,8 @@ function add_task(brain_file)
 end
 
 function list_tasks(brain_file)
+    update_overdue(brain_file)
+
     local query = "SELECT id, task, due_to, overdue FROM todos WHERE done=0;"
 
     local todos_empty = is_sqlite_empty(brain_file, "todos")
@@ -38,7 +56,6 @@ function list_tasks(brain_file)
         return
     end
 
-    -- write note info
     local db = sqlite.open(brain_file)
     local result_rows = {}
     for row in db:rows(query) do
@@ -59,6 +76,7 @@ function mark_done(brain_file)
     local_update(brain_file, update_statement)
 end
 
+-- Add the function to the module
 todo.add_task = add_task
 todo.list_tasks = list_tasks
 todo.mark_done = mark_done
