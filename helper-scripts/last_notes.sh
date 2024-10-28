@@ -1,0 +1,1 @@
+sqlite3 obsidian-work.db -column -header "select name, content from notes where [group]='daily-notes' order by name desc limit 5"
