@@ -102,6 +102,9 @@ end
 local function remove_link(input_line, link)
     local link_pattern = "[[" .. link .. "]]"
     local output_line = replace(input_line, link_pattern, "")
+    if match(output_line, "^%s*$") then
+    	output_line = ""
+    end
     return output_line
 end
 
@@ -126,7 +129,9 @@ local function process_content(content)
     for _, line in ipairs(content_lines) do
         local processed_line, updated_link_found = extract_links(line, link_found)
         link_found = updated_link_found
-        table.insert(processed_lines, processed_line)
+        if processed_line ~= "" then
+        	table.insert(processed_lines, processed_line)
+        end
     end
 
     local processed_content = table.concat(processed_lines, "\n")
