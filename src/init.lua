@@ -16,7 +16,7 @@ function init_bx()
     local home_dir = os.getenv("HOME")
 
     -- remove old brain_path if it exists
-    -- os.remove(brain_path)
+    os.remove(brain_path)
 
     -- read sql init commands
     local init_file = joinpath(script_dir, "init_brain.sql")
@@ -42,7 +42,7 @@ function init_bx_with_vault()
     local home_dir = os.getenv("HOME")
 
     -- remove old brain_path if it exists
-    -- os.remove(brain_path)
+    os.remove(brain_path)
 
     -- read sql init commands
     local init_file = joinpath(script_dir, "init_brain.sql")

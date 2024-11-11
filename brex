@@ -14,6 +14,7 @@ using("bx_utils")
 using("init")
 using("note")
 using("todo")
+using("update")
 using("sql")
 
 local function print_help()
@@ -23,6 +24,7 @@ Usage: brex < command > < arguments >
        brex init < --vault >
        brex note < add | update >
        brex todo < list | add | done >
+       brex update
        brex sql < --query >
     ]]
 
@@ -44,6 +46,9 @@ local function main()
             list = list_tasks,
             done = mark_done
         },
+        ["update"] = {
+            default = update_from_vault
+        },
         ["sql"] = {
             default = sqlite_shell,
             ["--query"] = sqlite_query
@@ -59,7 +64,7 @@ local function main()
         if command == "init" then
             local func = command_parser[command]["default"]
             func()
-        elseif command == "sql" then
+        elseif command == "update" or command == "sql" then
             local func = command_parser[command]["default"]
             local brain_file = get_brain_file()
             func(brain_file)
