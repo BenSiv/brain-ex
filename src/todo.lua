@@ -3,6 +3,7 @@ local todo = {}
 
 local sqlite = require("sqlite3")
 local os = require("os")
+local get_vault_path = require("bx_utils").get_vault_path
 
 function check_overdue(due_to)
     local current_time = os.time()
@@ -27,6 +28,14 @@ function update_overdue(brain_file)
     end
 end
 
+function backup_tasks(brain_file)
+    local vault_dir = get_vault_path()
+    if vault_dir then
+        local backup_path = joinpath(vault_dir, "tasks.tsv")
+        export_delimited(brain_file, "SELECT * FROM todos;", backup_path, "\t", true)
+    end
+end
+
 function add_task(brain_file)
     -- get note info
     local task = input("Task: ")
@@ -43,6 +52,7 @@ function add_task(brain_file)
     local insert_statement = "INSERT INTO todos (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', '0');"
     -- write note info
     local_update(brain_file, insert_statement)
+    backup_tasks(brain_file)
 end
 
 function list_tasks(brain_file)
@@ -74,6 +84,7 @@ function mark_done(brain_file)
     local task_id = input("Enter the ID of the task to mark as done: ")
     local update_statement = "UPDATE todos SET done = 1 WHERE id = " .. task_id .. ";"
     local_update(brain_file, update_statement)
+    backup_tasks(brain_file)
 end
 
 -- Add the function to the module
