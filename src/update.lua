@@ -8,6 +8,7 @@ local script_dir = get_parent_dir(script_path)
 
 function update_from_vault(brain_file)
     local vault_path = get_vault_path()
+    local task_file = joinpath(vault_path, "tasks.tsv")
 
     if brain_file and vault_path then
         os.remove(brain_file)
@@ -20,6 +21,10 @@ function update_from_vault(brain_file)
         local_update(brain_file, sql_commands)
 
         vault_to_sql(vault_path, brain_file)
+    end
+
+    if task_file then
+        import_delimited(brain_file, task_file, "todos", "\t")
     end
 end
 
