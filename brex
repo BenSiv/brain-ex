@@ -13,7 +13,7 @@ add_to_path(script_path, "src")
 using("bx_utils")
 using("init")
 using("note")
-using("todo")
+using("task")
 using("update")
 using("sql")
 
@@ -23,7 +23,7 @@ Usage: brex < command > < arguments >
 
        brex init < --vault >
        brex note < add | update >
-       brex todo < list | add | done >
+       brex task < list | add | done >
        brex update
        brex sql < --query >
     ]]
@@ -41,7 +41,7 @@ local function main()
             add = take_note,
             update = update_note
         },
-        ["todo"] = {
+        ["task"] = {
             add = add_task,
             list = list_tasks,
             done = mark_done

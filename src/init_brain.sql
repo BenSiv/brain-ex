@@ -14,7 +14,7 @@ CREATE TABLE connections (
     PRIMARY KEY ("source", "target")
 );
 
-CREATE TABLE todos (
+CREATE TABLE tasks (
     "id" INTEGER PRIMARY KEY,
     "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "task" TEXT,

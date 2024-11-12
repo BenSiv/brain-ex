@@ -1,5 +1,5 @@
 -- Define a module table
-local todo = {}
+local task = {}
 
 local sqlite = require("sqlite3")
 local os = require("os")
@@ -14,7 +14,7 @@ end
 
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
-    local query = "SELECT id, due_to FROM todos WHERE done=0;"
+    local query = "SELECT id, due_to FROM tasks WHERE done=0;"
     local unfinished = local_query(brain_file, query)
 
     local overdue = false
@@ -22,7 +22,7 @@ function update_overdue(brain_file)
     for _, task in pairs(unfinished) do
         overdue = check_overdue(task.due_to)
         if overdue then
-            update_statement = "UPDATE todos SET overdue = 1 WHERE id = " .. task.id .. ";"
+            update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
             local_update(brain_file, update_statement)
         end
     end
@@ -32,7 +32,7 @@ function backup_tasks(brain_file)
     local vault_dir = get_vault_path()
     if vault_dir then
         local backup_path = joinpath(vault_dir, "tasks.tsv")
-        export_delimited(brain_file, "SELECT * FROM todos;", backup_path, "\t", true)
+        export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
 end
 
@@ -48,8 +48,8 @@ function add_task(brain_file)
     end
 
     local overdue = check_overdue(due_to) and 1 or 0
-    local id = generate_id("todos")
-    local insert_statement = "INSERT INTO todos (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', '0');"
+    local id = generate_id("tasks")
+    local insert_statement = "INSERT INTO tasks (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', '0');"
     -- write note info
     local_update(brain_file, insert_statement)
     backup_tasks(brain_file)
@@ -58,10 +58,10 @@ end
 function list_tasks(brain_file)
     update_overdue(brain_file)
 
-    local query = "SELECT id, task, due_to, overdue FROM todos WHERE done=0 order by due_to;"
+    local query = "SELECT id, task, due_to, overdue FROM tasks WHERE done=0 order by due_to;"
 
-    local todos_empty = is_sqlite_empty(brain_file, "todos")
-    if todos_empty then
+    local tasks_empty = is_sqlite_empty(brain_file, "tasks")
+    if tasks_empty then
         print("Empty task list")
         return
     end
@@ -82,15 +82,15 @@ end
 
 function mark_done(brain_file)
     local task_id = input("Enter the ID of the task to mark as done: ")
-    local update_statement = "UPDATE todos SET done = 1 WHERE id = " .. task_id .. ";"
+    local update_statement = "UPDATE tasks SET done = 1 WHERE id = " .. task_id .. ";"
     local_update(brain_file, update_statement)
     backup_tasks(brain_file)
 end
 
 -- Add the function to the module
-todo.add_task = add_task
-todo.list_tasks = list_tasks
-todo.mark_done = mark_done
+task.add_task = add_task
+task.list_tasks = list_tasks
+task.mark_done = mark_done
 
 -- Export the module
-return todo
+return task

@@ -40,6 +40,7 @@ function init_bx_with_vault()
     local brain_path = joinpath(current_dir, brain_file)
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
+    local task_file = joinpath(vault_dir, "tasks.tsv")
 
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -50,6 +51,8 @@ function init_bx_with_vault()
 
     -- create database and tables
     local_update(brain_path, sql_commands)
+
+    import_delimited(brain_path, task_file, "tasks", "\t")    
 
     -- store info in ~/.bx file
     local dot_file = io.open(home_dir .. "/.bx", "w")
