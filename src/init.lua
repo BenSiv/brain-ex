@@ -7,6 +7,21 @@ local vault_to_sql = require("vault_to_sql").vault_to_sql
 local script_path = debug.getinfo(1, "S").source:sub(2)
 local script_dir = get_parent_dir(script_path)
 
+function build_config_dir(home_dir)
+    local config_dir = joinpath(home_dir, ".config", "brain-ex")
+
+    -- Check if the directory exists
+    local attr = lfs.attributes(config_dir)
+    if not attr then
+        -- Directory does not exist; create it
+        local success, err = lfs.mkdir(config_dir)
+        if not success then
+            print("Error creating directory:", err)
+        end
+    end
+    return config_dir
+end
+
 function init_bx()
     -- get database name
     io.write("Brain name: ")
@@ -25,10 +40,12 @@ function init_bx()
     -- create database and tables
     local_update(brain_path, sql_commands)
 
-    -- store info in ~/.bx filr
-    local dot_file = io.open(home_dir .. "/.bx", "w")
-    dot_file:write("brain: " .. brain_path)
-    dot_file:close()
+    -- store info in ~/.config/brain-ex/config.yaml filr
+    local config_dir = build_config_dir(home_dir)
+    local config_file = joinpath(config_dir, "config.yaml")
+    local file = io.open(config_file, "w")
+    file:write("brain: " .. brain_path)
+    file:close()
 end
 
 function init_bx_with_vault()
@@ -54,11 +71,13 @@ function init_bx_with_vault()
 
     import_delimited(brain_path, task_file, "tasks", "\t")    
 
-    -- store info in ~/.bx file
-    local dot_file = io.open(home_dir .. "/.bx", "w")
-    dot_file:write("vault: " .. vault_path .. "\n")
-    dot_file:write("brain: " .. brain_path)
-    dot_file:close()
+    -- store info in ~/.config/brain-ex/config.yaml filr
+    local config_dir = build_config_dir(home_dir)
+    local config_file = joinpath(config_dir, "config.yaml")
+    local file = io.open(config_file, "w")
+    file:write("vault: " .. vault_path .. "\n")
+    file:write("brain: " .. brain_path)
+    file:close()
 
     vault_to_sql(vault_path, brain_path)
 end

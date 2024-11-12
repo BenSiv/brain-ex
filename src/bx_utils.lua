@@ -4,30 +4,30 @@ local bx_utils = {}
 require("utils").using("utils")
 local sqlite = require("sqlite3")
 
-local function get_dot_file()
+local function get_config_file()
     local home_dir = os.getenv("HOME")
-    local dot_file_path = home_dir .. "/.bx"
-    local dot_file = io.open(dot_file_path, "r")
+    local config_file_path = joinpath(home_dir, "brain-ex", "config.yaml")
+    local config_file = io.open(config_file_path, "r")
 
-    if not dot_file then
+    if not config_file then
         print("Error: ~/.bx file do not exist, run brex init.")
         return nil
     end
 
-    dot_file:close()
-    return dot_file_path
+    config_file:close()
+    return config_file_path
 end
 
 function get_brain_file()
-    local dot_file_path = get_dot_file()
-    local content = read_yaml(dot_file_path)
+    local config_file_path = get_config_file()
+    local content = read_yaml(config_file_path)
     local brain_file = content["brain"]
     return brain_file
 end
 
 function get_vault_path()
-    local dot_file_path = get_dot_file()
-    local content = read_yaml(dot_file_path)
+    local config_file_path = get_config_file()
+    local content = read_yaml(config_file_path)
     local vault_dir = content["vault"]
     return vault_dir
 end
