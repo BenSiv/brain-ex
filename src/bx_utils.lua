@@ -6,11 +6,11 @@ local sqlite = require("sqlite3")
 
 local function get_config_file()
     local home_dir = os.getenv("HOME")
-    local config_file_path = joinpath(home_dir, "brain-ex", "config.yaml")
+    local config_file_path = joinpath(home_dir, ".config", "brain-ex", "config.yaml")
     local config_file = io.open(config_file_path, "r")
 
     if not config_file then
-        print("Error: ~/.bx file do not exist, run brex init.")
+        print("Error: ~/.config/brain-ex/config.yaml file do not exist, run brex init.")
         return nil
     end
 
