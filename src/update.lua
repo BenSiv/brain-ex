@@ -23,7 +23,7 @@ function update_from_vault(brain_file)
         vault_to_sql(vault_path, brain_file)
     end
 
-    if task_file then
+    if file_exists(task_file) then
         import_delimited(brain_file, task_file, "tasks", "\t")
     end
 end
