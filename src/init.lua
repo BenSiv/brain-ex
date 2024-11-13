@@ -7,30 +7,15 @@ local vault_to_sql = require("vault_to_sql").vault_to_sql
 local script_path = debug.getinfo(1, "S").source:sub(2)
 local script_dir = get_parent_dir(script_path)
 
-function build_dir_if_not_exists(path)
-	local dir_path = joinpath(path)
-	-- Check if the directory exists
-	local attr = lfs.attributes(path)
-	if not attr then
-	    -- Directory does not exist; create it
-	    local success, err = lfs.mkdir(path)
-	    if not success then
-	        print("Error creating directory:", err)
-	        return 
-	    end
-	end
-	return true
-end
-
 function build_config_dir(home_dir)
 	local config_dir = joinpath(home_dir, ".config")
-	local status = build_dir_if_not_exists(config_dir)
+	local status = create_dir_if_not_exists(config_dir)
 	if not status then
 		return
 	end
 
 	local bx_config_dir = joinpath(home_dir, ".config", "brain-ex")
-	status = build_dir_if_not_exists(bx_config_dir)
+	status = create_dir_if_not_exists(bx_config_dir)
 
 	if not status then
 		return
@@ -75,7 +60,7 @@ function init_bx_with_vault()
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
     local task_file = joinpath(vault_dir, "tasks.tsv")
-
+	
     -- remove old brain_path if it exists
     os.remove(brain_path)
 
@@ -86,12 +71,14 @@ function init_bx_with_vault()
     -- create database and tables
     local_update(brain_path, sql_commands)
 
-    import_delimited(brain_path, task_file, "tasks", "\t")    
-
+	if file_exists(task_file) then
+    	import_delimited(brain_path, task_file, "tasks", "\t")    
+	end
+	
     -- store info in ~/.config/brain-ex/config.yaml filr
     local config_dir = build_config_dir(home_dir)
     local config_file = joinpath(config_dir, "config.yaml")
-    local file = io.open(config_file, "w")
+    file = io.open(config_file, "w")
     file:write("vault: " .. vault_path .. "\n")
     file:write("brain: " .. brain_path)
     file:close()
