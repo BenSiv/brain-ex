@@ -24,7 +24,7 @@ function update_from_vault(brain_file)
     end
 
     if task_file then
-        import_delimited(brain_file, task_file, "todos", "\t")
+        import_delimited(brain_file, task_file, "tasks", "\t")
     end
 end
 
