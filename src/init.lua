@@ -24,13 +24,13 @@ end
 
 function build_config_dir(home_dir)
 	local config_dir = joinpath(home_dir, ".config")
-	local status = build_dir_if_not_exists(config_dir
+	local status = build_dir_if_not_exists(config_dir)
 	if not status then
 		return
 	end
 
 	local bx_config_dir = joinpath(home_dir, ".config", "brain-ex")
-	status = build_dir_if_not_exists(bx_config_dir
+	status = build_dir_if_not_exists(bx_config_dir)
 
 	if not status then
 		return
