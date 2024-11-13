@@ -7,19 +7,36 @@ local vault_to_sql = require("vault_to_sql").vault_to_sql
 local script_path = debug.getinfo(1, "S").source:sub(2)
 local script_dir = get_parent_dir(script_path)
 
-function build_config_dir(home_dir)
-    local config_dir = joinpath(home_dir, ".config", "brain-ex")
+function build_dir_if_not_exists(path)
+	local dir_path = joinpath(path)
+	-- Check if the directory exists
+	local attr = lfs.attributes(path)
+	if not attr then
+	    -- Directory does not exist; create it
+	    local success, err = lfs.mkdir(path)
+	    if not success then
+	        print("Error creating directory:", err)
+	        return 
+	    end
+	end
+	return true
+end
 
-    -- Check if the directory exists
-    local attr = lfs.attributes(config_dir)
-    if not attr then
-        -- Directory does not exist; create it
-        local success, err = lfs.mkdir(config_dir)
-        if not success then
-            print("Error creating directory:", err)
-        end
-    end
-    return config_dir
+function build_config_dir(home_dir)
+	local config_dir = joinpath(home_dir, ".config")
+	local status = build_dir_if_not_exists(config_dir
+	if not status then
+		return
+	end
+
+	local bx_config_dir = joinpath(home_dir, ".config", "brain-ex")
+	status = build_dir_if_not_exists(bx_config_dir
+
+	if not status then
+		return
+	end
+	
+    return bx_config_dir
 end
 
 function init_bx()
