@@ -22,7 +22,7 @@ local function print_help()
 Usage: brex < command > < arguments >
 
        brex init < --vault >
-       brex note < add | update >
+       brex note < add | update | last >
        brex task < list | add | done >
        brex update
        brex sql < --query >
@@ -39,7 +39,8 @@ local function main()
         },
         ["note"] = {
             add = take_note,
-            update = update_note
+            update = update_note,
+            last = last_notes
         },
         ["task"] = {
             add = add_task,

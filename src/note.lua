@@ -135,8 +135,23 @@ function update_note(brain_file)
     return "success"
 end
 
+function last_notes(brain_file, group, num)
+    group = group or "daily-notes"
+    num = num or 5
+
+    local query = string.format("SELECT name, content FROM notes WHERE [group]='%s' ORDER BY name DESC LIMIT %s", group, num)
+    local command = table.concat({"sqlite3", brain_file, "-column", "-header", '"'..query..'"'}, " ")
+
+    local handle = io.popen(command)
+    local result = handle:read("*a")
+    handle:close()
+
+    print(result)
+end
+
 note.take_note = take_note
 note.update_note = update_note
+note.last_notes = last_notes
 
 -- Export the module
 return note
