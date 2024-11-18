@@ -66,15 +66,9 @@ function list_tasks(brain_file)
         return
     end
 
-    local db = sqlite.open(brain_file)
-    local result_rows = {}
-    for row in db:rows(query) do
-        table.insert(result_rows, row)
-    end
-    db:close()
-    
-    if length(result_rows) > 0 then
-        view(result_rows)
+    result = local_query(brain_file, query)
+    if length(result) > 0 then
+        view(result)
     else
         print("Empty task list")
     end
