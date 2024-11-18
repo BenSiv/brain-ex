@@ -135,9 +135,17 @@ function update_note(brain_file)
     return "success"
 end
 
-function last_notes(brain_file, group, num)
-    group = group or "daily-notes"
-    num = num or 5
+function last_notes(brain_file)
+	local group = user.input("Context group: ")
+	local num = user.input("Number of entries: ")
+	
+	if group == "" then
+		group = "daily-notes"
+	end
+
+	if num == "" then
+		num = "5"
+	end
 
     local query = string.format("SELECT name, content FROM notes WHERE [group]='%s' ORDER BY name DESC LIMIT %s", group, num)
     local command = table.concat({"sqlite3", brain_file, "-column", "-header", '"'..query..'"'}, " ")
