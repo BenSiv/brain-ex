@@ -20,5 +20,5 @@ CREATE TABLE tasks (
     "task" TEXT,
     "due_to" TIMESTAMP,
     "overdue" INTEGER,
-    "done" INTEGER
+    "done" TIMESTAMP DEFAULT NULL
 );

@@ -14,7 +14,7 @@ end
 
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
-    local query = "SELECT id, due_to FROM tasks WHERE done=0;"
+    local query = "SELECT id, due_to FROM tasks WHERE done IS NULL;"
     local unfinished = local_query(brain_file, query)
 
     local overdue = false
@@ -49,7 +49,7 @@ function add_task(brain_file)
 
     local overdue = check_overdue(due_to) and 1 or 0
     local id = generate_id("tasks")
-    local insert_statement = "INSERT INTO tasks (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', '0');"
+    local insert_statement = "INSERT INTO tasks (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', NULL);"
     -- write note info
     local_update(brain_file, insert_statement)
     backup_tasks(brain_file)
@@ -58,7 +58,7 @@ end
 function list_tasks(brain_file)
     update_overdue(brain_file)
 
-    local query = "SELECT id, task, due_to, overdue FROM tasks WHERE done=0 order by due_to;"
+    local query = "SELECT id, task, due_to, overdue FROM tasks WHERE done IS NULL order by due_to;"
 
     local tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
@@ -82,10 +82,12 @@ end
 
 function mark_done(brain_file)
     local task_id = input("Enter the ID of the task to mark as done: ")
-    local update_statement = "UPDATE tasks SET done = 1 WHERE id = " .. task_id .. ";"
+    -- Update the `done` column with the current timestamp
+    local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP WHERE id = " .. task_id .. ";"
     local_update(brain_file, update_statement)
     backup_tasks(brain_file)
 end
+
 
 -- Add the function to the module
 task.add_task = add_task
