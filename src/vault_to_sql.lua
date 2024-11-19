@@ -120,8 +120,15 @@ local function extract_links(line, link_found)
     return processed_line, link_found
 end
 
+local function clean_content(content)
+    local cleaned_content = replace_string(content, "'", "")
+    cleaned_content = replace_string(content, '"', "")
+    return cleaned_content
+end
+
 local function process_content(content)
     content = unescape_string(content)
+    content = clean_content(content)
     local content_lines = get_lines(content)
     local processed_lines = {}
     local link_found = {}
