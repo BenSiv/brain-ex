@@ -122,7 +122,7 @@ end
 
 local function clean_content(content)
     local cleaned_content = replace_string(content, "'", "")
-    cleaned_content = replace_string(content, '"', "")
+    cleaned_content = replace_string(cleaned_content, '"', "")
     return cleaned_content
 end
 
