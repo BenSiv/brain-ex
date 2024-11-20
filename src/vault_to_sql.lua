@@ -147,6 +147,10 @@ end
 
 function vault_to_sql(vault_path, brain_file)
     local vault_content = read_vault(vault_path)
+    if not vault_content then
+        print("Failed to read vault")
+        return nil
+    end
     local db = sqlite.open(brain_file)
     db:exec("BEGIN TRANSACTION;")
     for group, notes in pairs(vault_content) do
@@ -178,6 +182,7 @@ function vault_to_sql(vault_path, brain_file)
 
     db:exec("COMMIT;")
     db:close()
+    return "success"
 end
 
 vault_update.vault_to_sql = vault_to_sql

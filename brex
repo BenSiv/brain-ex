@@ -59,7 +59,7 @@ local function main()
 
     local func
     if length(arg) == 0 then
-        print("missing command\n")
+        -- print("missing command\n")
         print_help()
     elseif length(arg) == 1 then
 	    local command = arg[1]

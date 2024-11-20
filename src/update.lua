@@ -18,14 +18,27 @@ function update_from_vault(brain_file)
         local sql_commands = read(init_file)
 
         -- create database and tables
-        local_update(brain_file, sql_commands)
+        local status = local_update(brain_file, sql_commands)
+        if not status then
+            print("Failed to update database")
+            return nil
+        end
 
-        vault_to_sql(vault_path, brain_file)
+        local status = vault_to_sql(vault_path, brain_file)
+        if not status then
+            print("Failed to update from vault")
+            return nil
+        end
     end
 
     if file_exists(task_file) then
-        import_delimited(brain_file, task_file, "tasks", "\t")
+        local status = import_delimited(brain_file, task_file, "tasks", "\t")
+        if not status then
+            print("Failed to import tasks")
+            return nil
+        end
     end
+    return "success"
 end
 
 -- Export the module

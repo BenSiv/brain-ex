@@ -7,19 +7,30 @@ local user = require("user")
 
 local function insert_note(brain_file, group, title, content)
     local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. table.concat(content, "\n") .. "');"
-    -- write note info
-    local_update(brain_file, insert_statement)
+    local status = local_update(brain_file, insert_statement)
+    if not status then
+        print("Failed to update database")
+        return nil
+    end
     return "success"
 end
 
 local function append_content(brain_file, group, title, content)
     local query = string.format("SELECT content FROM notes WHERE [name]='%s' AND [group]='%s';", title, group)
     local result = local_query(brain_file, query)
+    if not result then
+        print("Failed to query note")
+        return nil
+    end
     local new_content = result[1].content .. "\n" .. table.concat(content, "\n")
 
     local update_statement = string.format("UPDATE notes SET content='%s' WHERE [name]='%s' AND [group]='%s';", new_content, title, group)
-    -- write note info
-    local_update(brain_file, update_statement)
+
+    local status = local_update(brain_file, update_statement)
+    if not status then
+        print("Failed to update database")
+        return nil
+    end
     return "success"
 end
 
@@ -30,8 +41,12 @@ local function connect_notes(brain_file, source, links)
         insert_statement = insert_statement .. statement_value
     end
     insert_statement = slice(insert_statement, 1, length(insert_statement)-2) .. ";"
-    -- write note info
-    local_update(brain_file, insert_statement)
+
+    local status = local_update(brain_file, insert_statement)
+    if not status then
+        print("Failed to connect notes")
+        return nil
+    end
     return "success"
 end
 

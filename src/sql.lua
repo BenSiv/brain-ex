@@ -8,6 +8,9 @@ end
 function sqlite_query(brain_file)
     local query = input("Query: ")
     local results = local_query(brain_file, query)
+    if not results then
+        return nil
+    end
     view(results)
 end
 
