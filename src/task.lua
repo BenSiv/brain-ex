@@ -82,11 +82,32 @@ function mark_done(brain_file)
     backup_tasks(brain_file)
 end
 
+function delay_due(brain_file)
+    local task_id = input("Task ID or * for all: ")
+    local time_input_str = input("Due To: ")
+    local due_to = normalize_datetime(time_input_str)
+
+    if not is_valid_timestamp(due_to) then
+        print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
+        return
+    end
+
+    local overdue = check_overdue(due_to) and 1 or 0
+    local update_statement
+    if task_id == "*" then
+        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE done IS NULL;", due_to, overdue)
+    else
+        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, overdue, task_id)
+    end
+    local_update(brain_file, update_statement)
+    backup_tasks(brain_file)
+end
 
 -- Add the function to the module
 task.add_task = add_task
 task.list_tasks = list_tasks
 task.mark_done = mark_done
+task.delay_due = delay_due
 
 -- Export the module
 return task

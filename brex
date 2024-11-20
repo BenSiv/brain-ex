@@ -23,7 +23,7 @@ Usage: brex < command > < arguments >
 
        brex init < --vault >
        brex note < add | update | last >
-       brex task < list | add | done >
+       brex task < list | add | done | delay >
        brex update
        brex sql < --query >
     ]]
@@ -45,7 +45,8 @@ local function main()
         ["task"] = {
             add = add_task,
             list = list_tasks,
-            done = mark_done
+            done = mark_done,
+            delay = delay_due
         },
         ["update"] = {
             default = update_from_vault
