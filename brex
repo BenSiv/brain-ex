@@ -38,11 +38,13 @@ local function main()
             ["--vault"] = init_bx_with_vault
         },
         ["note"] = {
+            default = todays_note,
             add = take_note,
             update = update_note,
             last = last_notes
         },
         ["task"] = {
+            default = add_task,
             add = add_task,
             list = list_tasks,
             done = mark_done,
@@ -57,48 +59,33 @@ local function main()
         }
     }
 
-    local func
     if length(arg) == 0 then
-        -- print("missing command\n")
         print_help()
-    elseif length(arg) == 1 then
-	    local command = arg[1]
-        if command == "init" then
-            local func = command_parser[command]["default"]
-            func()
-        elseif command == "update" or command == "sql" then
-            local func = command_parser[command]["default"]
-            local brain_file = get_brain_file()
-            func(brain_file)
-        elseif occursin(command, command_parser) then
-            print("'" .. command .. "' is missing arguments\n")
-            print_help()
-        else
-            print("'" .. command .. "' is not a valid command\n")
-            print_help()
-        end
-    elseif length(arg) == 2 then
-        local command = arg[1]
-        local argument = arg[2]
-	    if command_parser[command] then
-            if command_parser[command][argument] then
-                local func = command_parser[command][argument]
-                local brain_file
-                if command ~= "init" then
-                    brain_file = get_brain_file()
-                end
-                func(brain_file)
-            else
-                print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")
-                print_help()
-            end
-        else
-            print("'" .. command .. "' is not a valid command\n")
-            print_help()
-        end
+        return
+    end
+
+    local command = arg[1]
+    local argument = arg[2] or "default"
+
+    local command_config = command_parser[command]
+    if not command_config then
+        print("'" .. command .. "' is not a valid command\n")
+        print_help()
+        return
+    end
+
+    local func = command_config[argument]
+    if not func then
+        print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")
+        print_help()
+        return
+    end
+
+    if command ~= "init" then
+        local brain_file = get_brain_file()
+        func(brain_file)
     else
-        print("too many arguments given\n")
-        print_help()
+        func()
     end
 end
 

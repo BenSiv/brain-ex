@@ -78,7 +78,7 @@ local function write_note(vault_dir, group, title, content, links)
     return "success"
 end
 
-function take_note(brain_file)
+local function take_note(brain_file)
     -- get note info
     local group = user.input("Context group: ")
     local title = user.input("Title: ")
@@ -114,7 +114,7 @@ function take_note(brain_file)
     return "success"
 end
 
-function update_note(brain_file)
+local function update_note(brain_file)
     -- get note info
     local group = user.input("Context group: ")
     local title = user.input("Title: ")
@@ -150,7 +150,7 @@ function update_note(brain_file)
     return "success"
 end
 
-function last_notes(brain_file)
+local function last_notes(brain_file)
 	local group = user.input("Context group: ")
 	local num = user.input("Number of entries: ")
 	
@@ -172,9 +172,68 @@ function last_notes(brain_file)
     print(result)
 end
 
+local function todays_note(brain_file)
+    -- Get today's date in the format "YYYY-MM-DD"
+    local today_date = os.date("%Y-%m-%d")
+    local group = "daily-notes"
+    local title = today_date
+
+    local content = user.inputs("Content: ")
+    local links = user.inputs("Links: ")
+
+    local vault_dir = get_vault_path()
+
+    -- Check if the note exists
+    local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE [name]='%s' AND [group]='%s';", title, group)
+    local result = local_query(brain_file, query)
+    if not result then
+        print("Failed to query note database")
+        return
+    end
+
+    local note_exists = tonumber(result[1].count) > 0
+
+    -- If the note exists, update it; otherwise, create a new one
+    if not isempty(content) then
+        if note_exists then
+            local append_status = append_content(brain_file, group, title, content)
+            if not append_status then
+                print("Error: append content failed")
+                return
+            end
+        else
+            local insert_status = insert_note(brain_file, group, title, content)
+            if not insert_status then
+                print("Error: note insertion failed")
+                return
+            end
+        end
+    end
+
+    if not isempty(links) then
+        local connect_status = connect_notes(brain_file, title, links)
+        if not connect_status then
+            print("Error: notes connection failed")
+            return
+        end
+    end
+
+    if vault_dir then
+        local write_status = write_note(vault_dir, group, title, content, links)
+        if not write_status then
+            print("Error: note writing to file failed")
+            return
+        end
+    end
+
+    return "success"
+end
+
+
 note.take_note = take_note
 note.update_note = update_note
 note.last_notes = last_notes
+note.todays_note = todays_note
 
 -- Export the module
 return note
