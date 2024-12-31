@@ -150,26 +150,54 @@ local function update_note(brain_file)
     return "success"
 end
 
-local function last_notes(brain_file)
-	local group = user.input("Context group: ")
-	local num = user.input("Number of entries: ")
+-- local function last_notes(brain_file)
+-- 	local group = user.input("Context group: ")
+-- 	local num = user.input("Number of entries: ")
 	
-	if group == "" then
-		group = "daily-notes"
-	end
+-- 	if group == "" then
+-- 		group = "daily-notes"
+-- 	end
 
-	if num == "" then
-		num = "5"
-	end
+-- 	if num == "" then
+-- 		num = "5"
+-- 	end
+
+--     local query = string.format("SELECT name, content FROM notes WHERE [group]='%s' ORDER BY name DESC LIMIT %s", group, num)
+--     local command = table.concat({"sqlite3", brain_file, "-column", "-header", '"'..query..'"'}, " ")
+
+--     local handle = io.popen(command)
+--     local result = handle:read("*a")
+--     handle:close()
+
+--     print(result)
+-- end
+
+local function last_notes(brain_file)
+    local group = user.input("Context group: ")
+    local num = user.input("Number of entries: ")
+
+    if group == "" then
+        group = "daily-notes"
+    end
+
+    if num == "" then
+        num = "5"
+    end
 
     local query = string.format("SELECT name, content FROM notes WHERE [group]='%s' ORDER BY name DESC LIMIT %s", group, num)
-    local command = table.concat({"sqlite3", brain_file, "-column", "-header", '"'..query..'"'}, " ")
 
-    local handle = io.popen(command)
-    local result = handle:read("*a")
-    handle:close()
+    local notes_empty = is_sqlite_empty(brain_file, "notes")
+    if notes_empty then
+        print("No notes available")
+        return
+    end
 
-    print(result)
+    local result = local_query(brain_file, query)
+    if length(result) > 0 then
+        view(result)
+    else
+        print("No notes available")
+    end
 end
 
 local function todays_note(brain_file)
