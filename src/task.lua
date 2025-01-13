@@ -42,7 +42,10 @@ function add_task(brain_file)
     local time_input_str = input("Due To: ")
     local due_to = normalize_datetime(time_input_str)
 
-    if not is_valid_timestamp(due_to) then
+	if not due_to then
+		local current_time = os.time()
+		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
+    elseif not is_valid_timestamp(due_to) then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
         return
     end
@@ -76,8 +79,8 @@ end
 
 function mark_done(brain_file)
     local task_id = input("Enter the ID of the task to mark as done: ")
-    -- Update the `done` column with the current timestamp
-    local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP WHERE id = " .. task_id .. ";"
+    local comment = input("Enter done comment: ")
+    local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. comment .. "' WHERE id = " .. task_id .. ";"
     local_update(brain_file, update_statement)
     backup_tasks(brain_file)
 end
