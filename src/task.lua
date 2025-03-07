@@ -90,7 +90,10 @@ function delay_due(brain_file)
     local time_input_str = input("Due To: ")
     local due_to = normalize_datetime(time_input_str)
 
-    if not is_valid_timestamp(due_to) then
+    if not due_to then
+   		local current_time = os.time()
+   		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
+    elseif not is_valid_timestamp(due_to) then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
         return
     end

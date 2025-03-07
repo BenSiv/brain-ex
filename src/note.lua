@@ -175,6 +175,7 @@ end
 local function last_notes(brain_file)
     local group = user.input("Context group: ")
     local num = user.input("Number of entries: ")
+    print("") -- new line
 
     if group == "" then
         group = "daily-notes"
@@ -194,7 +195,11 @@ local function last_notes(brain_file)
 
     local result = local_query(brain_file, query)
     if length(result) > 0 then
-        view(result)
+        -- view(result)
+        for i, note in pairs(result) do
+            bold(note.name)
+            print(note.content .. "\n")
+        end
     else
         print("No notes available")
     end
