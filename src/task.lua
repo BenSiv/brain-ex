@@ -75,7 +75,7 @@ function list_tasks(brain_file)
 
     result = local_query(brain_file, query)
     if length(result) > 0 then
-        view(result)
+        view(result, {columns={"id", "subject", "task", "due_to", "overdue"}})
     else
         print("Empty task list")
     end
