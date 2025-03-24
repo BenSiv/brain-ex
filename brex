@@ -16,6 +16,7 @@ using("note")
 using("task")
 using("update")
 using("sql")
+using("prettyprint")
 
 local function print_help()
     help_str = [[

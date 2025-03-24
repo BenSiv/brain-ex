@@ -38,6 +38,7 @@ end
 
 function add_task(brain_file)
     -- get note info
+    local subject = input("Subject: ") or "NULL"
     local task = input("Task: ")
     local time_input_str = input("Due To: ")
     local due_to = normalize_datetime(time_input_str)
@@ -52,7 +53,10 @@ function add_task(brain_file)
 
     local overdue = check_overdue(due_to) and 1 or 0
     local id = generate_id("tasks")
-    local insert_statement = "INSERT INTO tasks (id, task, due_to, overdue, done) VALUES (" .. id .. ", '" .. task .. "', '" .. due_to .. "', '" .. overdue .. "', NULL);"
+    local insert_statement = string.format([[
+    INSERT INTO tasks (id, subject, task, due_to, overdue, done)
+    VALUES ('%s', '%s', '%s', '%s', NULL);
+    ]], id, subject, task, due_to, overdue)
     -- write note info
     local_update(brain_file, insert_statement)
     backup_tasks(brain_file)
@@ -61,7 +65,7 @@ end
 function list_tasks(brain_file)
     update_overdue(brain_file)
 
-    local query = "SELECT id, task, due_to, overdue FROM tasks WHERE done IS NULL order by due_to;"
+    local query = "SELECT id, subject, task, due_to, overdue FROM tasks WHERE done IS NULL order by due_to;"
 
     local tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
