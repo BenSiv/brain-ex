@@ -55,7 +55,7 @@ function add_task(brain_file)
     local id = generate_id("tasks")
     local insert_statement = string.format([[
     INSERT INTO tasks (id, subject, task, due_to, overdue, done)
-    VALUES ('%s', '%s', '%s', '%s', NULL);
+    VALUES ('%s', '%s', '%s', '%s', '%s', NULL);
     ]], id, subject, task, due_to, overdue)
     -- write note info
     local_update(brain_file, insert_statement)
