@@ -65,7 +65,7 @@ end
 function list_tasks(brain_file)
     update_overdue(brain_file)
 
-    local query = "SELECT id, subject, task, due_to, overdue FROM tasks WHERE done IS NULL order by due_to;"
+    local query = "SELECT id, subject, task, due_to, overdue FROM tasks WHERE done IS NULL order by due_to, subject;"
 
     local tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
