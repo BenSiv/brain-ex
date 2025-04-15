@@ -133,16 +133,15 @@ local function edit_note(brain_file)
         return
     end
 
-    local output, success = exec_command(string.format("'%s' '%s'", editor, note_path))
+    local success = os.execute(string.format("'%s' '%s'", editor, note_path))
     if not success then
         print("Failed to open editor")
-        print(output)
         return
     end
 
-    success = update_note_from_file(note_path, brain_file)
+    success = update_note_from_file(brain_file, note_path)
     if not success then
-        print("Failed to edit note in brain-file")
+        print("Failed to edit note in brain file")
         return
     end
 

@@ -43,7 +43,7 @@ end
 
 local database = require("database")
 
-local function update_note_from_file(note_path, brain_file)
+local function update_note_from_file(brain_file, note_path)
 	note_path = note_path or user.input("Note path: ")
 
 	local title = "note"
@@ -67,32 +67,33 @@ local function update_note_from_file(note_path, brain_file)
 
 	-- Check if the note already exists
 	local select_stmt = string.format([[
-		SELECT id FROM notes
-		WHERE group_name = '%s' AND title = '%s';
+		SELECT COUNT(*) AS num FROM notes
+		WHERE [group] = '%s' AND name = '%s'
 	]], group, title)
-
-	local rows = database.local_query(brain_file, select_stmt)
+	
+	local num_rows = 0
+	local result = local_query(brain_file, select_stmt)
+	if result then
+		num_rows = tonumber(result[1].num)
+	end	
 
 	local stmt
-	if rows and #rows > 0 then
-		-- Note exists, update it using ID
-		local note_id = rows[1].id
+	if num_rows > 0 then
 		stmt = string.format([[
 			UPDATE notes
 			SET content = '%s'
-			WHERE id = %d;
-		]], content, note_id)
+			WHERE [group] = '%s' AND name = '%s';
+		]], content, group, title)
 	else
-		-- Note does not exist, insert new
 		stmt = string.format([[
-			INSERT INTO notes (group_name, title, content)
+			INSERT INTO notes ([group], name, content)
 			VALUES ('%s', '%s', '%s');
 		]], group, title, content)
 	end
 
-	local success = database.local_update(brain_file, stmt)
+	local success = local_update(brain_file, stmt)
 	if not success then
-		print("Failed to edit note in brain file")
+		print("Failed to note note from file: " .. note_path)
 		return
 	end
 
