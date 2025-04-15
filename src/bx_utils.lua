@@ -32,6 +32,13 @@ function get_vault_path()
     return vault_dir
 end
 
+function get_default_editor()
+    local config_file_path = get_config_file()
+    local content = read_yaml(config_file_path)
+    local editor = content["editor"]
+    return editor
+end
+
 local function is_id_unique(table_name, target_id)
     local brain_file = get_brain_file()
     local query = string.format("SELECT COUNT(*) FROM %s WHERE id = '%s';", table_name, target_id)
@@ -87,6 +94,7 @@ end
 
 bx_utils.get_brain_file = get_brain_file
 bx_utils.get_vault_path = get_vault_path
+bx_utils.get_default_editor = get_default_editor
 bx_utils.generate_id = generate_id
 bx_utils.is_timestamp = is_timestamp
 bx_utils.is_sqlite_empty = is_sqlite_empty

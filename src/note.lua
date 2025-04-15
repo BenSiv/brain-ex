@@ -114,62 +114,76 @@ local function take_note(brain_file)
     return "success"
 end
 
-local function update_note(brain_file)
-    -- get note info
+local function edit_note(brain_file)
     local group = user.input("Context group: ")
     local title = user.input("Title: ")
-    local content = user.inputs("Content: ")
-    local links = user.inputs("Links: ")
+    local default_editor = get_default_editor()
+    local vault_path = get_vault_path()
 
-    local vault_dir = get_vault_path()
+	if group == "" and title == "" then
+    	group = "daily-notes"
+    	title = os.date("%Y-%m-%d")
+	end
+	
+    local editor = default_editor or "nano"
 
-    if not isempty(content) then
-        local append_status = append_content(brain_file, group, title, content)
-        if not append_status then
-            print("Error: append content failed")
-            return
-        end
-    end
-    
-    if not isempty(links) then
-        local connect_status = connect_notes(brain_file, title, links)
-        if not connect_status then
-            print("Error: notes connection failed")
-            return
-        end
+    local note_path = vault_path .. "/" .. group .. "/" .. title .. ".md"
+    if not lfs.attributes(note_path) then
+        print("Note file does not exist: " .. note_path)
+        return
     end
 
-    if vault_dir then
-        local write_status = write_note(vault_dir, group, title, content, links)
-        if not write_status then
-            print("Error: note writing to file failed")
-            return
-        end
+    local output, success = exec_command(string.format("'%s' '%s'", editor, note_path))
+    if not success then
+        print("Failed to open editor")
+        print(output)
+        return
+    end
+
+    success = update_note_from_file(note_path, brain_file)
+    if not success then
+        print("Failed to edit note in brain-file")
+        return
     end
 
     return "success"
 end
 
--- local function last_notes(brain_file)
--- 	local group = user.input("Context group: ")
--- 	local num = user.input("Number of entries: ")
-	
--- 	if group == "" then
--- 		group = "daily-notes"
--- 	end
 
--- 	if num == "" then
--- 		num = "5"
--- 	end
-
---     local query = string.format("SELECT name, content FROM notes WHERE [group]='%s' ORDER BY name DESC LIMIT %s", group, num)
---     local command = table.concat({"sqlite3", brain_file, "-column", "-header", '"'..query..'"'}, " ")
-
---     local handle = io.popen(command)
---     local result = handle:read("*a")
---     handle:close()
-
---     print(result)
+-- local function update_note(brain_file)
+--     -- get note info
+--     local group = user.input("Context group: ")
+--     local title = user.input("Title: ")
+--     local content = user.inputs("Content: ")
+--     local links = user.inputs("Links: ")
+-- 
+--     local vault_dir = get_vault_path()
+-- 
+--     if not isempty(content) then
+--         local append_status = append_content(brain_file, group, title, content)
+--         if not append_status then
+--             print("Error: append content failed")
+--             return
+--         end
+--     end
+--     
+--     if not isempty(links) then
+--         local connect_status = connect_notes(brain_file, title, links)
+--         if not connect_status then
+--             print("Error: notes connection failed")
+--             return
+--         end
+--     end
+-- 
+--     if vault_dir then
+--         local write_status = write_note(vault_dir, group, title, content, links)
+--         if not write_status then
+--             print("Error: note writing to file failed")
+--             return
+--         end
+--     end
+-- 
+--     return "success"
 -- end
 
 local function last_notes(brain_file)
@@ -264,7 +278,8 @@ end
 
 
 note.take_note = take_note
-note.update_note = update_note
+-- note.update_note = update_note
+note.edit_note = edit_note
 note.last_notes = last_notes
 note.todays_note = todays_note
 

@@ -23,10 +23,10 @@ local function print_help()
 Usage: brex < command > < arguments >
 
        brex init < --vault >
-       brex note < add | update | last >
+       brex note < add | edit | last >
        brex task < list | add | done | delay >
-       brex update
-       brex sql < --query >
+       brex sql < query >
+       brex update < file >
     ]]
 
     print(help_str)
@@ -41,7 +41,7 @@ local function main()
         ["note"] = {
             default = todays_note,
             add = take_note,
-            update = update_note,
+            edit = edit_note,
             last = last_notes
         },
         ["task"] = {
@@ -52,11 +52,13 @@ local function main()
             delay = delay_due
         },
         ["update"] = {
-            default = update_from_vault
+            default = update_from_vault,
+            ["file"] = update_note_from_file
+            
         },
         ["sql"] = {
             default = sqlite_shell,
-            ["--query"] = sqlite_query
+            ["query"] = sqlite_query
         }
     }
 

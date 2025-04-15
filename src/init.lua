@@ -31,6 +31,8 @@ function init_bx()
     local current_dir = lfs.currentdir()
     local brain_path = current_dir .. "/" .. brain_name .. ".db"
     local home_dir = os.getenv("HOME")
+    io.write("Default editor: ")
+    local default_editor = io.read()
 
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -46,7 +48,8 @@ function init_bx()
     local config_dir = build_config_dir(home_dir)
     local config_file = joinpath(config_dir, "config.yaml")
     local file = io.open(config_file, "w")
-    file:write("brain: " .. brain_path)
+    file:write("brain: " .. brain_path .. "\n")
+    file:write("editor: " .. default_editor)
     file:close()
 end
 
@@ -60,6 +63,8 @@ function init_bx_with_vault()
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
     local task_file = joinpath(vault_dir, "tasks.tsv")
+    io.write("Default editor: ")
+    local default_editor = io.read()
 	
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -80,7 +85,8 @@ function init_bx_with_vault()
     local config_file = joinpath(config_dir, "config.yaml")
     file = io.open(config_file, "w")
     file:write("vault: " .. vault_path .. "\n")
-    file:write("brain: " .. brain_path)
+    file:write("brain: " .. brain_path .. "\n")
+    file:write("editor: " .. default_editor)
     file:close()
 
     vault_to_sql(vault_path, brain_path)
