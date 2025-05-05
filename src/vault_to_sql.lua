@@ -57,7 +57,7 @@ end
 
 local function read_note(vault_path, note)
     local note_path = joinpath(vault_path, note)
-    local note_name = replace_string(note, ".md", "")
+    local note_name = replace(note, ".md", "")
     local note_content = read(note_path)
     return {name = note_name, content = note_content}
 end
@@ -121,8 +121,8 @@ local function extract_links(line, link_found)
 end
 
 local function clean_content(content)
-    local cleaned_content = replace_string(content, "'", "")
-    cleaned_content = replace_string(cleaned_content, '"', "")
+    local cleaned_content = replace(content, "'", "")
+    cleaned_content = replace(cleaned_content, '"', "")
     return cleaned_content
 end
 
