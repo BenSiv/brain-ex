@@ -2,7 +2,7 @@
 local sql = {}
 
 function sqlite_shell(brain_file)
-    os.execute("sqlite3 " .. brain_file)
+    os.execute("sqlite3 -column -header " .. brain_file)
 end
 
 function sqlite_query(brain_file)

@@ -35,7 +35,7 @@ local function append_content(brain_file, group, title, content)
 end
 
 local function connect_notes(brain_file, source, links)
-    local insert_statement = "INSERT INTO connections (source, target) VALUES "
+    local insert_statement = "INSERT OR IGNORE INTO connections (source, target) VALUES "
     for index, target in pairs(links) do
         local statement_value = "('" .. source .. "', '" .. target .. "'), "
         insert_statement = insert_statement .. statement_value
