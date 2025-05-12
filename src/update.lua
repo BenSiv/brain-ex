@@ -47,15 +47,15 @@ local function update_note_from_file(brain_file, note_path)
 	note_path = note_path or user.input("Note path: ")
 
 	local title = "note"
-	local group = ""
+	local subject = ""
 	local vault_path = get_vault_path()
 	if vault_path then
-		-- Extract group and title from the note path
+		-- Extract subject and title from the note path
 		title = note_path:match("([^/]+)%.md$")
-		group = note_path:match(".*/([^/]+)/[^/]+%.md$")
+		subject = note_path:match(".*/([^/]+)/[^/]+%.md$")
 	else
 		title = title or user.input("Title: ")
-		group = group or user.input("Group: ")
+		subject = subject or user.input("Subject: ")
 	end
 
 	-- Read content from the note file
@@ -68,8 +68,8 @@ local function update_note_from_file(brain_file, note_path)
 	-- Check if the note already exists
 	local select_stmt = string.format([[
 		SELECT COUNT(*) AS num FROM notes
-		WHERE [group] = '%s' AND name = '%s'
-	]], group, title)
+		WHERE subject = '%s' AND name = '%s'
+	]], subject, title)
 	
 	local num_rows = 0
 	local result = local_query(brain_file, select_stmt)
@@ -82,13 +82,13 @@ local function update_note_from_file(brain_file, note_path)
 		stmt = string.format([[
 			UPDATE notes
 			SET content = '%s'
-			WHERE [group] = '%s' AND name = '%s';
-		]], content, group, title)
+			WHERE subject = '%s' AND name = '%s';
+		]], content, subject, title)
 	else
 		stmt = string.format([[
-			INSERT INTO notes ([group], name, content)
+			INSERT INTO notes (subject, name, content)
 			VALUES ('%s', '%s', '%s');
-		]], group, title, content)
+		]], subject, title, content)
 	end
 
 	local success = local_update(brain_file, stmt)

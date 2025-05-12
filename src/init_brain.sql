@@ -2,10 +2,10 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE notes (
     "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "group" TEXT,
+    "subject" TEXT,
     "name" TEXT,
     "content" TEXT,
-    PRIMARY KEY ("name", "group")
+    PRIMARY KEY ("name", "subject")
 );
 
 CREATE TABLE connections (

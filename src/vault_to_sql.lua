@@ -47,10 +47,10 @@ local function get_vault_files(vault_path)
     local vault_content = {}
     local dir_content = readdir(vault_path)
     vault_content["root"] = filter_markdown_files(dir_content)
-    local vault_groups = filter_directories(vault_path, dir_content)
-    for _, group in pairs(vault_groups) do
-        dir_content = readdir(vault_path .. "/" .. group)
-        vault_content[group] = filter_markdown_files(dir_content)
+    local vault_subjects = filter_directories(vault_path, dir_content)
+    for _, subject in pairs(vault_subjects) do
+        dir_content = readdir(vault_path .. "/" .. subject)
+        vault_content[subject] = filter_markdown_files(dir_content)
     end
     return vault_content
 end
@@ -66,8 +66,8 @@ local function read_vault(vault_path)
     local vault_files = get_vault_files(vault_path)
     local vault_content = {}
     local note_content
-    for _, group in pairs(keys(vault_files)) do
-        if group == "root" then
+    for _, subject in pairs(keys(vault_files)) do
+        if subject == "root" then
             vault_content["root"] = {}
             for _, note in pairs(vault_files["root"]) do
                 note_content = read_note(vault_path, note)
@@ -76,11 +76,11 @@ local function read_vault(vault_path)
                 end
             end
         else
-            vault_content[group] = {}
-            for _, note in pairs(vault_files[group]) do
-                note_path = joinpath(vault_path, group, note)
-                note_content = read_note(vault_path .. "/" .. group, note)
-                table.insert(vault_content[group], note_content)
+            vault_content[subject] = {}
+            for _, note in pairs(vault_files[subject]) do
+                note_path = joinpath(vault_path, subject, note)
+                note_content = read_note(vault_path .. "/" .. subject, note)
+                table.insert(vault_content[subject], note_content)
             end
         end
     end
@@ -153,17 +153,17 @@ function vault_to_sql(vault_path, brain_file)
     end
     local db = sqlite.open(brain_file)
     db:exec("BEGIN TRANSACTION;")
-    for group, notes in pairs(vault_content) do
+    for subject, notes in pairs(vault_content) do
         for _, note in pairs(notes) do
             local content, links = process_content(note.content)
             local note_path = ""
-            if group ~= "root" then
-                note_path = vault_path .. "/" .. group .. "/" .. note.name .. ".md"
+            if subject ~= "root" then
+                note_path = vault_path .. "/" .. subject .. "/" .. note.name .. ".md"
             else
                 note_path = vault_path .. "/" .. note.name .. ".md"
             end
             local last_update_time = get_last_update_time(note_path)
-            local insert_notes = "INSERT INTO notes ('time', 'group', 'name', 'content') VALUES ('" .. last_update_time .. "', '" .. group .. "', '" .. note.name .. "', '" .. content .. "');"
+            local insert_notes = "INSERT INTO notes ('time', 'subject', 'name', 'content') VALUES ('" .. last_update_time .. "', '" .. subject .. "', '" .. note.name .. "', '" .. content .. "');"
             db:exec(insert_notes)
 
             if length(links) > 0 then

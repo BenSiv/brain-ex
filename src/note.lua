@@ -5,8 +5,8 @@ local lfs = require("lfs")
 local get_vault_path = require("bx_utils").get_vault_path
 local user = require("user")
 
-local function insert_note(brain_file, group, title, content)
-    local insert_statement = "INSERT INTO notes ('group', 'name', 'content') VALUES ('" .. group .. "', '" .. title .. "', '" .. table.concat(content, "\n") .. "');"
+local function insert_note(brain_file, subject, title, content)
+    local insert_statement = "INSERT INTO notes ('subject', 'name', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. table.concat(content, "\n") .. "');"
     local status = local_update(brain_file, insert_statement)
     if not status then
         print("Failed to update database")
@@ -15,8 +15,8 @@ local function insert_note(brain_file, group, title, content)
     return "success"
 end
 
-local function append_content(brain_file, group, title, content)
-    local query = string.format("SELECT content FROM notes WHERE [name]='%s' AND [group]='%s';", title, group)
+local function append_content(brain_file, subject, title, content)
+    local query = string.format("SELECT content FROM notes WHERE name='%s' AND subject='%s';", title, subject)
     local result = local_query(brain_file, query)
     if not result then
         print("Failed to query note")
@@ -24,7 +24,7 @@ local function append_content(brain_file, group, title, content)
     end
     local new_content = result[1].content .. "\n" .. table.concat(content, "\n")
 
-    local update_statement = string.format("UPDATE notes SET content='%s' WHERE [name]='%s' AND [group]='%s';", new_content, title, group)
+    local update_statement = string.format("UPDATE notes SET content='%s' WHERE name='%s' AND subject='%s';", new_content, title, subject)
 
     local status = local_update(brain_file, update_statement)
     if not status then
@@ -50,13 +50,13 @@ local function connect_notes(brain_file, source, links)
     return "success"
 end
 
-local function write_note(vault_dir, group, title, content, links)
+local function write_note(vault_dir, subject, title, content, links)
     local obsidian_links = {}
     for index, link in pairs(links) do
         table.insert(obsidian_links, "[[" .. link .. "]] ")
     end
 
-    local note_dir = vault_dir .. "/" .. group
+    local note_dir = vault_dir .. "/" .. subject
     local note_path = note_dir .. "/" .. title .. ".md"
 
     -- Ensure the directory exists
@@ -80,7 +80,7 @@ end
 
 local function take_note(brain_file)
     -- get note info
-    local group = user.input("Context group: ")
+    local subject = user.input("Subject: ")
     local title = user.input("Title: ")
     local content = user.inputs("Content: ")
     local links = user.inputs("Links: ")
@@ -88,7 +88,7 @@ local function take_note(brain_file)
     local vault_dir = get_vault_path()
 
     if not isempty(content) then
-        local insert_status = insert_note(brain_file, group, title, content)
+        local insert_status = insert_note(brain_file, subject, title, content)
         if not insert_status then
             print("Error: note insertion failed")
             return
@@ -104,7 +104,7 @@ local function take_note(brain_file)
     end
 
     if vault_dir then
-        local write_status = write_note(vault_dir, group, title, content, links)
+        local write_status = write_note(vault_dir, subject, title, content, links)
         if not write_status then
             print("Error: note writing to file failed")
             return
@@ -115,19 +115,19 @@ local function take_note(brain_file)
 end
 
 local function edit_note(brain_file)
-    local group = user.input("Context group: ")
+    local subject = user.input("Subject: ")
     local title = user.input("Title: ")
     local default_editor = get_default_editor()
     local vault_path = get_vault_path()
 
-	if group == "" and title == "" then
-    	group = "daily-notes"
+	if subject == "" and title == "" then
+    	subject = "daily-notes"
     	title = os.date("%Y-%m-%d")
 	end
 	
     local editor = default_editor or "nano"
 
-    local note_path = vault_path .. "/" .. group .. "/" .. title .. ".md"
+    local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
     if not lfs.attributes(note_path) then
         print("Note file does not exist: " .. note_path)
         return
@@ -151,7 +151,7 @@ end
 
 -- local function update_note(brain_file)
 --     -- get note info
---     local group = user.input("Context group: ")
+--     local subject = user.input("Subject: ")
 --     local title = user.input("Title: ")
 --     local content = user.inputs("Content: ")
 --     local links = user.inputs("Links: ")
@@ -159,7 +159,7 @@ end
 --     local vault_dir = get_vault_path()
 -- 
 --     if not isempty(content) then
---         local append_status = append_content(brain_file, group, title, content)
+--         local append_status = append_content(brain_file, subject, title, content)
 --         if not append_status then
 --             print("Error: append content failed")
 --             return
@@ -175,7 +175,7 @@ end
 --     end
 -- 
 --     if vault_dir then
---         local write_status = write_note(vault_dir, group, title, content, links)
+--         local write_status = write_note(vault_dir, subject, title, content, links)
 --         if not write_status then
 --             print("Error: note writing to file failed")
 --             return
@@ -186,19 +186,19 @@ end
 -- end
 
 local function last_notes(brain_file)
-    local group = user.input("Context group: ")
+    local subject = user.input("Subject: ")
     local num = user.input("Number of entries: ")
     print("") -- new line
 
-    if group == "" then
-        group = "daily-notes"
+    if subject == "" then
+        subject = "daily-notes"
     end
 
     if num == "" then
         num = "5"
     end
 
-    local query = string.format("SELECT name, content FROM notes WHERE [group]='%s' ORDER BY name DESC LIMIT %s", group, num)
+    local query = string.format("SELECT name, content FROM notes WHERE subject='%s' ORDER BY name DESC LIMIT %s", subject, num)
 
     local notes_empty = is_sqlite_empty(brain_file, "notes")
     if notes_empty then
@@ -221,7 +221,7 @@ end
 local function todays_note(brain_file)
     -- Get today's date in the format "YYYY-MM-DD"
     local today_date = os.date("%Y-%m-%d")
-    local group = "daily-notes"
+    local subject = "daily-notes"
     local title = today_date
 
     local content = user.inputs("Content: ")
@@ -230,7 +230,7 @@ local function todays_note(brain_file)
     local vault_dir = get_vault_path()
 
     -- Check if the note exists
-    local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE [name]='%s' AND [group]='%s';", title, group)
+    local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE name='%s' AND subject='%s';", title, subject)
     local result = local_query(brain_file, query)
     if not result then
         print("Failed to query note database")
@@ -242,13 +242,13 @@ local function todays_note(brain_file)
     -- If the note exists, update it; otherwise, create a new one
     if not isempty(content) then
         if note_exists then
-            local append_status = append_content(brain_file, group, title, content)
+            local append_status = append_content(brain_file, subject, title, content)
             if not append_status then
                 print("Error: append content failed")
                 return
             end
         else
-            local insert_status = insert_note(brain_file, group, title, content)
+            local insert_status = insert_note(brain_file, subject, title, content)
             if not insert_status then
                 print("Error: note insertion failed")
                 return
@@ -265,7 +265,7 @@ local function todays_note(brain_file)
     end
 
     if vault_dir then
-        local write_status = write_note(vault_dir, group, title, content, links)
+        local write_status = write_note(vault_dir, subject, title, content, links)
         if not write_status then
             print("Error: note writing to file failed")
             return
