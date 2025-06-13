@@ -121,7 +121,7 @@ local function edit_note(brain_file)
     local vault_path = get_vault_path()
 
 	if subject == "" and title == "" then
-    	subject = "daily-notes"
+    	subject = "daily"
     	title = os.date("%Y-%m-%d")
 	end
 	
@@ -191,7 +191,7 @@ local function last_notes(brain_file)
     print("") -- new line
 
     if subject == "" then
-        subject = "daily-notes"
+        subject = "daily"
     end
 
     if num == "" then
@@ -221,7 +221,7 @@ end
 local function todays_note(brain_file)
     -- Get today's date in the format "YYYY-MM-DD"
     local today_date = os.date("%Y-%m-%d")
-    local subject = "daily-notes"
+    local subject = "daily"
     local title = today_date
 
     local content = user.inputs("Content: ")
