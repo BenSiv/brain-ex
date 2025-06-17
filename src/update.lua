@@ -1,7 +1,9 @@
 -- Define a module table
 local update = {}
 
+local database = require("database")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
+local process_content = require("vault_to_sql").process_content
 local get_vault_path = require("bx_utils").get_vault_path
 local script_path = debug.getinfo(1, "S").source:sub(2)
 local script_dir = get_parent_dir(script_path)
@@ -41,21 +43,20 @@ function update_from_vault(brain_file)
     return "success"
 end
 
-local database = require("database")
-
 local function update_note_from_file(brain_file, note_path)
 	note_path = note_path or user.input("Note path: ")
 
 	local title = "note"
 	local subject = ""
 	local vault_path = get_vault_path()
+
 	if vault_path then
 		-- Extract subject and title from the note path
 		title = note_path:match("([^/]+)%.md$")
 		subject = note_path:match(".*/([^/]+)/[^/]+%.md$")
 	else
-		title = title or user.input("Title: ")
-		subject = subject or user.input("Subject: ")
+		title = user.input("Title: ")
+		subject = user.input("Subject: ")
 	end
 
 	-- Read content from the note file
@@ -65,18 +66,24 @@ local function update_note_from_file(brain_file, note_path)
 		return
 	end
 
+	content, links = process_content(content)
+
+	-- Escape single quotes for SQL
+    content = content:gsub("'", "''")
+
 	-- Check if the note already exists
-	local select_stmt = string.format([[
+	local note_exists_query = string.format([[
 		SELECT COUNT(*) AS num FROM notes
 		WHERE subject = '%s' AND name = '%s'
 	]], subject, title)
 	
 	local num_rows = 0
-	local result = local_query(brain_file, select_stmt)
+	local result = local_query(brain_file, note_exists_query)
 	if result then
 		num_rows = tonumber(result[1].num)
-	end	
+	end
 
+	-- Construct INSERT or UPDATE statement
 	local stmt
 	if num_rows > 0 then
 		stmt = string.format([[
@@ -91,15 +98,38 @@ local function update_note_from_file(brain_file, note_path)
 		]], subject, title, content)
 	end
 
+	-- Execute the statement
 	local success = local_update(brain_file, stmt)
 	if not success then
-		print("Failed to note note from file: " .. note_path)
+		print("Failed to update note from file: " .. note_path)
 		return
 	end
 
+	-- Clear existing connections for this note
+    local clear_links = string.format("DELETE FROM connections WHERE source = '%s';", title)
+	success = local_update(brain_file, clear_links)
+	if not success then
+		print("Failed to clear note links from file: " .. note_path)
+		return
+	end
+
+	-- Insert updated links
+    if #links > 0 then
+        local insert_links = "INSERT INTO connections (source, target) VALUES "
+        for i, link in ipairs(links) do
+            insert_links = insert_links .. string.format("('%s', '%s')%s", title, link, i < #links and "," or ";")
+        end
+		success = local_update(brain_file, insert_links)
+		if not success then
+			print("Failed to update note links from file: " .. note_path)
+			return
+		end
+    end
+
+
+
 	return "success"
 end
-
 
 update.update_from_vault = update_from_vault
 update.update_note_from_file = update_note_from_file

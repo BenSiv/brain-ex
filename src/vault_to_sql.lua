@@ -185,6 +185,7 @@ function vault_to_sql(vault_path, brain_file)
     return "success"
 end
 
+vault_update.process_content = process_content
 vault_update.vault_to_sql = vault_to_sql
 
 -- Export the module
