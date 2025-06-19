@@ -17,7 +17,7 @@ CREATE TABLE connections (
 CREATE TABLE tasks (
     "id" INTEGER PRIMARY KEY,
     "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "task" TEXT,
+    "content" TEXT,
     "subject" TEXT,
     "due_to" TIMESTAMP,
     "overdue" INTEGER,
