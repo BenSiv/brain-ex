@@ -113,11 +113,24 @@ function delay_due(brain_file)
     backup_tasks(brain_file)
 end
 
+function last_done(brain_file)
+    local query = "SELECT content, comment FROM tasks WHERE done IS NOT NULL ORDER BY done DESC LIMIT 5"
+
+    result = local_query(brain_file, query)
+    if length(result) > 0 then
+        view(result)
+    else
+        print("No tasks to view")
+    end
+end
+
+
 -- Add the function to the module
 task.add_task = add_task
 task.list_tasks = list_tasks
 task.mark_done = mark_done
 task.delay_due = delay_due
+task.last_done = last_done
 
 -- Export the module
 return task
