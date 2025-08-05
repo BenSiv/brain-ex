@@ -4,6 +4,7 @@ local task = {}
 local sqlite = require("sqlite3")
 local os = require("os")
 local get_vault_path = require("bx_utils").get_vault_path
+local user = require("user")
 
 function check_overdue(due_to)
     local current_time = os.time()
@@ -114,11 +115,24 @@ function delay_due(brain_file)
 end
 
 function last_done(brain_file)
-    local query = "SELECT content, comment FROM tasks WHERE done IS NOT NULL ORDER BY done DESC LIMIT 5"
+    local subject = user.input("Subject: ")
+    local num = user.input("Number of entries: ")
+    print("") -- new line
+
+    local query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
+    if subject ~= "" then
+        query = query .. string.format("AND subject='%s'", subject)
+    end
+    
+    query = query .. " ORDER BY done DESC "
+
+    if num ~= "" then
+        query = query .. string.format("LIMIT %s", num)
+    end
 
     result = local_query(brain_file, query)
     if length(result) > 0 then
-        view(result)
+        view(result, {columns={"subject", "content", "comment"}})
     else
         print("No tasks to view")
     end
