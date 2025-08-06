@@ -26,13 +26,15 @@ end
 
 function init_bx()
     -- get database name
-    io.write("Brain name: ")
-    local brain_name = io.read()
+    -- io.write("Brain name: ")
+    -- local brain_name = io.read()
+    local brain_name = args["name"] or "brain"
     local current_dir = lfs.currentdir()
     local brain_path = current_dir .. "/" .. brain_name .. ".db"
     local home_dir = os.getenv("HOME")
-    io.write("Default editor: ")
-    local default_editor = io.read()
+    -- io.write("Default editor: ")
+    -- local default_editor = io.read()
+    local default_editor = args["editor"]
 
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -53,18 +55,20 @@ function init_bx()
     file:close()
 end
 
-function init_bx_with_vault()
+function init_bx_with_vault(args)
     -- get database name
-    io.write("Vault path: ")
-    local vault_dir = io.read()
+    -- io.write("Vault path: ")
+    -- local vault_dir = io.read()
+    local vault_dir = args["vault"]
     local current_dir = lfs.currentdir()
-    local brain_file = vault_dir .. ".db"
-    local brain_path = joinpath(current_dir, brain_file)
+    local brain_name = args["name"] or args["vault"]
+    local brain_path = joinpath(current_dir, brain_name .. ".db")
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
     local task_file = joinpath(vault_dir, "tasks.tsv")
-    io.write("Default editor: ")
-    local default_editor = io.read()
+    -- io.write("Default editor: ")
+    -- local default_editor = io.read()
+    local default_editor = args["editor"]
 	
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -92,8 +96,28 @@ function init_bx_with_vault()
     vault_to_sql(vault_path, brain_path)
 end
 
-init.init_bx = init_bx
-init.init_bx_with_vault = init_bx_with_vault
+local function init_brex()
+    local arg_string = [[
+        -n --name arg string false
+        -v --vault arg string false
+        -e --editor arg string false
+    ]]
 
--- Export the module
-return init
+    local expected_args = def_args(arg_string)
+    local args = parse_args(arg, expected_args)
+
+    if args["vault"] then
+        init_bx_with_vault(args)
+    else
+        init_bx()
+    end
+end
+
+init.init_brex = init_brex
+
+if arg[0] == "init.lua" then
+    init_brex()
+else
+    -- Export the module
+    return init
+end

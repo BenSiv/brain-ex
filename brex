@@ -1,8 +1,10 @@
 #!/bin/lua
 
 require("utils").using("utils")
+using("prettyprint")
 using("dataframes")
 using("database")
+using("argparse")
 using("paths")
 using("dates")
 using("user")
@@ -16,17 +18,25 @@ using("note")
 using("task")
 using("update")
 using("sql")
-using("prettyprint")
 
 local function print_help()
     help_str = [[
-Usage: brex < command > < arguments >
+Usage:  brex < command > < argument >
 
-       brex init < --vault >
-       brex note < add | edit | last >
-       brex task < list | add | done | delay | last >
-       brex sql < query >
-       brex update < file >
+        brex init
+        brex note < add | edit | last >
+        brex task < add | list | done | delay | last >
+        brex update < file >
+        brex sql
+
+        defaults:
+        init -> sqlite database only
+        note -> todays note add/edit
+        task -> add new task
+        update -> rebuild from vault
+        sql -> sqlite shell
+
+        brex < command > -h or --help for more info
     ]]
 
     print(help_str)
@@ -34,10 +44,7 @@ end
 
 local function main()
     local command_parser = {
-        ["init"] = {
-            default = init_bx,
-            ["--vault"] = init_bx_with_vault
-        },
+        ["init"] = init_brex,
         ["note"] = {
             default = todays_note,
             add = take_note,
@@ -62,14 +69,16 @@ local function main()
             ["query"] = sqlite_query
         }
     }
-
-    if length(arg) == 0 then
+    
+    if length(arg) == 2 then
         print_help()
         return
     end
 
     local command = arg[1]
     local argument = arg[2] or "default"
+
+    arg[0] = "brex " .. command
 
     local command_config = command_parser[command]
     if not command_config then
@@ -85,12 +94,8 @@ local function main()
         return
     end
 
-    if command ~= "init" then
-        local brain_file = get_brain_file()
-        func(brain_file)
-    else
-        func()
-    end
+    local brain_file = get_brain_file()
+    func(brain_file)
 end
 
 -- run program

@@ -148,43 +148,6 @@ local function edit_note(brain_file)
     return "success"
 end
 
-
--- local function update_note(brain_file)
---     -- get note info
---     local subject = user.input("Subject: ")
---     local title = user.input("Title: ")
---     local content = user.inputs("Content: ")
---     local links = user.inputs("Links: ")
--- 
---     local vault_dir = get_vault_path()
--- 
---     if not isempty(content) then
---         local append_status = append_content(brain_file, subject, title, content)
---         if not append_status then
---             print("Error: append content failed")
---             return
---         end
---     end
---     
---     if not isempty(links) then
---         local connect_status = connect_notes(brain_file, title, links)
---         if not connect_status then
---             print("Error: notes connection failed")
---             return
---         end
---     end
--- 
---     if vault_dir then
---         local write_status = write_note(vault_dir, subject, title, content, links)
---         if not write_status then
---             print("Error: note writing to file failed")
---             return
---         end
---     end
--- 
---     return "success"
--- end
-
 local function last_notes(brain_file)
     local subject = user.input("Subject: ")
     local num = user.input("Number of entries: ")
@@ -277,7 +240,6 @@ end
 
 
 note.take_note = take_note
--- note.update_note = update_note
 note.edit_note = edit_note
 note.last_notes = last_notes
 note.todays_note = todays_note
