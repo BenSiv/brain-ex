@@ -10,13 +10,22 @@ LUA_PATH="<lua-utils>?.lua;;"
 
 ## Help
 ```
-Usage: brex < command > < arguments >
+Usage: brex < command > < argument >
 
-       brex init < --vault >
+       brex init
        brex note < add | edit | last >
-       brex task < list | add | done | delay >
-       brex update
-       brex sql < --query >
+       brex task < add | list | done | delay | last >
+       brex update < file >
+       brex sql
+
+       defaults:
+       init -> sqlite database only
+       note -> todays note add/edit
+       task -> add new task
+       update -> rebuild from vault
+       sql -> sqlite shell
+
+       brex < command > -h or --help for more info
 ```
 
 ### Initilazation
