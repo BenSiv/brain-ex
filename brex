@@ -83,7 +83,10 @@ local function main()
         return
     end
 
-    local brain_file = get_brain_file()
+    local brain_file
+    if command ~= "init" then
+        brain_file = get_brain_file()
+    end
     func(brain_file)
 end
 
