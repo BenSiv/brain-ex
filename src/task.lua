@@ -37,12 +37,17 @@ function backup_tasks(brain_file)
     end
 end
 
-function add_task(brain_file)
+function add_task(brain_file, args)
     -- get note info
-    local subject = input("Subject: ") or "NULL"
-    local content = input("Content: ")
-    local time_input_str = input("Due To: ")
+    local subject = args["subject"] or "NULL"
+    local content = args["content"] or ""
+    local time_input_str = args["due_to"] or ""
     local due_to = normalize_datetime(time_input_str)
+
+    if content == "" then
+        print("Must provide task content")
+        return
+    end
 
 	if not due_to then
 		local current_time = os.time()
@@ -82,17 +87,23 @@ function list_tasks(brain_file)
     end
 end
 
-function mark_done(brain_file)
-    local task_id = input("Enter the ID of the task to mark as done: ")
-    local comment = input("Enter done comment: ")
+function mark_done(brain_file, args)
+    local task_id = args["id"] or ""
+    local comment = args["comment"] or ""
+
+    if content == "" then
+        print("Must provide task id")
+        return
+    end
+
     local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. comment .. "' WHERE id = " .. task_id .. ";"
     local_update(brain_file, update_statement)
     backup_tasks(brain_file)
 end
 
-function delay_due(brain_file)
-    local task_id = input("Task ID or * for all: ")
-    local time_input_str = input("Due To: ")
+function delay_due(brain_file, args)
+    local task_id = args["id"] or ""
+    local time_input_str = args["due_to"] or ""
     local due_to = normalize_datetime(time_input_str)
 
     if not due_to then
@@ -114,10 +125,9 @@ function delay_due(brain_file)
     backup_tasks(brain_file)
 end
 
-function last_done(brain_file)
-    local subject = user.input("Subject: ")
-    local num = user.input("Number of entries: ")
-    print("") -- new line
+function last_done(brain_file, args)
+    local subject = args["subject"] or ""
+    local num = args["number"] or 5
 
     local query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
     if subject ~= "" then
@@ -138,13 +148,41 @@ function last_done(brain_file)
     end
 end
 
+local function do_task(brain_file)
+    local arg_string = [[
+        -d --do arg string false
+        -s --subject arg string false
+        -t --due_to arg string false
+        -i --id arg string false
+        -c --comment arg string false
+        -n --number arg number false
+    ]]
 
--- Add the function to the module
-task.add_task = add_task
-task.list_tasks = list_tasks
-task.mark_done = mark_done
-task.delay_due = delay_due
-task.last_done = last_done
+    local expected_args = def_args(arg_string)
+    local args = parse_args(arg, expected_args)
 
--- Export the module
-return task
+    if args then
+        if args["do"] == "add" then
+            add_task(brain_file, args)
+        elseif args["do"] == "list" then
+            list_tasks(brain_file, args)
+        elseif args["do"] == "done" then
+            mark_done(brain_file, args)
+        elseif args["do"] == "delay" then
+            delay_due(brain_file, args)
+        elseif args["do"] == "last" then
+            last_done(brain_file, args)
+        else
+            add_task(brain_file, args)
+        end
+    end
+end
+
+task.do_task = do_task
+
+if arg[0] == "task.lua" then
+    do_task(todays_task)
+else
+    -- Export the module
+    return task
+end

@@ -5,8 +5,7 @@ function sqlite_shell(brain_file)
     os.execute("sqlite3 -column -header " .. brain_file)
 end
 
-function sqlite_query(brain_file)
-    local query = input("Query: ")
+function sqlite_query(brain_file, query)
     local results = local_query(brain_file, query)
     if not results then
         return nil
@@ -14,8 +13,29 @@ function sqlite_query(brain_file)
     view(results)
 end
 
-sql.sqlite_shell = sqlite_shell
-sql.sqlite_query = sqlite_query
+local function do_sql(brain_file)
+    local arg_string = [[
+        -d --do arg string false
+        -q --query arg string false
+    ]]
 
--- Export the module
-return sql
+    local expected_args = def_args(arg_string)
+    local args = parse_args(arg, expected_args)
+
+    if args then
+        if args["query"] then
+            sqlite_query(brain_file, args["query"])
+        else
+            sqlite_shell(brain_file)
+        end
+    end
+end
+
+sql.do_sql = do_sql
+
+if arg[0] == "sql.lua" then
+    do_sql()
+else
+    -- Export the module
+    return sql
+end

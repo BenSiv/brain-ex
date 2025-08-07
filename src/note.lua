@@ -6,7 +6,7 @@ local get_vault_path = require("bx_utils").get_vault_path
 local user = require("user")
 
 local function insert_note(brain_file, subject, title, content)
-    local insert_statement = "INSERT INTO notes ('subject', 'name', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. table.concat(content, "\n") .. "');"
+    local insert_statement = "INSERT INTO notes ('subject', 'name', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
     local status = local_update(brain_file, insert_statement)
     if not status then
         print("Failed to update database")
@@ -22,7 +22,7 @@ local function append_content(brain_file, subject, title, content)
         print("Failed to query note")
         return nil
     end
-    local new_content = result[1].content .. "\n" .. table.concat(content, "\n")
+    local new_content = result[1].content .. "\n" .. content
 
     local update_statement = string.format("UPDATE notes SET content='%s' WHERE name='%s' AND subject='%s';", new_content, title, subject)
 
@@ -78,24 +78,36 @@ local function write_note(vault_dir, subject, title, content, links)
     return "success"
 end
 
-local function take_note(brain_file)
-    -- get note info
-    local subject = user.input("Subject: ")
-    local title = user.input("Title: ")
-    local content = user.inputs("Content: ")
-    local links = user.inputs("Links: ")
+local function take_note(brain_file, args)
+    local subject = args["subject"] or ""
+    local title = args["title"] or ""
+    local content = args["content"] or ""
+    local links = args["links"] or ""
 
     local vault_dir = get_vault_path()
 
-    if not isempty(content) then
-        local insert_status = insert_note(brain_file, subject, title, content)
-        if not insert_status then
-            print("Error: note insertion failed")
-            return
-        end
+    if title == "" then
+        print("Must provide note title")
+        return
+    end
+
+    if content == "" then
+        print("Must provide note content")
+        return
+    end
+
+    local insert_status = insert_note(brain_file, subject, title, content)
+    if not insert_status then
+        print("Error: note insertion failed")
+        return
     end
     
-    if not isempty(links) then
+    if links ~= "" then
+        links = split(links, ",")
+        for idx,link in pairs(links) do
+            links[idx] = strip(link)
+        end
+
         local connect_status = connect_notes(brain_file, title, links)
         if not connect_status then
             print("Error: notes connection failed")
@@ -114,10 +126,10 @@ local function take_note(brain_file)
     return "success"
 end
 
-local function edit_note(brain_file)
-    local subject = user.input("Subject: ")
-    local title = user.input("Title: ")
-    local default_editor = get_default_editor()
+local function edit_note(brain_file, args)
+    local subject = args["subject"] or ""
+    local title = args["title"] or ""
+    local editor = get_default_editor()
     local vault_path = get_vault_path()
 
 	if subject == "" and title == "" then
@@ -125,8 +137,6 @@ local function edit_note(brain_file)
     	title = os.date("%Y-%m-%d")
 	end
 	
-    local editor = default_editor or "nano"
-
     local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
     if not lfs.attributes(note_path) then
         print("Note file does not exist: " .. note_path)
@@ -148,18 +158,9 @@ local function edit_note(brain_file)
     return "success"
 end
 
-local function last_notes(brain_file)
-    local subject = user.input("Subject: ")
-    local num = user.input("Number of entries: ")
-    print("") -- new line
-
-    if subject == "" then
-        subject = "daily"
-    end
-
-    if num == "" then
-        num = "5"
-    end
+local function last_notes(brain_file, args)
+    local subject = args["subject"] or "daily"
+    local num = args["number"] or 5
 
     local query = string.format("SELECT name, content FROM notes WHERE subject='%s' ORDER BY name DESC LIMIT %s", subject, num)
 
@@ -181,16 +182,18 @@ local function last_notes(brain_file)
     end
 end
 
-local function todays_note(brain_file)
+local function todays_note(brain_file, args)
     -- Get today's date in the format "YYYY-MM-DD"
-    local today_date = os.date("%Y-%m-%d")
+    local title = os.date("%Y-%m-%d")
     local subject = "daily"
-    local title = today_date
-
-    local content = user.inputs("Content: ")
-    local links = user.inputs("Links: ")
+    local content = args["content"] or ""
+    local links = args["links"] or ""
 
     local vault_dir = get_vault_path()
+
+    if content == "" then
+        print("Must provide note content")
+    end
 
     -- Check if the note exists
     local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE name='%s' AND subject='%s';", title, subject)
@@ -238,11 +241,37 @@ local function todays_note(brain_file)
     return "success"
 end
 
+local function do_note(brain_file)
+    local arg_string = [[
+        -d --do arg string false
+        -s --subject arg string false
+        -t --title arg string false
+        -c --content arg string false
+        -l --links arg string false
+        -n --number arg number false
+    ]]
 
-note.take_note = take_note
-note.edit_note = edit_note
-note.last_notes = last_notes
-note.todays_note = todays_note
+    local expected_args = def_args(arg_string)
+    local args = parse_args(arg, expected_args)
 
--- Export the module
-return note
+    if args then
+        if args["do"] == "add" then
+            take_note(brain_file, args)
+        elseif args["do"] == "edit" then
+            edit_note(brain_file, args)
+        elseif args["do"] == "last" then
+            last_notes(brain_file, args)
+        else
+            todays_note(brain_file, args)
+        end
+    end
+end
+
+note.do_note = do_note
+
+if arg[0] == "note.lua" then
+    do_note(brain_file)
+else
+    -- Export the module
+    return note
+end

@@ -131,8 +131,29 @@ local function update_note_from_file(brain_file, note_path)
 	return "success"
 end
 
-update.update_from_vault = update_from_vault
-update.update_note_from_file = update_note_from_file
+local function do_update(brain_file)
+    local arg_string = [[
+        -f --file arg string false
+    ]]
 
--- Export the module
-return update
+    local expected_args = def_args(arg_string)
+    local args = parse_args(arg, expected_args)
+
+	if args then
+		if args["file"] then
+			update_note_from_file(brain_file, args["file"])
+		else
+			update_from_vault(brain_file)
+		end
+	end
+end
+
+update.update_note_from_file = update_note_from_file
+update.do_update = do_update
+
+if arg[0] == "update.lua" then
+    do_update()
+else
+    -- Export the module
+    return update
+end

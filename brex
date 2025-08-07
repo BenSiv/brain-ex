@@ -43,53 +43,42 @@ Usage:  brex < command > < argument >
 end
 
 local function main()
-    local command_parser = {
-        ["init"] = init_brex,
-        ["note"] = {
-            default = todays_note,
-            add = take_note,
-            edit = edit_note,
-            last = last_notes
-        },
-        ["task"] = {
-            default = add_task,
-            add = add_task,
-            list = list_tasks,
-            done = mark_done,
-            delay = delay_due,
-            last = last_done
-        },
-        ["update"] = {
-            default = update_from_vault,
-            ["file"] = update_note_from_file
-            
-        },
-        ["sql"] = {
-            default = sqlite_shell,
-            ["query"] = sqlite_query
-        }
+    local command_funcs = {
+        ["init"] = do_init,
+        ["note"] = do_note,
+        ["task"] = do_task,
+        ["update"] = do_update,
+        ["sql"] = do_sql
     }
     
     if length(arg) == 2 then
+        print("Missing command")
         print_help()
         return
     end
 
     local command = arg[1]
-    local argument = arg[2] or "default"
-
     arg[0] = "brex " .. command
-
-    local command_config = command_parser[command]
-    if not command_config then
-        print("'" .. command .. "' is not a valid command\n")
-        print_help()
-        return
+    
+    if length(arg) == 3 then
+        arg[1] = nil
     end
 
-    local func = command_config[argument]
+    if length(arg) > 3 then
+        if not starts_with(arg[2], "-") then
+            arg[1] = "--do"
+        else
+            for i,_ in pairs(arg) do
+                if i > 0 then
+                    arg[i] = arg[i+1]
+                end
+            end
+        end
+    end
+
+    local func = command_funcs[command]
     if not func then
-        print("'" .. command .. "' got invalid argument '" .. argument .. "'\n")
+        print("'" .. command .. "' is not a valid command\n")
         print_help()
         return
     end

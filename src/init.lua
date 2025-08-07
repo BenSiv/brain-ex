@@ -24,17 +24,12 @@ function build_config_dir(home_dir)
     return bx_config_dir
 end
 
-function init_bx()
-    -- get database name
-    -- io.write("Brain name: ")
-    -- local brain_name = io.read()
+function init_bx(args)
     local brain_name = args["name"] or "brain"
     local current_dir = lfs.currentdir()
     local brain_path = current_dir .. "/" .. brain_name .. ".db"
     local home_dir = os.getenv("HOME")
-    -- io.write("Default editor: ")
-    -- local default_editor = io.read()
-    local default_editor = args["editor"]
+    local default_editor = args["editor"] or "nano"
 
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -56,9 +51,6 @@ function init_bx()
 end
 
 function init_bx_with_vault(args)
-    -- get database name
-    -- io.write("Vault path: ")
-    -- local vault_dir = io.read()
     local vault_dir = args["vault"]
     local current_dir = lfs.currentdir()
     local brain_name = args["name"] or args["vault"]
@@ -66,9 +58,7 @@ function init_bx_with_vault(args)
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
     local task_file = joinpath(vault_dir, "tasks.tsv")
-    -- io.write("Default editor: ")
-    -- local default_editor = io.read()
-    local default_editor = args["editor"]
+    local default_editor = args["editor"] or "nano"
 	
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -96,7 +86,7 @@ function init_bx_with_vault(args)
     vault_to_sql(vault_path, brain_path)
 end
 
-local function init_brex()
+local function do_init()
     local arg_string = [[
         -n --name arg string false
         -v --vault arg string false
@@ -106,17 +96,19 @@ local function init_brex()
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args)
 
-    if args["vault"] then
-        init_bx_with_vault(args)
-    else
-        init_bx()
+    if args then
+        if args["vault"] then
+            init_bx_with_vault(args)
+        else
+            init_bx(args)
+        end
     end
 end
 
-init.init_brex = init_brex
+init.do_init = do_init
 
 if arg[0] == "init.lua" then
-    init_brex()
+    do_init()
 else
     -- Export the module
     return init
