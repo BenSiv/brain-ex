@@ -72,7 +72,7 @@ local function write_note(vault_dir, subject, title, content, links)
         return
     end
 
-    local to_write = table.concat(content, "\n") .. "\n" .. table.concat(obsidian_links, "\n") .. "\n"
+    local to_write = content .. "\n" .. table.concat(obsidian_links, "\n") .. "\n"
     note_file:write(to_write)
     note_file:close()
     return "success"
@@ -82,7 +82,7 @@ local function take_note(brain_file, args)
     local subject = args["subject"] or ""
     local title = args["title"] or ""
     local content = args["content"] or ""
-    local links = args["links"] or ""
+    local links = args["links"] or {}
 
     local vault_dir = get_vault_path()
 
@@ -187,7 +187,7 @@ local function todays_note(brain_file, args)
     local title = os.date("%Y-%m-%d")
     local subject = "daily"
     local content = args["content"] or ""
-    local links = args["links"] or ""
+    local links = args["links"] or {}
 
     local vault_dir = get_vault_path()
 
