@@ -154,7 +154,8 @@ local function do_task(brain_file)
         -s --subject arg string false
         -t --due_to arg string false
         -i --id arg string false
-        -c --comment arg string false
+        -m --comment arg string false
+        -c --content arg string false
         -n --number arg number false
     ]]
 
