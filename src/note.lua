@@ -102,7 +102,7 @@ local function take_note(brain_file, args)
         return
     end
     
-    if links ~= "" then
+    if not isempty(links) then
         links = split(links, ",")
         for idx,link in pairs(links) do
             links[idx] = strip(link)
