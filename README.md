@@ -45,7 +45,8 @@ Query sqlite database either by passing a query or interactively in the shell.
 
 
 ### TODOs
-- add header and column mode to sqlite shell
 - add note connect argument
-- improve subcommand and arguments help
 - fix update from file after manual edit
+- edit with non existent title should create and open it in default editor
+- filter last tasks by subject
+- filter last atsks by due_to

@@ -93,8 +93,25 @@ local function do_init()
         -e --editor arg string false
     ]]
 
+    local help_string = [[
+        Description:
+        Initializes a new brain-ex database in the current directory.
+        If a vault directory is specified, it will also import notes and tasks from the vault.
+
+        Options:
+        -n --name <name>      Name of the brain database (default: "brain").
+        -v --vault <vault>    Path to the vault directory to import notes and tasks from.
+        -e --editor <editor>  Default text editor to use (default: "nano").
+
+        Examples:
+        brex init
+        brex init --name my_brain
+        brex init --vault my_vault
+        brex init --name my_brain --vault my_vault --editor vim
+    ]]
+
     local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args)
+    local args = parse_args(arg, expected_args, help_string)
 
     if args then
         if args["vault"] then

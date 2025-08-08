@@ -241,6 +241,73 @@ local function todays_note(brain_file, args)
     return "success"
 end
 
+local function get_help_string(subcommand)
+    local help_strings = {
+        ["brex note"] = [[
+            Description:
+            Creates or updates today's note with the specified content.
+            Links can be provided as a comma-separated list.
+
+            Required:
+            -c --content <content> Note's content.
+            
+            Optional:
+            -l --links <links> Links to other notes, separated by commas.
+            
+            Examples:
+            brex note --content "This is today's note content"
+            brex note --content "This is today's note content" --links "link1,link2"
+        ]],
+        ["brex note add"] = [[
+            Description:
+            Adds a new note with the specified title, and content.
+            Links can be provided as a comma-separated list.
+
+            Required:
+            -t --title <title> Note's title.
+            -c --content <content> Note's content.
+            
+            Optional:
+            -s --subject <subject> Subject of the note.
+            -l --links <links> Links to other notes, separated by commas.
+            
+            Examples:
+            brex note add --title "My Note" --content "This is the content of my note"
+            brex note add --title "My Note" --content "This is the content of my note" --subject "My Subject" --links "link1,link2"
+        ]],
+        ["brex note edit"] = [[
+            Description:
+            Opens the specified note in the default editor for editing.
+            If the note does not exist, it will be created.
+
+            Required:
+            -t --title <title> Title of the note to edit.
+            
+            Optional:
+            -s --subject <subject> Subject of the note.
+            
+            Examples:
+            brex note edit --title "My Note"
+            brex note edit --title "My Note" --subject "My Subject"
+        ]],
+        ["brex note last"] = [[
+            Description:
+            Displays the last notes.
+            If no subject is provided, defaults to "daily". The number of notes displayed can be specified with the --number option, defaulting to 5.
+
+            Optional:
+            -s --subject <subject> Subject of the notes to display.
+            -n --number <number> Number of notes to display, default is 5.
+            
+            Examples:
+            brex note last
+            brex note last --subject "daily" --number 10
+        ]]
+    }
+
+    return help_strings[subcommand]
+end
+
 local function do_note(brain_file)
     local arg_string = [[
         -d --do arg string false
@@ -251,8 +318,10 @@ local function do_note(brain_file)
         -n --number arg number false
     ]]
 
+    local help_string = get_help_string(arg[0])
+
     local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args)
+    local args = parse_args(arg, expected_args, help_string)
 
     if args then
         if args["do"] == "add" then
@@ -261,8 +330,11 @@ local function do_note(brain_file)
             edit_note(brain_file, args)
         elseif args["do"] == "last" then
             last_notes(brain_file, args)
-        else
+        elseif not args["do"] then
             todays_note(brain_file, args)
+        else
+            print("Unknown subcommand: " .. args["do"])
+            print("Available subcommands: add, edit, last")
         end
     end
 end

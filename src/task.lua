@@ -148,6 +148,85 @@ function last_done(brain_file, args)
     end
 end
 
+local function get_help_string(subcommand)
+    local help_strings = {
+        ["brex task"] = [[
+            Description:
+            Adds a new task. The due date can be specified in the format yyyy-mm-dd HH:MM:SS, or part of it.
+
+            Required:
+            -c --content <content> Task's content.
+            
+            Optional:
+            -s --subject <subject> Task's subject, defaults to NULL.
+            -t --due_to <due_to> Task's due date in the format yyyy-mm-dd, defaults to 24 hours from now.
+            
+            Examples:
+            brex task add --content "This is a new task"
+            brex task --content "This is a work task" --subject "work" --due_to "2024-12-31"
+        ]],
+        ["brex task add"] = [[
+            Description:
+            Adds a new task. The due date can be specified in the format yyyy-mm-dd HH:MM:SS, or part of it.
+
+            Required:
+            -c --content <content> Task's content.
+            
+            Optional:
+            -s --subject <subject> Task's subject, defaults to NULL.
+            -t --due_to <due_to> Task's due date in the format yyyy-mm-dd, defaults to 24 hours from now.
+            
+            Examples:
+            brex task add --content "This is a new task"
+            brex task --content "This is a work task" --subject "work" --due_to "2024-12-31"
+        ]],
+        ["brex task list"] = [[
+            Description:
+            Lists all tasks that are not done yet.
+
+            Optional: 
+            -s --subject <subject> Filter tasks by subject.
+            -t --due_to <due_to> Filter tasks by due date in the format yyyy-mm-dd.
+
+            Example:
+            brex task list
+            brex task list --subject "work"
+            brex task list --due_to "2024-12-31"
+        ]],
+        ["brex task done"] = [[
+            Description:
+            Marks a task as done by its ID and optionally adds a comment.
+
+            Required:
+            -i --id <id> ID of the task to mark as done.
+
+            Optional:
+            -m --comment <comment> Comment to add when marking the task as done.
+
+            Example:
+            brex task done
+            brex task done --comment "This task is completed"            
+        ]],
+        ["brex task delay"] = [[
+            Description:
+            Delays a task's due time, pass * for all tasks.
+
+            Required:
+            -i --id <id> ID of the task to delay, or * to delay all tasks.
+
+            Optional:
+            -t --due_to <due_to> New due date in the format yyyy-mm-dd HH:MM:SS, or part of it. If not provided, defaults to 24 hours from now.
+
+            Example:
+            brex task delay --id 85560914 --due_to "2024-12-31"
+            brex task delay --id *
+        ]]
+    }
+
+    return help_strings[subcommand]
+end
+
+
 local function do_task(brain_file)
     local arg_string = [[
         -d --do arg string false
@@ -159,8 +238,10 @@ local function do_task(brain_file)
         -n --number arg number false
     ]]
 
+    local help_string = get_help_string(arg[0])
+
     local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args)
+    local args = parse_args(arg, expected_args, help_string)
 
     if args then
         if args["do"] == "add" then
@@ -173,8 +254,11 @@ local function do_task(brain_file)
             delay_due(brain_file, args)
         elseif args["do"] == "last" then
             last_done(brain_file, args)
-        else
+        elseif not args["do"] then
             add_task(brain_file, args)
+        else
+            print("Unknown subcommand: " .. args["do"])
+            print("Available subcommands: add, list, done, delay, last")
         end
     end
 end

@@ -19,8 +19,20 @@ local function do_sql(brain_file)
         -q --query arg string false
     ]]
 
+    local help_string = [[
+        Description:
+        Opens an interactive sqlite3 shell or runs a query on the database.
+
+        Optional:
+        -q --query <query> SQL query to run on the database.
+
+        Examples:
+        brex sql
+        brex sql --query "SELECT * FROM tasks;"
+    ]]
+
     local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args)
+    local args = parse_args(arg, expected_args, help_string)
 
     if args then
         if args["query"] then

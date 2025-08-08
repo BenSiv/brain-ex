@@ -66,6 +66,7 @@ local function main()
 
     if length(arg) > 3 then
         if not starts_with(arg[2], "-") then
+            arg[0] = arg[0] .. " " .. arg[2]
             arg[1] = "--do"
         else
             for i,_ in pairs(arg) do

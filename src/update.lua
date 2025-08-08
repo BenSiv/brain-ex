@@ -136,8 +136,21 @@ local function do_update(brain_file)
         -f --file arg string false
     ]]
 
+	local help_string = [[
+		Description:
+		Update the brain database from the vault.
+		By default, this command will reinitialize the database and import all notes and tasks from the vault.
+
+		Options:
+		-f --file <note_path>  Update a specific note from the given file path instead of the entire vault.
+		
+		Examples:
+		brex update
+		brex update --file /path/to/vault/subject/note.md
+	]]
+
     local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args)
+    local args = parse_args(arg, expected_args, help_string)
 
 	if args then
 		if args["file"] then
