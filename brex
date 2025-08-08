@@ -21,7 +21,7 @@ using("sql")
 
 local function print_help()
     help_str = [[
-Usage:  brex < command > < argument >
+Usage:  brex < command > < subcommand > < argument >
 
         brex init
         brex note < add | edit | last >
