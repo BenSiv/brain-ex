@@ -9,24 +9,7 @@ LUA_PATH="<lua-utils>?.lua;;"
 ```
 
 ## Help
-```
-Usage: brex < command > < argument >
-
-       brex init
-       brex note < add | edit | last | connect >
-       brex task < add | list | done | delay | last >
-       brex update < file >
-       brex sql
-
-       defaults:
-       init -> sqlite database only
-       note -> todays note add/edit
-       task -> add new task
-       update -> rebuild from vault
-       sql -> sqlite shell
-
-       brex < command > -h or --help for more info
-```
+```{include=src/main_help.txt}```
 
 ### Initilazation
 It is possible to initilize with Obsidian vault or without.
