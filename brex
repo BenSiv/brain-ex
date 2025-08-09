@@ -20,25 +20,7 @@ using("update")
 using("sql")
 
 local function print_help()
-    help_str = [[
-Usage:  brex < command > < subcommand > < argument >
-
-        brex init
-        brex note < add | edit | last | connect >
-        brex task < add | list | done | delay | last >
-        brex update < file >
-        brex sql
-
-        defaults:
-        init -> sqlite database only
-        note -> todays note add/edit
-        task -> add new task
-        update -> rebuild from vault
-        sql -> sqlite shell
-
-        brex < command > -h or --help for more info
-    ]]
-
+    local help_str = unescape_string(read("src/main_help.txt"))
     print(help_str)
 end
 

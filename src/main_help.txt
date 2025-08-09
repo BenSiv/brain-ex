@@ -1,7 +1,7 @@
-Usage: brex < command > < argument >
+Usage: brex < command > < subcommand > < argument >
 
        brex init
-       brex note < add | edit | last | connect >
+       brex note < add | edit | connect | last >
        brex task < add | list | done | delay | last >
        brex update < file >
        brex sql
