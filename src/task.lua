@@ -68,11 +68,24 @@ function add_task(brain_file, args)
     backup_tasks(brain_file)
 end
 
-function list_tasks(brain_file)
+function list_tasks(brain_file, args)
     update_overdue(brain_file)
 
-    local query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL order by due_to, subject;"
+    local subject = args["subject"] or ""
+    local time_input_str = args["due_to"] or ""
+    local due_to = normalize_datetime(time_input_str)
 
+    local query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
+    if subject ~= "" then
+        query = query .. string.format("AND subject = '%s'", subject)
+    end
+
+    if due_to then
+        query = query .. string.format("AND due_to > '%s'", due_to)
+    end
+    
+    query = query .. " ORDER BY due_to, subject;"
+    
     local tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("Empty task list")

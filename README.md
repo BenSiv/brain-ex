@@ -49,5 +49,3 @@ Query sqlite database either by passing a query or interactively in the shell.
 - add note connect argument
 - fix update from file after manual edit
 - edit with non existent title should create and open it in default editor
-- filter last tasks by subject
-- filter last tasks by due_to
