@@ -1,5 +1,3 @@
-#!/bin/lua
-
 require("utils").using("utils")
 using("prettyprint")
 using("dataframes")
@@ -7,7 +5,6 @@ using("database")
 using("argparse")
 using("paths")
 using("dates")
-using("user")
 
 script_path = debug.getinfo(1, "S").source:sub(2)
 add_to_path(script_path, "src")
@@ -32,6 +29,8 @@ local function main()
         ["update"] = do_update,
         ["sql"] = do_sql
     }
+
+    arg[-1] = "lua" -- for the executable
     
     if length(arg) == 2 then
         print("Missing command")
