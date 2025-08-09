@@ -13,7 +13,7 @@ LUA_PATH="<lua-utils>?.lua;;"
 Usage: brex < command > < argument >
 
        brex init
-       brex note < add | edit | last >
+       brex note < add | edit | last | connect >
        brex task < add | list | done | delay | last >
        brex update < file >
        brex sql
