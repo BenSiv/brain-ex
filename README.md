@@ -46,6 +46,5 @@ Query sqlite database either by passing a query or interactively in the shell.
 
 ### TODOs
 - should the default note be just timestamped instead of daily?
-- add note connect argument
 - fix update from file after manual edit
 - edit with non existent title should create and open it in default editor

@@ -5,6 +5,14 @@ local lfs = require("lfs")
 local get_vault_path = require("bx_utils").get_vault_path
 local user = require("user")
 
+local function proccess_links_str(links_str)
+    links = split(links_str, ",")
+    for idx,link in pairs(links) do
+        links[idx] = strip(link)
+    end
+    return links
+end
+        
 local function insert_note(brain_file, subject, title, content)
     local insert_statement = "INSERT INTO notes ('subject', 'name', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
     local status = local_update(brain_file, insert_statement)
@@ -82,7 +90,8 @@ local function take_note(brain_file, args)
     local subject = args["subject"] or ""
     local title = args["title"] or ""
     local content = args["content"] or ""
-    local links = args["links"] or {}
+    local links_str = args["links"] or ""
+    local links = proccess_links_str(links_str)
 
     local vault_dir = get_vault_path()
 
@@ -103,11 +112,6 @@ local function take_note(brain_file, args)
     end
     
     if not isempty(links) then
-        links = split(links, ",")
-        for idx,link in pairs(links) do
-            links[idx] = strip(link)
-        end
-
         local connect_status = connect_notes(brain_file, title, links)
         if not connect_status then
             print("Error: notes connection failed")
@@ -302,6 +306,17 @@ local function get_help_string(subcommand)
             Examples:
             brex note last
             brex note last --subject "daily" --number 10
+        ]],
+        ["brex note connect"] = [[
+            Description:
+            Connect notes.
+
+            Required:
+            -t --title <title> Title of the note to connect.
+            -l --links <links> Links to other notes, separated by commas.
+            
+            Examples:
+            brex note connect --title "note1" --links "note2,note3"
         ]]
     }
 
@@ -330,6 +345,9 @@ local function do_note(brain_file)
             edit_note(brain_file, args)
         elseif args["do"] == "last" then
             last_notes(brain_file, args)
+        elseif args["do"] == "connect" then
+            local links = proccess_links_str(args["links"])
+            connect_notes(brain_file, args["title"], links)
         elseif not args["do"] then
             todays_note(brain_file, args)
         else
