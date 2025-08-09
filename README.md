@@ -9,7 +9,7 @@ LUA_PATH="<lua-utils>?.lua;;"
 ```
 
 ## Help
-{include=src/main_help.txt}
+[View the main help](src/main_help.txt)
 
 ### Initilazation
 It is possible to initilize with Obsidian vault or without.
