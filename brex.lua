@@ -15,11 +15,7 @@ using("note")
 using("task")
 using("update")
 using("sql")
-
-local function print_help()
-    local help_str = unescape_string(read("src/main_help.txt"))
-    print(help_str)
-end
+using("help")
 
 local function main()
     local command_funcs = {
@@ -31,15 +27,21 @@ local function main()
     }
 
     arg[-1] = "lua" -- for the executable
+
+    local command = arg[1]
+
+    if command then
+        arg[0] = "brex " .. command
+    end
+
+    show(arg)
+    local help_string = get_help_string(arg[0])
     
     if length(arg) == 2 then
         print("Missing command")
-        print_help()
+        print(help_string)
         return
     end
-
-    local command = arg[1]
-    arg[0] = "brex " .. command
     
     if length(arg) == 3 then
         arg[1] = nil
@@ -61,7 +63,7 @@ local function main()
     local func = command_funcs[command]
     if not func then
         print("'" .. command .. "' is not a valid command\n")
-        print_help()
+        print(help_string)
         return
     end
 

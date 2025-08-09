@@ -7,6 +7,7 @@ local process_content = require("vault_to_sql").process_content
 local get_vault_path = require("bx_utils").get_vault_path
 local script_path = debug.getinfo(1, "S").source:sub(2)
 local script_dir = get_parent_dir(script_path)
+local get_help_string = require("help").get_help_string
 
 function update_from_vault(brain_file)
     local vault_path = get_vault_path()
@@ -136,18 +137,7 @@ local function do_update(brain_file)
         -f --file arg string false
     ]]
 
-	local help_string = [[
-		Description:
-		Update the brain database from the vault.
-		By default, this command will reinitialize the database and import all notes and tasks from the vault.
-
-		Options:
-		-f --file <note_path>  Update a specific note from the given file path instead of the entire vault.
-		
-		Examples:
-		brex update
-		brex update --file /path/to/vault/subject/note.md
-	]]
+	local help_string = get_help_string(arg[0])
 
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)

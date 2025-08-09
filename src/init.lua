@@ -6,6 +6,7 @@ local lfs = require("lfs")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
 local script_path = debug.getinfo(1, "S").source:sub(2)
 local script_dir = get_parent_dir(script_path)
+local get_help_string = require("help").get_help_string
 
 function build_config_dir(home_dir)
 	local config_dir = joinpath(home_dir, ".config")
@@ -93,22 +94,7 @@ local function do_init()
         -e --editor arg string false
     ]]
 
-    local help_string = [[
-        Description:
-        Initializes a new brain-ex database in the current directory.
-        If a vault directory is specified, it will also import notes and tasks from the vault.
-
-        Options:
-        -n --name <name>      Name of the brain database (default: "brain").
-        -v --vault <vault>    Path to the vault directory to import notes and tasks from.
-        -e --editor <editor>  Default text editor to use (default: "nano").
-
-        Examples:
-        brex init
-        brex init --name my_brain
-        brex init --vault my_vault
-        brex init --name my_brain --vault my_vault --editor vim
-    ]]
+    local help_string = get_help_string(arg[0])
 
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)

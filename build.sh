@@ -6,6 +6,7 @@ luastatic brex.lua \
     src/update.lua \
     src/vault_to_sql.lua \
     src/bx_utils.lua \
+    src/help.lua \
     lua-utils/src/argparse.lua \
     lua-utils/src/database.lua \
     lua-utils/src/dataframes.lua \
@@ -16,4 +17,6 @@ luastatic brex.lua \
     lua-utils/src/string_utils.lua \
     lua-utils/src/table_utils.lua \
     lua-utils/src/utils.lua \
-    -I/usr/include/lua5.1 -llua5.1 -lm -ldl -lreadline -o brex
+    -I/usr/include/lua5.1 -llua5.1 -lm -ldl -lreadline -o bld/brex
+
+mv brex.luastatic.c bld

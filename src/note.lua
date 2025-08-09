@@ -3,7 +3,7 @@ local note = {}
 
 local lfs = require("lfs")
 local get_vault_path = require("bx_utils").get_vault_path
-local user = require("user")
+local get_help_string = require("help").get_help_string
 
 local function proccess_links_str(links_str)
     links = split(links_str, ",")
@@ -243,84 +243,6 @@ local function todays_note(brain_file, args)
     end
 
     return "success"
-end
-
-local function get_help_string(subcommand)
-    local help_strings = {
-        ["brex note"] = [[
-            Description:
-            Creates or updates today's note with the specified content.
-            Links can be provided as a comma-separated list.
-
-            Required:
-            -c --content <content> Note's content.
-            
-            Optional:
-            -l --links <links> Links to other notes, separated by commas.
-            
-            Examples:
-            brex note --content "This is today's note content"
-            brex note --content "This is today's note content" --links "link1,link2"
-        ]],
-        ["brex note add"] = [[
-            Description:
-            Adds a new note with the specified title, and content.
-            Links can be provided as a comma-separated list.
-
-            Required:
-            -t --title <title> Note's title.
-            -c --content <content> Note's content.
-            
-            Optional:
-            -s --subject <subject> Subject of the note.
-            -l --links <links> Links to other notes, separated by commas.
-            
-            Examples:
-            brex note add --title "My Note" --content "This is the content of my note"
-            brex note add --title "My Note" --content "This is the content of my note" --subject "My Subject" --links "link1,link2"
-        ]],
-        ["brex note edit"] = [[
-            Description:
-            Opens the specified note in the default editor for editing.
-            If the note does not exist, it will be created.
-
-            Required:
-            -t --title <title> Title of the note to edit.
-            
-            Optional:
-            -s --subject <subject> Subject of the note.
-            
-            Examples:
-            brex note edit --title "My Note"
-            brex note edit --title "My Note" --subject "My Subject"
-        ]],
-        ["brex note last"] = [[
-            Description:
-            Displays the last notes.
-            If no subject is provided, defaults to "daily". The number of notes displayed can be specified with the --number option, defaulting to 5.
-
-            Optional:
-            -s --subject <subject> Subject of the notes to display.
-            -n --number <number> Number of notes to display, default is 5.
-            
-            Examples:
-            brex note last
-            brex note last --subject "daily" --number 10
-        ]],
-        ["brex note connect"] = [[
-            Description:
-            Connect notes.
-
-            Required:
-            -t --title <title> Title of the note to connect.
-            -l --links <links> Links to other notes, separated by commas.
-            
-            Examples:
-            brex note connect --title "note1" --links "note2,note3"
-        ]]
-    }
-
-    return help_strings[subcommand]
 end
 
 local function do_note(brain_file)

@@ -1,6 +1,8 @@
 -- Define a module table
 local sql = {}
 
+local get_help_string = require("help").get_help_string
+
 function sqlite_shell(brain_file)
     os.execute("sqlite3 -column -header " .. brain_file)
 end
@@ -19,18 +21,8 @@ local function do_sql(brain_file)
         -q --query arg string false
     ]]
 
-    local help_string = [[
-        Description:
-        Opens an interactive sqlite3 shell or runs a query on the database.
-
-        Optional:
-        -q --query <query> SQL query to run on the database.
-
-        Examples:
-        brex sql
-        brex sql --query "SELECT * FROM tasks;"
-    ]]
-
+    local help_string = get_help_string(arg[0])
+    
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
 
