@@ -29,12 +29,13 @@ local function main()
     arg[-1] = "lua" -- for the executable
 
     local command = arg[1]
-
-    if command then
+    
+    if command and not starts_with(command, "-") then
         arg[0] = "brex " .. command
+    else
+        arg[0] = "brex"
     end
 
-    show(arg)
     local help_string = get_help_string(arg[0])
     
     if length(arg) == 2 then
