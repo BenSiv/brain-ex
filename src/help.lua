@@ -33,9 +33,9 @@ brex < command > -h or --help for more info
 
     Examples:
     brex init
-    brex init --name my_brain
-    brex init --vault my_vault
-    brex init --name my_brain --vault my_vault --editor vim
+    brex init --name "my_brain"
+    brex init --vault "my_vault"
+    brex init --name "my_brain" --vault "my_vault" --editor "vim"
         ]],
         ["brex note"] = [[
 Description:
@@ -176,8 +176,8 @@ Optional:
 -t --due_to <due_to> New due date in the format yyyy-mm-dd HH:MM:SS, or part of it. If not provided, defaults to 24 hours from now.
 
 Example:
-brex task delay --id 85560914 --due_to "2024-12-31"
-brex task delay --id *
+brex task delay --id "85560914" --due_to "2024-12-31"
+brex task delay --id "*"
         ]],
         ["brex update"] = [[
 Description:
@@ -189,7 +189,7 @@ Options:
 
 Examples:
 brex update
-brex update --file /path/to/vault/subject/note.md
+brex update --file "/path/to/vault/subject/note.md"
     	]],
     	["brex sql"] = [[
  Description:
