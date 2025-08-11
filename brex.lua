@@ -1,5 +1,5 @@
 
--- package.path = "lua-utils/src/?.lua;" .. package.path
+package.path = "lua-utils/src/?.lua;" .. package.path
 require("utils").using("utils")
 using("prettyprint")
 using("dataframes")
@@ -8,7 +8,7 @@ using("argparse")
 using("paths")
 using("dates")
 
--- package.path = "src/?.lua;" .. package.path
+package.path = "src/?.lua;" .. package.path
 using("bx_utils")
 using("init")
 using("note")

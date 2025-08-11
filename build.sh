@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Move to script directory
+cd "$(dirname "$0")"
+
 # Create temp dir
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
