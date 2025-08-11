@@ -4,9 +4,36 @@ local init = {}
 require("utils").using("utils")
 local lfs = require("lfs")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
-local script_path = debug.getinfo(1, "S").source:sub(2)
-local script_dir = get_parent_dir(script_path)
 local get_help_string = require("help").get_help_string
+
+local sql_init = [[
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE notes (
+    "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "subject" TEXT,
+    "name" TEXT,
+    "content" TEXT,
+    PRIMARY KEY ("name", "subject")
+);
+
+CREATE TABLE connections (
+    "source" TEXT,
+    "target" TEXT,
+    PRIMARY KEY ("source", "target")
+);
+
+CREATE TABLE tasks (
+    "id" INTEGER PRIMARY KEY,
+    "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "content" TEXT,
+    "subject" TEXT,
+    "due_to" TIMESTAMP,
+    "overdue" INTEGER,
+    "done" TIMESTAMP DEFAULT NULL,
+    "comment" TEXT DEFAULT NULL
+);
+]]
 
 function build_config_dir(home_dir)
 	local config_dir = joinpath(home_dir, ".config")
@@ -35,12 +62,8 @@ function init_bx(args)
     -- remove old brain_path if it exists
     os.remove(brain_path)
 
-    -- read sql init commands
-    local init_file = joinpath(script_dir, "init_brain.sql")
-    local sql_commands = read(init_file)
-
     -- create database and tables
-    local_update(brain_path, sql_commands)
+    local_update(brain_path, sql_init)
 
     -- store info in ~/.config/brain-ex/config.yaml filr
     local config_dir = build_config_dir(home_dir)
@@ -63,13 +86,9 @@ function init_bx_with_vault(args)
 	
     -- remove old brain_path if it exists
     os.remove(brain_path)
-
-    -- read sql init commands
-    local init_file = joinpath(script_dir, "init_brain.sql")
-    local sql_commands = read(init_file)
-
+    
     -- create database and tables
-    local_update(brain_path, sql_commands)
+    local_update(brain_path, sql_init)
 
 	if file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
