@@ -69,6 +69,12 @@ function add_task(brain_file, args)
 end
 
 function list_tasks(brain_file, args)
+    local tasks_empty = is_sqlite_empty(brain_file, "tasks")
+    if tasks_empty then
+        print("Empty task list")
+        return
+    end
+    
     update_overdue(brain_file)
 
     local subject = args["subject"] or ""
@@ -85,12 +91,6 @@ function list_tasks(brain_file, args)
     end
     
     query = query .. " ORDER BY due_to, subject;"
-    
-    local tasks_empty = is_sqlite_empty(brain_file, "tasks")
-    if tasks_empty then
-        print("Empty task list")
-        return
-    end
 
     result = local_query(brain_file, query)
     if length(result) > 0 then
