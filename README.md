@@ -28,3 +28,5 @@ It is possible to initilize with Obsidian vault or without it.
 - should the default note be just timestamped instead of daily?
 - fix update from file after manual edit
 - edit with non existent title should create and open it in default editor
+- if subject is passed but not title raise an error to the user (instead of writing to the daily note)
+- parse NULL as empty string for view
