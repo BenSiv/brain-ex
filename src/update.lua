@@ -5,8 +5,7 @@ local database = require("database")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
 local process_content = require("vault_to_sql").process_content
 local get_vault_path = require("bx_utils").get_vault_path
-local script_path = debug.getinfo(1, "S").source:sub(2)
-local script_dir = get_parent_dir(script_path)
+local sql_init = require("init").sql_init
 local get_help_string = require("help").get_help_string
 
 function update_from_vault(brain_file)
@@ -16,12 +15,8 @@ function update_from_vault(brain_file)
     if brain_file and vault_path then
         os.remove(brain_file)
 
-        -- read sql init commands
-        local init_file = joinpath(script_dir, "init_brain.sql")
-        local sql_commands = read(init_file)
-
         -- create database and tables
-        local status = local_update(brain_file, sql_commands)
+        local status = local_update(brain_file, sql_init)
         if not status then
             print("Failed to update database")
             return nil

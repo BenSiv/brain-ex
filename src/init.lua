@@ -127,6 +127,7 @@ local function do_init()
     end
 end
 
+init.sql_init = sql_init
 init.do_init = do_init
 
 if arg[0] == "init.lua" then
