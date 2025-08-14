@@ -67,12 +67,16 @@ local function main()
         print(help_string)
         return
     end
-
-    local brain_file
-    if command ~= "init" then
-        brain_file = get_brain_file()
+    
+    if command == "init" then
+        func()
+        return
     end
-    func(brain_file)
+    
+    local brain_file = get_brain_file()
+    if brain_file then
+        func(brain_file)
+    end
 end
 
 -- run program

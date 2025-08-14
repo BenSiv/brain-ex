@@ -3,39 +3,48 @@ local bx_utils = {}
 
 require("utils").using("utils")
 local sqlite = require("sqlite3")
+local get_help_string = require("help").get_help_string
 
 local function get_config_file()
     local home_dir = os.getenv("HOME")
     local config_file_path = joinpath(home_dir, ".config", "brain-ex", "config.yaml")
-    local config_file = io.open(config_file_path, "r")
 
-    if not config_file then
-        print("Error: ~/.config/brain-ex/config.yaml file do not exist, run brex init.")
+    if file_exists(config_file_path) then
+        return config_file_path
+    else
+        print(string.format("Error: %s file do not exist, run brex init.", config_file_path))
+        print(get_help_string("brex"))
         return nil
     end
-
-    config_file:close()
-    return config_file_path
 end
 
 function get_brain_file()
     local config_file_path = get_config_file()
-    local content = read_yaml(config_file_path)
-    local brain_file = content["brain"]
+    local brain_file = nil
+    if config_file_path then
+        local content = read_yaml(config_file_path)
+        brain_file = content["brain"]
+    end
     return brain_file
 end
 
 function get_vault_path()
     local config_file_path = get_config_file()
-    local content = read_yaml(config_file_path)
-    local vault_dir = content["vault"]
+    local vault_dir = nil
+    if config_file_path then
+        local content = read_yaml(config_file_path)
+        local vault_dir = content["vault"]
+    end
     return vault_dir
 end
 
 function get_default_editor()
     local config_file_path = get_config_file()
-    local content = read_yaml(config_file_path)
-    local editor = content["editor"]
+    local editor = nil
+    if config_file_path then
+        local content = read_yaml(config_file_path)
+        local editor = content["editor"]
+    end
     return editor
 end
 
