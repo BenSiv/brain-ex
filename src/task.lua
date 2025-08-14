@@ -104,7 +104,7 @@ function mark_done(brain_file, args)
     local task_id = args["id"] or ""
     local comment = args["comment"] or ""
 
-    if content == "" then
+    if task_id == "" then
         print("Must provide task id")
         return
     end
