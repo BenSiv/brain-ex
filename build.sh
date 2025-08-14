@@ -47,3 +47,11 @@ mv "$TMPDIR"/brex bld/
 mv "$TMPDIR"/brex.luastatic.c bld/
 
 echo "Build complete. Binary in bld/brex"
+
+cat <<'EOF'
+ ____            _             _____      
+| __ ) _ __ __ _(_)_ __       | ____|_  __
+|  _ \| '__/ _` | | '_ \ _____|  _| \ \/ /
+| |_) | | | (_| | | | | |_____| |___ >  < 
+|____/|_|  \__,_|_|_| |_|     |_____/_/\_\
+EOF
