@@ -63,7 +63,7 @@ function init_bx(args)
     os.remove(brain_path)
 
     -- create database and tables
-    local_update(brain_path, sql_init)
+    database.execute(brain_path, sql_init)
 
     -- store info in ~/.config/brain-ex/config.yaml filr
     local config_dir = build_config_dir(home_dir)
@@ -88,7 +88,7 @@ function init_bx_with_vault(args)
     os.remove(brain_path)
     
     -- create database and tables
-    local_update(brain_path, sql_init)
+    database.execute(brain_path, sql_init)
 
 	if file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
@@ -114,9 +114,7 @@ local function do_init()
     ]]
 
     local help_string = get_help_string(arg[0])
-
-    local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args, help_string)
+    local args = parse_args(arg, arg_string, help_string)
 
     if args then
         if args["vault"] then

@@ -17,13 +17,14 @@ cp lua-utils/src/*.lua "$TMPDIR"/
 pushd "$TMPDIR" > /dev/null
 
 luastatic brex.lua \
+    bx_utils.lua \
+    config.lua \
     init.lua \
     note.lua \
     task.lua \
-    sql.lua \
     update.lua \
+    sql.lua \
     vault_to_sql.lua \
-    bx_utils.lua \
     help.lua \
     argparse.lua \
     database.lua \

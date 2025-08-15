@@ -8,7 +8,7 @@ function sqlite_shell(brain_file)
 end
 
 function sqlite_query(brain_file, query)
-    local results = local_query(brain_file, query)
+    local results = database.execute(brain_file, query)
     if not results then
         return nil
     end

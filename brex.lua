@@ -1,21 +1,22 @@
 
 package.path = "lua-utils/src/?.lua;" .. package.path
 require("utils").using("utils")
+database = require("database")
 using("prettyprint")
 using("dataframes")
-using("database")
 using("argparse")
 using("paths")
 using("dates")
 
 package.path = "src/?.lua;" .. package.path
 using("bx_utils")
+using("config")
+using("help")
 using("init")
 using("note")
 using("task")
 using("update")
 using("sql")
-using("help")
 
 local function main()
     local command_funcs = {
@@ -68,15 +69,8 @@ local function main()
         return
     end
     
-    if command == "init" then
-        func()
-        return
-    end
-    
     local brain_file = get_brain_file()
-    if brain_file then
-        func(brain_file)
-    end
+    func(brain_file)
 end
 
 -- run program
