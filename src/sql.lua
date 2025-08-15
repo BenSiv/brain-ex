@@ -22,7 +22,6 @@ local function do_sql(brain_file)
     ]]
 
     local help_string = get_help_string(arg[0])
-    
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
 

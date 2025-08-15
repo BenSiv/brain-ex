@@ -170,7 +170,8 @@ local function do_task(brain_file)
     ]]
 
     local help_string = get_help_string(arg[0])
-    local args = parse_args(arg, arg_string, help_string)
+    local expected_args = def_args(arg_string)
+    local args = parse_args(arg, expected_args, help_string)
 
     if args then
         if args["do"] == "add" then
