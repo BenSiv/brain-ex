@@ -1,10 +1,10 @@
 -- Define a module table
 local task = {}
 
-local sqlite = require("sqlite3")
 local os = require("os")
-local get_vault_path = require("bx_utils").get_vault_path
+local command_utils = require("command_utils")
 local get_help_string = require("help").get_help_string
+local bx_utils = require("bx_utils")
 
 function check_overdue(due_to)
     local current_time = os.time()
@@ -13,69 +13,79 @@ function check_overdue(due_to)
     return current_time > task_time
 end
 
-function update_overdue(brain_file)
+function update_overdue(state)
     -- Query to get all unfinished tasks
     local query = "SELECT id, due_to FROM tasks WHERE done IS NULL;"
-    local unfinished = local_query(brain_file, query)
+    local unfinished = state.database.query(state.brain_file, query)
+    
+    if not unfinished then
+        return false, "Failed to query unfinished tasks"
+    end
 
-    local overdue = false
-    local update_statement = ""
     for _, task in pairs(unfinished) do
-        overdue = check_overdue(task.due_to)
+        local overdue = check_overdue(task.due_to)
         if overdue then
-            update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
-            local_update(brain_file, update_statement)
+            local update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
+            local success = state.database.execute(state.brain_file, update_statement)
+            if not success then
+                return false, "Failed to update overdue status"
+            end
         end
     end
+    
+    return true
 end
 
-function backup_tasks(brain_file)
-    local vault_dir = get_vault_path()
-    if vault_dir then
-        local backup_path = joinpath(vault_dir, "tasks.tsv")
-        export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
+function backup_tasks(state)
+    if state.vault_path then
+        local backup_path = joinpath(state.vault_path, "tasks.tsv")
+        export_delimited(state.brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
 end
 
-function add_task(brain_file, args)
-    -- get note info
+function add_task(state, args)
+    -- get task info
     local subject = args["subject"] or "NULL"
     local content = args["content"] or ""
     local time_input_str = args["due_to"] or ""
     local due_to = normalize_datetime(time_input_str)
 
     if content == "" then
-        print("Must provide task content")
-        return
+        return false, "Must provide task content"
     end
 
-	if not due_to then
-		local current_time = os.time()
-		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
+    if not due_to then
+        local current_time = os.time()
+        due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tomorrow
     elseif not is_valid_timestamp(due_to) then
-        print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
-        return
+        return false, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
     end
 
     local overdue = check_overdue(due_to) and 1 or 0
-    local id = generate_id("tasks")
+    local id = bx_utils.generate_id(state, "tasks")
     local insert_statement = string.format([[
     INSERT INTO tasks (id, subject, content, due_to, overdue, done)
     VALUES ('%s', '%s', '%s', '%s', '%s', NULL);
     ]], id, subject, content, due_to, overdue)
-    -- write note info
-    local_update(brain_file, insert_statement)
-    backup_tasks(brain_file)
-end
-
-function list_tasks(brain_file, args)
-    local tasks_empty = is_sqlite_empty(brain_file, "tasks")
-    if tasks_empty then
-        print("Empty task list")
-        return
+    
+    local success = state.database.execute(state.brain_file, insert_statement)
+    if not success then
+        return false, "Failed to insert task"
     end
     
-    update_overdue(brain_file)
+    backup_tasks(state)
+    return true
+end
+function list_tasks(state, args)
+    local tasks_empty = bx_utils.is_sqlite_empty(state, "tasks")
+    if tasks_empty then
+        return false, "Empty task list"
+    end
+
+    local success, err = update_overdue(state)
+    if not success then
+        return false, err
+    end
 
     local subject = args["subject"] or ""
     local time_input_str = args["due_to"] or ""
@@ -89,42 +99,51 @@ function list_tasks(brain_file, args)
     if due_to then
         query = query .. string.format("AND due_to > '%s'", due_to)
     end
-    
+
     query = query .. " ORDER BY due_to, subject;"
 
-    result = local_query(brain_file, query)
+    local result = state.database.query(state.brain_file, query)
+    if not result then
+        return false, "Failed to query tasks"
+    end
+    
     if length(result) > 0 then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
-        print("Empty task list")
+        return false, "Empty task list"
     end
+    
+    return true
 end
 
-function mark_done(brain_file, args)
+function mark_done(state, args)
     local task_id = args["id"] or ""
     local comment = args["comment"] or ""
 
     if task_id == "" then
-        print("Must provide task id")
-        return
+        return false, "Must provide task id"
     end
 
     local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. comment .. "' WHERE id = " .. task_id .. ";"
-    local_update(brain_file, update_statement)
-    backup_tasks(brain_file)
+    local success = state.database.execute(state.brain_file, update_statement)
+    if not success then
+        return false, "Failed to mark task as done"
+    end
+    
+    backup_tasks(state)
+    return true
 end
 
-function delay_due(brain_file, args)
+function delay_due(state, args)
     local task_id = args["id"] or ""
     local time_input_str = args["due_to"] or ""
     local due_to = normalize_datetime(time_input_str)
 
     if not due_to then
-   		local current_time = os.time()
-   		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
+        local current_time = os.time()
+        due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tomorrow
     elseif not is_valid_timestamp(due_to) then
-        print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
-        return
+        return false, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
     end
 
     local overdue = check_overdue(due_to) and 1 or 0
@@ -134,11 +153,16 @@ function delay_due(brain_file, args)
     else
         update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, overdue, task_id)
     end
-    local_update(brain_file, update_statement)
-    backup_tasks(brain_file)
+    
+    local success = state.database.execute(state.brain_file, update_statement)
+    if not success then
+        return false, "Failed to delay task"
+    end
+    
+    backup_tasks(state)
+    return true
 end
-
-function last_done(brain_file, args)
+function last_done(state, args)
     local subject = args["subject"] or ""
     local num = args["number"] or 5
 
@@ -146,22 +170,28 @@ function last_done(brain_file, args)
     if subject ~= "" then
         query = query .. string.format("AND subject='%s'", subject)
     end
-    
+
     query = query .. " ORDER BY done DESC "
 
     if num ~= "" then
         query = query .. string.format("LIMIT %s", num)
     end
 
-    result = local_query(brain_file, query)
+    local result = state.database.query(state.brain_file, query)
+    if not result then
+        return false, "Failed to query completed tasks"
+    end
+    
     if length(result) > 0 then
         view(result, {columns={"subject", "content", "comment"}})
     else
-        print("No tasks to view")
+        return false, "No tasks to view"
     end
+    
+    return true
 end
 
-local function do_task(brain_file)
+function task.do_task(state)
     local arg_string = [[
         -d --do arg string false
         -s --subject arg string false
@@ -173,35 +203,37 @@ local function do_task(brain_file)
     ]]
 
     local help_string = get_help_string(arg[0])
+    local args = command_utils.parse_command_args(arg_string, help_string)
 
-    local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args, help_string)
-
-    if args then
-        if args["do"] == "add" then
-            add_task(brain_file, args)
-        elseif args["do"] == "list" then
-            list_tasks(brain_file, args)
-        elseif args["do"] == "done" then
-            mark_done(brain_file, args)
-        elseif args["do"] == "delay" then
-            delay_due(brain_file, args)
-        elseif args["do"] == "last" then
-            last_done(brain_file, args)
-        elseif not args["do"] then
-            add_task(brain_file, args)
-        else
-            print("Unknown subcommand: " .. args["do"])
-            print("Available subcommands: add, list, done, delay, last")
-        end
+    if not args then
+        return false
     end
+
+    local success, err
+
+    if args["do"] == "add" then
+        success, err = add_task(state, args)
+    elseif args["do"] == "list" then
+        success, err = list_tasks(state, args)
+    elseif args["do"] == "done" then
+        success, err = mark_done(state, args)
+    elseif args["do"] == "delay" then
+        success, err = delay_due(state, args)
+    elseif args["do"] == "last" then
+        success, err = last_done(state, args)
+    elseif not args["do"] then
+        success, err = add_task(state, args)
+    else
+        success, err = false, "Unknown subcommand: " .. args["do"]
+    end
+
+    if not success then
+        command_utils.handle_command_error(err or "Unknown error", help_string)
+        return false
+    end
+
+    return true
 end
 
-task.do_task = do_task
-
-if arg[0] == "task.lua" then
-    do_task(todays_task)
-else
-    -- Export the module
-    return task
-end
+-- Export the module
+return task

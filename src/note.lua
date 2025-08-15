@@ -2,47 +2,52 @@
 local note = {}
 
 local lfs = require("lfs")
-local get_vault_path = require("bx_utils").get_vault_path
+local command_utils = require("command_utils")
 local get_help_string = require("help").get_help_string
+local bx_utils = require("bx_utils")
 
 local function proccess_links_str(links_str)
+    if not links_str or links_str == "" then
+        return {}
+    end
     links = split(links_str, ",")
     for idx,link in pairs(links) do
         links[idx] = strip(link)
     end
     return links
 end
-        
-local function insert_note(brain_file, subject, title, content)
+
+local function insert_note(state, subject, title, content)
     local insert_statement = "INSERT INTO notes ('subject', 'name', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
-    local status = local_update(brain_file, insert_statement)
-    if not status then
-        print("Failed to update database")
-        return nil
+    local success = state.database.execute(state.brain_file, insert_statement)
+    if not success then
+        return false, "Failed to update database"
     end
-    return "success"
+    return true
 end
 
-local function append_content(brain_file, subject, title, content)
+local function append_content(state, subject, title, content)
     local query = string.format("SELECT content FROM notes WHERE name='%s' AND subject='%s';", title, subject)
-    local result = local_query(brain_file, query)
+    local result = state.database.query(state.brain_file, query)
     if not result then
-        print("Failed to query note")
-        return nil
+        return false, "Failed to query note"
     end
     local new_content = result[1].content .. "\n" .. content
 
     local update_statement = string.format("UPDATE notes SET content='%s' WHERE name='%s' AND subject='%s';", new_content, title, subject)
 
-    local status = local_update(brain_file, update_statement)
-    if not status then
-        print("Failed to update database")
-        return nil
+    local success = state.database.execute(state.brain_file, update_statement)
+    if not success then
+        return false, "Failed to update database"
     end
-    return "success"
+    return true
 end
 
-local function connect_notes(brain_file, source, links)
+local function connect_notes(state, source, links)
+    if isempty(links) then
+        return true
+    end
+    
     local insert_statement = "INSERT OR IGNORE INTO connections (source, target) VALUES "
     for index, target in pairs(links) do
         local statement_value = "('" .. source .. "', '" .. target .. "'), "
@@ -50,202 +55,179 @@ local function connect_notes(brain_file, source, links)
     end
     insert_statement = slice(insert_statement, 1, length(insert_statement)-2) .. ";"
 
-    local status = local_update(brain_file, insert_statement)
-    if not status then
-        print("Failed to connect notes")
-        return nil
+    local success = state.database.execute(state.brain_file, insert_statement)
+    if not success then
+        return false, "Failed to connect notes"
     end
-    return "success"
+    return true
 end
 
-local function write_note(vault_dir, subject, title, content, links)
+local function write_note(state, subject, title, content, links)
+    if not state.vault_path then
+        return true -- No vault configured, skip file writing
+    end
+    
     local obsidian_links = {}
     for index, link in pairs(links) do
         table.insert(obsidian_links, "[[" .. link .. "]] ")
     end
 
-    local note_dir = vault_dir .. "/" .. subject
+    local note_dir = state.vault_path .. "/" .. subject
     local note_path = note_dir .. "/" .. title .. ".md"
 
     -- Ensure the directory exists
     local mkdir_status = lfs.mkdir(note_dir)
     if not mkdir_status and not lfs.attributes(note_dir, "mode") then
-        print("Could not create directory: " .. note_dir)
-        return
+        return false, "Could not create directory: " .. note_dir
     end
-    
+
     local note_file = io.open(note_path, "a")
     if not note_file then
-        print("Error: Could not open file: " .. note_path)
-        return
+        return false, "Could not open file: " .. note_path
     end
 
     local to_write = content .. "\n" .. table.concat(obsidian_links, "\n") .. "\n"
     note_file:write(to_write)
     note_file:close()
-    return "success"
+    return true
 end
-
-local function take_note(brain_file, args)
+local function take_note(state, args)
     local subject = args["subject"] or ""
     local title = args["title"] or ""
     local content = args["content"] or ""
     local links_str = args["links"] or ""
     local links = proccess_links_str(links_str)
 
-    local vault_dir = get_vault_path()
-
     if title == "" then
-        print("Must provide note title")
-        return
+        return false, "Must provide note title"
     end
 
     if content == "" then
-        print("Must provide note content")
-        return
+        return false, "Must provide note content"
     end
 
-    local insert_status = insert_note(brain_file, subject, title, content)
-    if not insert_status then
-        print("Error: note insertion failed")
-        return
-    end
-    
-    if not isempty(links) then
-        local connect_status = connect_notes(brain_file, title, links)
-        if not connect_status then
-            print("Error: notes connection failed")
-            return
-        end
+    local success, err = insert_note(state, subject, title, content)
+    if not success then
+        return false, err
     end
 
-    if vault_dir then
-        local write_status = write_note(vault_dir, subject, title, content, links)
-        if not write_status then
-            print("Error: note writing to file failed")
-            return
-        end
+    success, err = connect_notes(state, title, links)
+    if not success then
+        return false, err
     end
 
-    return "success"
+    success, err = write_note(state, subject, title, content, links)
+    if not success then
+        return false, err
+    end
+
+    return true
 end
 
-local function edit_note(brain_file, args)
+local function edit_note(state, args)
     local subject = args["subject"] or ""
     local title = args["title"] or ""
-    local editor = get_default_editor()
-    local vault_path = get_vault_path()
-
-	if subject == "" and title == "" then
-    	subject = "daily"
-    	title = os.date("%Y-%m-%d")
-	end
-	
-    local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
+    
+    if subject == "" and title == "" then
+        subject = "daily"
+        title = os.date("%Y-%m-%d")
+    end
+    
+    if not state.vault_path then
+        return false, "No vault configured"
+    end
+    
+    local note_path = state.vault_path .. "/" .. subject .. "/" .. title .. ".md"
     if not lfs.attributes(note_path) then
-        print("Note file does not exist: " .. note_path)
-        return
+        return false, "Note file does not exist: " .. note_path
     end
 
-    local success = os.execute(string.format("'%s' '%s'", editor, note_path))
+    local success = os.execute(string.format("'%s' '%s'", state.default_editor, note_path))
     if not success then
-        print("Failed to open editor")
-        return
+        return false, "Failed to open editor"
     end
 
-    success = update_note_from_file(brain_file, note_path)
+    -- Import update function
+    local update = require("update")
+    success, err = update.update_note_from_file(state, note_path)
     if not success then
-        print("Failed to edit note in brain file")
-        return
+        return false, err or "Failed to edit note in brain file"
     end
 
-    return "success"
+    return true
 end
-
-local function last_notes(brain_file, args)
+local function last_notes(state, args)
     local subject = args["subject"] or "daily"
     local num = args["number"] or 5
 
     local query = string.format("SELECT name, content FROM notes WHERE subject='%s' ORDER BY name DESC LIMIT %s", subject, num)
 
-    local notes_empty = is_sqlite_empty(brain_file, "notes")
+    local notes_empty = bx_utils.is_sqlite_empty(state, "notes")
     if notes_empty then
-        print("No notes available")
-        return
+        return false, "No notes available"
     end
 
-    local result = local_query(brain_file, query)
+    local result = state.database.query(state.brain_file, query)
     if length(result) > 0 then
-        -- view(result)
         for i, note in pairs(result) do
             bold(note.name)
             print(note.content .. "\n")
         end
     else
-        print("No notes available")
+        return false, "No notes available"
     end
+    
+    return true
 end
 
-local function todays_note(brain_file, args)
+local function todays_note(state, args)
     -- Get today's date in the format "YYYY-MM-DD"
     local title = os.date("%Y-%m-%d")
     local subject = "daily"
     local content = args["content"] or ""
-    local links = args["links"] or {}
-
-    local vault_dir = get_vault_path()
+    local links_str = args["links"] or ""
+    local links = proccess_links_str(links_str)
 
     if content == "" then
-        print("Must provide note content")
+        return false, "Must provide note content"
     end
 
     -- Check if the note exists
     local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE name='%s' AND subject='%s';", title, subject)
-    local result = local_query(brain_file, query)
+    local result = state.database.query(state.brain_file, query)
     if not result then
-        print("Failed to query note database")
-        return
+        return false, "Failed to query note database"
     end
 
     local note_exists = tonumber(result[1].count) > 0
 
     -- If the note exists, update it; otherwise, create a new one
-    if not isempty(content) then
-        if note_exists then
-            local append_status = append_content(brain_file, subject, title, content)
-            if not append_status then
-                print("Error: append content failed")
-                return
-            end
-        else
-            local insert_status = insert_note(brain_file, subject, title, content)
-            if not insert_status then
-                print("Error: note insertion failed")
-                return
-            end
+    local success, err
+    if note_exists then
+        success, err = append_content(state, subject, title, content)
+        if not success then
+            return false, err
+        end
+    else
+        success, err = insert_note(state, subject, title, content)
+        if not success then
+            return false, err
         end
     end
 
-    if not isempty(links) then
-        local connect_status = connect_notes(brain_file, title, links)
-        if not connect_status then
-            print("Error: notes connection failed")
-            return
-        end
+    success, err = connect_notes(state, title, links)
+    if not success then
+        return false, err
     end
 
-    if vault_dir then
-        local write_status = write_note(vault_dir, subject, title, content, links)
-        if not write_status then
-            print("Error: note writing to file failed")
-            return
-        end
+    success, err = write_note(state, subject, title, content, links)
+    if not success then
+        return false, err
     end
 
-    return "success"
+    return true
 end
-
-local function do_note(brain_file)
+function note.do_note(state)
     local arg_string = [[
         -d --do arg string false
         -s --subject arg string false
@@ -256,34 +238,36 @@ local function do_note(brain_file)
     ]]
 
     local help_string = get_help_string(arg[0])
+    local args = command_utils.parse_command_args(arg_string, help_string)
 
-    local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args, help_string)
-
-    if args then
-        if args["do"] == "add" then
-            take_note(brain_file, args)
-        elseif args["do"] == "edit" then
-            edit_note(brain_file, args)
-        elseif args["do"] == "last" then
-            last_notes(brain_file, args)
-        elseif args["do"] == "connect" then
-            local links = proccess_links_str(args["links"])
-            connect_notes(brain_file, args["title"], links)
-        elseif not args["do"] then
-            todays_note(brain_file, args)
-        else
-            print("Unknown subcommand: " .. args["do"])
-            print("Available subcommands: add, edit, last")
-        end
+    if not args then
+        return false
     end
+
+    local success, err
+
+    if args["do"] == "add" then
+        success, err = take_note(state, args)
+    elseif args["do"] == "edit" then
+        success, err = edit_note(state, args)
+    elseif args["do"] == "last" then
+        success, err = last_notes(state, args)
+    elseif args["do"] == "connect" then
+        local links = proccess_links_str(args["links"])
+        success, err = connect_notes(state, args["title"], links)
+    elseif not args["do"] then
+        success, err = todays_note(state, args)
+    else
+        success, err = false, "Unknown subcommand: " .. args["do"]
+    end
+
+    if not success then
+        command_utils.handle_command_error(err or "Unknown error", help_string)
+        return false
+    end
+
+    return true
 end
 
-note.do_note = do_note
-
-if arg[0] == "note.lua" then
-    do_note(brain_file)
-else
-    -- Export the module
-    return note
-end
+-- Export the module
+return note

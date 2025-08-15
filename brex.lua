@@ -1,4 +1,3 @@
-
 package.path = "lua-utils/src/?.lua;" .. package.path
 require("utils").using("utils")
 using("prettyprint")
@@ -9,27 +8,29 @@ using("paths")
 using("dates")
 
 package.path = "src/?.lua;" .. package.path
-using("bx_utils")
-using("init")
-using("note")
-using("task")
-using("update")
-using("sql")
-using("help")
+local app_state = require("app_state")
+local commands = {
+    ["init"] = require("init"),
+    ["note"] = require("note"),
+    ["task"] = require("task"),
+    ["update"] = require("update"),
+    ["sql"] = require("sql")
+}
+local get_help_string = require("help").get_help_string
 
 local function main()
     local command_funcs = {
-        ["init"] = do_init,
-        ["note"] = do_note,
-        ["task"] = do_task,
-        ["update"] = do_update,
-        ["sql"] = do_sql
+        ["init"] = commands["init"].do_init,
+        ["note"] = commands["note"].do_note,
+        ["task"] = commands["task"].do_task,
+        ["update"] = commands["update"].do_update,
+        ["sql"] = commands["sql"].do_sql
     }
 
     arg[-1] = "lua" -- for the executable
 
     local command = arg[1]
-    
+
     if command and not starts_with(command, "-") then
         arg[0] = "brex " .. command
     else
@@ -37,13 +38,13 @@ local function main()
     end
 
     local help_string = get_help_string(arg[0])
-    
+
     if length(arg) == 2 then
         print("Missing command")
         print(help_string)
         return
     end
-    
+
     if length(arg) == 3 then
         arg[1] = nil
     end
@@ -67,16 +68,27 @@ local function main()
         print(help_string)
         return
     end
-    
+
+    -- Handle init command specially (no state needed)
     if command == "init" then
         func()
         return
     end
-    
-    local brain_file = get_brain_file()
-    if brain_file then
-        func(brain_file)
+
+    -- Create application state for other commands
+    local state, err = app_state.create()
+    if not state then
+        print(err)
+        return
     end
+
+    -- Execute command with state
+    local success = func(state)
+
+    -- Cleanup
+    app_state.cleanup(state)
+
+    return success
 end
 
 -- run program
