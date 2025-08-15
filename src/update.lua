@@ -14,7 +14,7 @@ function update_from_vault(brain_file)
         os.remove(brain_file)
 
         -- create database and tables
-        local status = database.execute(brain_file, sql_init)
+        local status = local_update(brain_file, sql_init)
         if not status then
             print("Failed to update database")
             return nil
@@ -72,7 +72,7 @@ local function update_note_from_file(brain_file, note_path)
 	]], subject, title)
 	
 	local num_rows = 0
-	local result = database.execute(brain_file, note_exists_query)
+	local result = local_query(brain_file, note_exists_query)
 	if result then
 		num_rows = tonumber(result[1].num)
 	end
@@ -93,7 +93,7 @@ local function update_note_from_file(brain_file, note_path)
 	end
 
 	-- Execute the statement
-	local success = database.execute(brain_file, stmt)
+	local success = local_update(brain_file, stmt)
 	if not success then
 		print("Failed to update note from file: " .. note_path)
 		return
@@ -101,7 +101,7 @@ local function update_note_from_file(brain_file, note_path)
 
 	-- Clear existing connections for this note
     local clear_links = string.format("DELETE FROM connections WHERE source = '%s';", title)
-	success = database.execute(brain_file, clear_links)
+	success = local_update(brain_file, clear_links)
 	if not success then
 		print("Failed to clear note links from file: " .. note_path)
 		return
@@ -113,7 +113,7 @@ local function update_note_from_file(brain_file, note_path)
         for i, link in ipairs(links) do
             insert_links = insert_links .. string.format("('%s', '%s')%s", title, link, i < #links and "," or ";")
         end
-		success = database.execute(brain_file, insert_links)
+		success = local_update(brain_file, insert_links)
 		if not success then
 			print("Failed to update note links from file: " .. note_path)
 			return

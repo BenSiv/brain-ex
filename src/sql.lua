@@ -1,14 +1,12 @@
 -- Define a module table
 local sql = {}
 
-local get_help_string = require("help").get_help_string
-
 function sqlite_shell(brain_file)
     os.execute("sqlite3 -column -header " .. brain_file)
 end
 
 function sqlite_query(brain_file, query)
-    local results = database.execute(brain_file, query)
+    local results = local_query(brain_file, query)
     if not results then
         return nil
     end

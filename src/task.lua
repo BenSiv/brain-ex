@@ -13,7 +13,7 @@ end
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
     local query = "SELECT id, due_to FROM tasks WHERE done IS NULL;"
-    local unfinished = database.execute(brain_file, query)
+    local unfinished = local_query(brain_file, query)
 
     local overdue = false
     local update_statement = ""
@@ -21,7 +21,11 @@ function update_overdue(brain_file)
         overdue = check_overdue(task.due_to)
         if overdue then
             update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
-            database.execute(brain_file, update_statement)
+            local success = local_update(brain_file, update_statement)
+            if not success then
+                print("Failed to update overdue status for task ID: " .. task.id)
+                return
+            end
         end
     end
 end
@@ -61,7 +65,12 @@ function add_task(brain_file, args)
     VALUES ('%s', '%s', '%s', '%s', '%s', NULL);
     ]], id, subject, content, due_to, overdue)
     -- write note info
-    database.execute(brain_file, insert_statement)
+    local success = local_update(brain_file, insert_statement)
+	if not success then
+		print("Failed to add task")
+		return
+	end
+
     backup_tasks(brain_file)
 end
 
@@ -89,7 +98,7 @@ function list_tasks(brain_file, args)
     
     query = query .. " ORDER BY due_to, subject;"
 
-    result = database.execute(brain_file, query)
+    result = local_query(brain_file, query)
     if length(result) > 0 then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
@@ -107,7 +116,11 @@ function mark_done(brain_file, args)
     end
 
     local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. comment .. "' WHERE id = " .. task_id .. ";"
-    database.execute(brain_file, update_statement)
+    local status = local_update(brain_file, update_statement)
+    if not status then
+        print("Failed to mark task as done")
+        return
+    end
     backup_tasks(brain_file)
 end
 
@@ -117,7 +130,7 @@ function delay_due(brain_file, args)
     local due_to = normalize_datetime(time_input_str)
 
     if not due_to then
-        local current_due_to = database.execute(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
+        local current_due_to = local_query(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
    		due_to = os.date("%Y-%m-%d %H:%M:%S", current_due_to + 86400) -- one day later
     elseif not is_valid_timestamp(due_to) then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
@@ -131,7 +144,11 @@ function delay_due(brain_file, args)
     else
         update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, overdue, task_id)
     end
-    database.execute(brain_file, update_statement)
+    local status = local_update(brain_file, update_statement)
+    if not status then
+        print("Failed to delay task due date")
+        return
+    end
     backup_tasks(brain_file)
 end
 
@@ -150,7 +167,7 @@ function last_done(brain_file, args)
         query = query .. string.format("LIMIT %s", num)
     end
 
-    result = database.execute(brain_file, query)
+    result = local_query(brain_file, query)
     if length(result) > 0 then
         view(result, {columns={"subject", "content", "comment"}})
     else

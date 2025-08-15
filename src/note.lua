@@ -13,7 +13,7 @@ end
         
 local function insert_note(brain_file, subject, title, content)
     local insert_statement = "INSERT INTO notes ('subject', 'name', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
-    local status = database.execute(brain_file, insert_statement)
+    local status = local_update(brain_file, insert_statement)
     if not status then
         print("Failed to update database")
         return nil
@@ -23,7 +23,7 @@ end
 
 local function append_content(brain_file, subject, title, content)
     local query = string.format("SELECT content FROM notes WHERE name='%s' AND subject='%s';", title, subject)
-    local result = database.execute(brain_file, query)
+    local result = local_query(brain_file, query)
     if not result then
         print("Failed to query note")
         return nil
@@ -32,7 +32,7 @@ local function append_content(brain_file, subject, title, content)
 
     local update_statement = string.format("UPDATE notes SET content='%s' WHERE name='%s' AND subject='%s';", new_content, title, subject)
 
-    local status = database.execute(brain_file, update_statement)
+    local status = local_update(brain_file, update_statement)
     if not status then
         print("Failed to update database")
         return nil
@@ -48,7 +48,7 @@ local function connect_notes(brain_file, source, links)
     end
     insert_statement = slice(insert_statement, 1, length(insert_statement)-2) .. ";"
 
-    local status = database.execute(brain_file, insert_statement)
+    local status = local_update(brain_file, insert_statement)
     if not status then
         print("Failed to connect notes")
         return nil
@@ -165,7 +165,7 @@ local function last_notes(brain_file, args)
     local num = args["number"] or 5
 
     local query = string.format("SELECT name, content FROM notes WHERE subject='%s' ORDER BY name DESC LIMIT %s", subject, num)
-    local result = database.execute(brain_file, query)
+    local result = local_query(brain_file, query)
     if not result then
         print("Failed to query notes")
         return
@@ -196,7 +196,7 @@ local function todays_note(brain_file, args)
 
     -- Check if the note exists
     local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE name='%s' AND subject='%s';", title, subject)
-    local result = database.execute(brain_file, query)
+    local result = local_query(brain_file, query)
     if not result then
         print("Failed to query note database")
         return

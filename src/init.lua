@@ -63,7 +63,11 @@ function init_bx(args)
     os.remove(brain_path)
 
     -- create database and tables
-    database.execute(brain_path, sql_init)
+    local success = local_update(brain_path, sql_init)
+	if not success then
+		print("Failed to initilize database")
+		return
+	end
 
     -- store info in ~/.config/brain-ex/config.yaml filr
     local config_dir = build_config_dir(home_dir)
@@ -88,7 +92,11 @@ function init_bx_with_vault(args)
     os.remove(brain_path)
     
     -- create database and tables
-    database.execute(brain_path, sql_init)
+    local success = local_update(brain_path, sql_init)
+	if not success then
+		print("Failed to initilize database")
+		return
+	end
 
 	if file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
