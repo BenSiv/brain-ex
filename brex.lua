@@ -69,8 +69,15 @@ local function main()
         return
     end
     
-    local brain_file = get_brain_file()
-    func(brain_file)
+    if command == "init" then
+        func()
+        return
+    end
+    
+    local brain_file = get_brain_path()
+    if brain_file then
+        func(brain_file)
+    end
 end
 
 -- run program

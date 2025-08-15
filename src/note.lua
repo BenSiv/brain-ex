@@ -91,7 +91,7 @@ local function take_note(brain_file, args)
     local links_str = args["links"] or ""
     local links = proccess_links_str(links_str)
 
-    local vault_dir = get_vault_path()
+    local vault_path = get_vault_path()
 
     if title == "" then
         print("Must provide note title")
@@ -117,8 +117,8 @@ local function take_note(brain_file, args)
         end
     end
 
-    if vault_dir then
-        local write_status = write_note(vault_dir, subject, title, content, links)
+    if vault_path then
+        local write_status = write_note(vault_path, subject, title, content, links)
         if not write_status then
             print("Error: note writing to file failed")
             return
@@ -188,7 +188,7 @@ local function todays_note(brain_file, args)
     local content = args["content"] or ""
     local links = args["links"] or {}
 
-    local vault_dir = get_vault_path()
+    local vault_path = get_vault_path()
 
     if content == "" then
         print("Must provide note content")
@@ -229,8 +229,8 @@ local function todays_note(brain_file, args)
         end
     end
 
-    if vault_dir then
-        local write_status = write_note(vault_dir, subject, title, content, links)
+    if vault_path then
+        local write_status = write_note(vault_path, subject, title, content, links)
         if not write_status then
             print("Error: note writing to file failed")
             return

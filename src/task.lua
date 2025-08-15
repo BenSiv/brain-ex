@@ -27,9 +27,9 @@ function update_overdue(brain_file)
 end
 
 function backup_tasks(brain_file)
-    local vault_dir = get_vault_path()
-    if vault_dir then
-        local backup_path = joinpath(vault_dir, "tasks.tsv")
+    local vault_path = get_vault_path()
+    if vault_path then
+        local backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
 end

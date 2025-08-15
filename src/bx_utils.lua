@@ -1,8 +1,10 @@
 -- Define a module table
 local bx_utils = {}
 
+local sqlite = require("sqlite3")
+
 local function is_id_unique(table_name, target_id)
-    local brain_file = get_brain_file()
+    local brain_file = get_brain_path()
     local query = string.format("SELECT COUNT(*) FROM %s WHERE id = '%s';", table_name, target_id)
     local db = sqlite.open(brain_file)
     local is_unique = nil
@@ -39,6 +41,19 @@ function is_timestamp(str)
     else
         return false
     end
+end
+
+function is_sqlite_empty(brain_file, table_name)
+    local query = "SELECT COUNT(*) FROM " .. table_name .. ";"
+    local db = sqlite.open(brain_file)
+    local answer = false
+    for row in db:rows(query) do
+        for _ ,element in pairs(row) do
+            answer = element == 0
+       end
+    end
+    db:close()
+    return answer
 end
 
 bx_utils.generate_id = generate_id
