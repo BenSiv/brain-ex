@@ -74,7 +74,7 @@ local function main()
         return
     end
     
-    local brain_file = get_brain_file()
+    local brain_file = get_brain_path()
     if brain_file then
         func(brain_file)
     end

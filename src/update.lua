@@ -4,9 +4,7 @@ local update = {}
 local database = require("database")
 local vault_to_sql = require("vault_to_sql").vault_to_sql
 local process_content = require("vault_to_sql").process_content
-local get_vault_path = require("bx_utils").get_vault_path
 local sql_init = require("init").sql_init
-local get_help_string = require("help").get_help_string
 
 function update_from_vault(brain_file)
     local vault_path = get_vault_path()

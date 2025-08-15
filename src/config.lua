@@ -30,7 +30,7 @@ local function load_config()
     return cached_config
 end
 
-function config.get_brain_file()
+function config.get_brain_path()
     local cfg = load_config()
     return cfg and cfg["brain"]
 end
