@@ -47,6 +47,7 @@ mv "$TMPDIR"/brex bld/
 mv "$TMPDIR"/brex.luastatic.c bld/
 
 echo "Build complete. Binary in bld/brex"
+echo "Suggested next step: cp bld/brex /usr/local/bin/brex"
 
 cat <<'EOF'
  ____            _             _____      
