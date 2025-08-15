@@ -10,6 +10,7 @@ using("dates")
 
 package.path = "src/?.lua;" .. package.path
 using("bx_utils")
+using("config")
 using("init")
 using("note")
 using("task")

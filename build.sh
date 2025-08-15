@@ -17,13 +17,14 @@ cp lua-utils/src/*.lua "$TMPDIR"/
 pushd "$TMPDIR" > /dev/null
 
 luastatic brex.lua \
+    bx_utils.lua \
+    config.lua \
     init.lua \
     note.lua \
     task.lua \
     sql.lua \
     update.lua \
     vault_to_sql.lua \
-    bx_utils.lua \
     help.lua \
     argparse.lua \
     database.lua \
@@ -47,6 +48,7 @@ mv "$TMPDIR"/brex bld/
 mv "$TMPDIR"/brex.luastatic.c bld/
 
 echo "Build complete. Binary in bld/brex"
+echo "Suggested next step: cp bld/brex /usr/local/bin/brex"
 
 cat <<'EOF'
  ____            _             _____      
