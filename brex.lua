@@ -1,7 +1,7 @@
 
 package.path = "lua-utils/src/?.lua;" .. package.path
 require("utils").using("utils")
-database = require("database")
+using("database")
 using("prettyprint")
 using("dataframes")
 using("argparse")

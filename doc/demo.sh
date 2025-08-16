@@ -31,7 +31,7 @@ comment "# Brain file initilized"
 pe 'ls my_vault.db'
 
 comment "# Show configurations"
-pe 'cat ~/.config/brain-ex/config.yaml'
+pe 'cat ~/.config/brain-ex/config.yaml ; echo'
 
 pe "clear"
 
@@ -45,13 +45,13 @@ pe 'ls my_vault'
 pe 'ls my_vault/daily'
 
 comment "# Add a note with title, subject, and links"
-pe 'brex note add --title "API rate limit fix" --content "Patched endpoint to throttle requests" --subject "backend" --links "rate-limit,bugfix"'
+pe 'brex note add --title "api-fix" --content "Patched endpoint to throttle requests" --subject "backend" --links "rate-limit,bugfix"'
 pe 'ls -1 my_vault'
 pe 'ls -1 my_vault/backend'
-pe 'cat "my_vault/backend/API rate limit fix.md"'
+pe 'cat "my_vault/backend/api-fix.md"'
 
 comment "# Edit a note"
-pe 'brex note edit --title "API rate limit fix"'
+pe 'brex note edit --title "api-fix" --subject "backend"'
 
 pe "clear"
 
@@ -68,8 +68,12 @@ pe 'brex task delay --id "*"'
 comment "# List all open tasks"
 pe 'brex task list'
 
+TASK_ID=$(sqlite3 my_vault.db "select id from tasks limit 1;")
 comment "# Mark task as done"
-pe 'brex task done --id 1 --comment "Deployed successfully"'
+pe 'brex task done --id $TASK_ID --comment "Deployed successfully"'
+
+comment "# List all open tasks"
+pe 'brex task list'
 
 pe "clear"
 
@@ -78,7 +82,7 @@ comment "# Update database from vault"
 pe 'brex update'
 
 comment "# Update from a specific note file"
-pe 'brex update --file "/path/to/vault/backend/api-fix.md"'
+pe 'brex update --file "my_vault/backend/api-fix.md"'
 
 pe "clear"
 
