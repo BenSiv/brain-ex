@@ -3,7 +3,7 @@
 # Brain-Ex CLI Showcase Demo
 # Uses demo-magic: https://github.com/paxtonhare/demo-magic
 
-source demo-magic.sh
+source ~/demo-magic/demo-magic.sh
 
 DEMO_PROMPT="${GREEN}Brain-Ex Demo${COLOR_RESET} | ${BLUE}\w${COLOR_RESET} > "
 TYPE_SPEED=20
