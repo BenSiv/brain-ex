@@ -101,12 +101,14 @@ brex note last --subject "daily" --number 10
 Description:
 Connect notes.
 
-Required:
--t --title <title> Title of the note to connect.
--l --links <links> Links to other notes, separated by commas.
+Optional:
+-t --title <title>     Title of the note to connect, default is today's date
+-s --subject <subject> Subject of the note, default is daily
+-l --links <links>     Links to other notes, separated by commas.
 
 Examples:
-brex note connect --title "note1" --links "note2,note3"
+brex note connect --title "note1" --links "note2,daily/note3"
+brex note connect --links "todo,review"
         ]],
         ["brex task"] = [[
 Description:

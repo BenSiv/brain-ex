@@ -59,9 +59,7 @@ local function append_content(brain_file, subject, title, content)
     return "success"
 end
 
-local function connect_notes(brain_file, source_title, source_subject, links_str)
-    local links = parse_links_str(links_str)
-
+local function connect_notes(brain_file, source_title, source_subject, links)
     if isempty(links) then
         return "success"
     end
@@ -154,7 +152,7 @@ local function take_note(brain_file, args)
     end
     
     if not isempty(links) then
-        local connect_status = connect_notes(brain_file, title, links)
+        local connect_status = connect_notes(brain_file, title, subject, links)
         if not connect_status then
             print("Error: notes connection failed")
             return
@@ -267,8 +265,7 @@ local function todays_note(brain_file, args)
     end
 
     if not isempty(links) then
-        local proccessed_links = proccess_links_str(links_str)
-        local connect_status = connect_notes(brain_file, title, proccessed_links)
+        local connect_status = connect_notes(brain_file, title, subject, links)
         if not connect_status then
             print("Error: notes connection failed")
             return
@@ -280,6 +277,55 @@ local function todays_note(brain_file, args)
         if not write_status then
             print("Error: note writing to file failed")
             return
+        end
+    end
+
+    return "success"
+end
+
+local function do_note_connect(brain_file, args)
+    local title = args["title"] or os.date("%Y-%m-%d")
+    local subject = args["subject"] or "daily"
+    local links_str = args["links"] or ""
+    local links = parse_links_str(links_str)
+
+    if isempty(links) then
+        print("No links provided to connect.")
+        return
+    end
+
+    -- Connect in the database
+    local status = connect_notes(brain_file, title, subject, links)
+    if not status then
+        print("Failed to connect notes")
+        return
+    end
+
+    -- Also append links to the note file
+    local vault_path = get_vault_path()
+    if vault_path then
+        local note_dir = vault_path .. "/" .. subject
+        local note_path = note_dir .. "/" .. title .. ".md"
+
+        -- Ensure directory exists
+        if not lfs.attributes(note_dir, "mode") then
+            lfs.mkdir(note_dir)
+        end
+
+        local note_file = io.open(note_path, "a")
+        if note_file then
+            local obsidian_links = {}
+            for _, link in pairs(links) do
+                if link.subject ~= "" then
+                    table.insert(obsidian_links, "[[" .. link.subject .. "/" .. link.title .. "]]")
+                else
+                    table.insert(obsidian_links, "[[" .. link.title .. "]]")
+                end
+            end
+            note_file:write(table.concat(obsidian_links, " ") .. "\n")
+            note_file:close()
+        else
+            print("Failed to open note file: " .. note_path)
         end
     end
 
@@ -308,8 +354,7 @@ local function do_note(brain_file)
         elseif args["do"] == "last" then
             last_notes(brain_file, args)
         elseif args["do"] == "connect" then
-            local links = parse_links_str(args["links"])
-            connect_notes(brain_file, args["title"], links)
+            do_note_connect(brain_file, args)
         elseif not args["do"] then
             todays_note(brain_file, args)
         else

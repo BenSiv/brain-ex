@@ -33,7 +33,7 @@ teardown() {
     run brex note add --title "meeting" --content "Meeting notes" --subject "work" --links "todo"
     [ "$status" -eq 0 ]
 
-    run brex note add --title "meeting" --content "Meeting notes" --subject "work" --links "daily/agenda,review"
+    run brex note connect --title "meeting" --subject "work" --links "daily/agenda,review"
     [ "$status" -eq 0 ]
 
     [ -f "tmp_vault/work/meeting.md" ]
@@ -43,11 +43,11 @@ teardown() {
     [ "$LINKCOUNT" -eq 3 ]
 }
 
-@test "add link to daily note without content" {
+@test "connect link to daily note without content" {
     TODAY=$(date +%Y-%m-%d)
     
-    # Add link only, no new content
-    run brex note --links "daily/todo"
+    # Connect link only, no new content
+    run brex note connect --links "daily/todo"
     [ "$status" -eq 0 ]
 
     NOTEFILE="tmp_vault/daily/$TODAY.md"
