@@ -1,24 +1,58 @@
 #!/usr/bin/env bats
 
+CONFIG="$HOME/.config/brain-ex/config.yaml"
+
 setup() {
-  rm -rf tmp_vault
-  rm -f brain.db tmp_vault.db
+    rm -rf tmp_vault
+    rm -f brain.db tmp_vault.db my_brain.db
+    mkdir -p tmp_vault
 }
 
 teardown() {
-  rm -rf tmp_vault
-  rm -f brain.db tmp_vault.db
+    rm -rf tmp_vault
+    rm -f brain.db tmp_vault.db my_brain.db
+    rm -f "$CONFIG"
 }
 
-@test "default init creates brain.db" {
-  run brex init
-  [ "$status" -eq 0 ]
-  [ -f "brain.db" ]
+@test "default init creates brain.db and config file" {
+    run brex init
+    [ "$status" -eq 0 ]
+    [ -f "brain.db" ]
+    [ -f "$CONFIG" ]
+
+    grep -q "brain: .*brain.db" "$CONFIG"
+    grep -q "editor: nano" "$CONFIG"
 }
 
-@test "init with vault and editor creates vault db" {
-  mkdir tmp_vault
-  run brex init --vault tmp_vault --editor micro
-  [ "$status" -eq 0 ]
-  [ -f "tmp_vault.db" ]
+@test "init with vault and editor creates vault db and sets config" {
+    run brex init --vault tmp_vault --editor micro
+    [ "$status" -eq 0 ]
+    [ -f "tmp_vault.db" ]
+    [ -f "$CONFIG" ]
+
+    grep -q "vault: .*tmp_vault" "$CONFIG"
+    grep -q "brain: .*tmp_vault.db" "$CONFIG"
+    grep -q "editor: micro" "$CONFIG"
+}
+
+@test "init with custom name creates specified db and config" {
+    run brex init --name "my_brain"
+    [ "$status" -eq 0 ]
+    [ -f "my_brain.db" ]
+    [ -f "$CONFIG" ]
+
+    grep -q "brain: .*my_brain.db" "$CONFIG"
+    grep -q "editor: nano" "$CONFIG"
+}
+
+@test "init with vault and custom name updates config correctly" {
+    run brex init --vault tmp_vault --name "custom_brain" --editor micro
+    [ "$status" -eq 0 ]
+    [ -f "custom_brain.db" ]
+    [ -f "tmp_vault.db" ]
+    [ -f "$CONFIG" ]
+
+    grep -q "vault: .*tmp_vault" "$CONFIG"
+    grep -q "brain: .*custom_brain.db" "$CONFIG"
+    grep -q "editor: micro" "$CONFIG"
 }
