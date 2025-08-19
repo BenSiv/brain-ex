@@ -68,7 +68,7 @@ local function update_note_from_file(brain_file, note_path)
 	-- Check if the note already exists
 	local note_exists_query = string.format([[
 		SELECT COUNT(*) AS num FROM notes
-		WHERE subject = '%s' AND name = '%s'
+		WHERE subject = '%s' AND title = '%s'
 	]], subject, title)
 	
 	local num_rows = 0
@@ -83,11 +83,11 @@ local function update_note_from_file(brain_file, note_path)
 		stmt = string.format([[
 			UPDATE notes
 			SET content = '%s'
-			WHERE subject = '%s' AND name = '%s';
+			WHERE subject = '%s' AND title = '%s';
 		]], content, subject, title)
 	else
 		stmt = string.format([[
-			INSERT INTO notes (subject, name, content)
+			INSERT INTO notes (subject, title, content)
 			VALUES ('%s', '%s', '%s');
 		]], subject, title, content)
 	end
