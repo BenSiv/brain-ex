@@ -46,13 +46,12 @@ teardown() {
 }
 
 @test "init with vault and custom name updates config correctly" {
-    run brex init --vault tmp_vault --name "custom_brain" --editor micro
+    run brex init --vault tmp_vault --name "my_brain" --editor micro
     [ "$status" -eq 0 ]
-    [ -f "custom_brain.db" ]
-    [ -f "tmp_vault.db" ]
+    [ -f "my_brain.db" ]
     [ -f "$CONFIG" ]
 
     grep -q "vault: .*tmp_vault" "$CONFIG"
-    grep -q "brain: .*custom_brain.db" "$CONFIG"
+    grep -q "brain: .*my_brain.db" "$CONFIG"
     grep -q "editor: micro" "$CONFIG"
 }

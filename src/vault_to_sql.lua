@@ -5,6 +5,7 @@ require("utils").using("utils")
 local joinpath = require("paths").joinpath
 local sqlite = require("sqlite3")
 local lfs = require("lfs")
+local parse_links_str = require("note").parse_links_str
 
 local function get_last_update_time(file_path)
     local attr = lfs.attributes(file_path)
@@ -111,14 +112,18 @@ end
 local function extract_links(line, link_found)
     link_found = link_found or {}
     local processed_line = line
-    for link in match_all(line, "%[%[(.-)%]%]") do
-        if not occursin(link, link_found) then
+
+    for raw_link in match_all(line, "%[%[(.-)%]%]") do
+        local parsed_links = parse_links_str(raw_link)
+        for _, link in ipairs(parsed_links) do
             table.insert(link_found, link)
         end
-        processed_line = remove_link(processed_line, link)
+        processed_line = remove_link(processed_line, raw_link)
     end
+
     return processed_line, link_found
 end
+
 
 local function clean_content(content)
     local cleaned_content = replace(content, "'", "")
@@ -157,7 +162,7 @@ function vault_to_sql(vault_path, brain_file)
         for _, note in pairs(notes) do
             local content, links = process_content(note.content)
             local note_path = ""
-            if subject ~= "root" then
+            if subject ~= "" then
                 note_path = vault_path .. "/" .. subject .. "/" .. note.name .. ".md"
             else
                 note_path = vault_path .. "/" .. note.name .. ".md"

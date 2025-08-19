@@ -10,28 +10,30 @@ local sql_init = [[
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE notes (
-    "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "subject" TEXT,
-    "title" TEXT,
-    "content" TEXT,
-    PRIMARY KEY ("title", "subject")
+    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    subject TEXT,
+    title TEXT,
+    content TEXT,
+    PRIMARY KEY (title, subject)
 );
 
 CREATE TABLE connections (
-    "source" TEXT,
-    "target" TEXT,
-    PRIMARY KEY ("source", "target")
+    source_title TEXT NOT NULL,
+    source_subject TEXT,
+    target_title TEXT NOT NULL,
+    target_subject TEXT,
+    PRIMARY KEY (source_title, source_subject, target_title, target_subject)
 );
 
 CREATE TABLE tasks (
-    "id" INTEGER PRIMARY KEY,
-    "time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "content" TEXT,
-    "subject" TEXT,
-    "due_to" TIMESTAMP,
-    "overdue" INTEGER,
-    "done" TIMESTAMP DEFAULT NULL,
-    "comment" TEXT DEFAULT NULL
+    id INTEGER PRIMARY KEY,
+    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    content TEXT,
+    subject TEXT,
+    due_to TIMESTAMP,
+    overdue INTEGER,
+    done TIMESTAMP DEFAULT NULL,
+    comment TEXT DEFAULT NULL
 );
 ]]
 

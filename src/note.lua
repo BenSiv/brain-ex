@@ -3,10 +3,29 @@ local note = {}
 
 local lfs = require("lfs")
 
-local function proccess_links_str(links_str)
-    links = split(links_str, ",")
-    for idx,link in pairs(links) do
-        links[idx] = strip(link)
+-- local function proccess_links_str(links_str)
+--     links = split(links_str, ",")
+--     for idx,link in pairs(links) do
+--         links[idx] = strip(link)
+--     end
+--     return links
+-- end
+
+-- parse links string like "daily/note1,backend/note2,note3"
+local function parse_links_str(links_str)
+    if links_str == nil or links_str == "" then
+        return {}
+    end
+
+    local links = {}
+    for raw_link in links_str:gmatch("[^,]+") do
+        raw_link = strip(raw_link)  -- remove extra spaces
+        local parts = split(raw_link, "/")
+        if #parts == 2 then
+            table.insert(links, {subject=parts[1], title=parts[2]})
+        else
+            table.insert(links, {subject="", title=parts[1]})
+        end
     end
     return links
 end
@@ -40,13 +59,31 @@ local function append_content(brain_file, subject, title, content)
     return "success"
 end
 
-local function connect_notes(brain_file, source, links)
-    local insert_statement = "INSERT OR IGNORE INTO connections (source, target) VALUES "
-    for index, target in pairs(links) do
-        local statement_value = "('" .. source .. "', '" .. target .. "'), "
+local function connect_notes(brain_file, source_title, source_subject, links_str)
+    local links = parse_links_str(links_str)
+
+    if isempty(links) then
+        return "success"
+    end
+
+    local insert_statement = "INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
+
+    for _, link in pairs(links) do
+        local target_title = link.title
+        local target_subject = link.subject or ""
+
+        local statement_value = string.format(
+            "('%s','%s','%s','%s'), ",
+            source_title,
+            source_subject or "",
+            target_title,
+            target_subject
+        )
         insert_statement = insert_statement .. statement_value
     end
-    insert_statement = slice(insert_statement, 1, length(insert_statement)-2) .. ";"
+
+    -- remove trailing comma + space and add semicolon
+    insert_statement = insert_statement:sub(1, -3) .. ";"
 
     local status = local_update(brain_file, insert_statement)
     if not status then
@@ -58,8 +95,15 @@ end
 
 local function write_note(vault_dir, subject, title, content, links)
     local obsidian_links = {}
-    for index, link in pairs(links) do
-        table.insert(obsidian_links, "[[" .. link .. "]] ")
+    for _, link in pairs(links) do
+        -- each link is a table {title=..., subject=...}
+        local link_path
+        if link.subject ~= "" then
+            link_path = link.subject .. "/" .. link.title
+        else
+            link_path = link.title
+        end
+        table.insert(obsidian_links, "[[" .. link_path .. "]]")
     end
 
     local note_dir = vault_dir .. "/" .. subject
@@ -71,7 +115,7 @@ local function write_note(vault_dir, subject, title, content, links)
         print("Could not create directory: " .. note_dir)
         return
     end
-    
+
     local note_file = io.open(note_path, "a")
     if not note_file then
         print("Error: Could not open file: " .. note_path)
@@ -89,7 +133,7 @@ local function take_note(brain_file, args)
     local title = args["title"] or ""
     local content = args["content"] or ""
     local links_str = args["links"] or ""
-    local links = proccess_links_str(links_str)
+    local links = parse_links_str(links_str)
 
     local vault_path = get_vault_path()
 
@@ -186,12 +230,14 @@ local function todays_note(brain_file, args)
     local title = os.date("%Y-%m-%d")
     local subject = "daily"
     local content = args["content"] or ""
-    local links = args["links"] or {}
+    local links_str = args["links"] or ""
+    links = parse_links_str(links_str)
 
     local vault_path = get_vault_path()
 
     if content == "" then
         print("Must provide note content")
+        return
     end
 
     -- Check if the note exists
@@ -199,12 +245,11 @@ local function todays_note(brain_file, args)
     local result = local_query(brain_file, query)
     if not result then
         print("Failed to query note database")
-        return
     end
 
     local note_exists = tonumber(result[1].count) > 0
 
-    -- If the note exists, update it; otherwise, create a new one
+    -- Insert or append content
     if not isempty(content) then
         if note_exists then
             local append_status = append_content(brain_file, subject, title, content)
@@ -222,7 +267,8 @@ local function todays_note(brain_file, args)
     end
 
     if not isempty(links) then
-        local connect_status = connect_notes(brain_file, title, links)
+        local proccessed_links = proccess_links_str(links_str)
+        local connect_status = connect_notes(brain_file, title, proccessed_links)
         if not connect_status then
             print("Error: notes connection failed")
             return
@@ -262,7 +308,7 @@ local function do_note(brain_file)
         elseif args["do"] == "last" then
             last_notes(brain_file, args)
         elseif args["do"] == "connect" then
-            local links = proccess_links_str(args["links"])
+            local links = parse_links_str(args["links"])
             connect_notes(brain_file, args["title"], links)
         elseif not args["do"] then
             todays_note(brain_file, args)
