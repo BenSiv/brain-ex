@@ -17,14 +17,16 @@ function update_overdue(brain_file)
 
     local overdue = false
     local update_statement = ""
-    for _, task in pairs(unfinished) do
-        overdue = check_overdue(task.due_to)
-        if overdue then
-            update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
-            local success = local_update(brain_file, update_statement)
-            if not success then
-                print("Failed to update overdue status for task ID: " .. task.id)
-                return
+    if unfinished then
+        for _, task in pairs(unfinished) do
+            overdue = check_overdue(task.due_to)
+            if overdue then
+                update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
+                local success = local_update(brain_file, update_statement)
+                if not success then
+                    print("Failed to update overdue status for task ID: " .. task.id)
+                    return
+                end
             end
         end
     end
@@ -98,8 +100,8 @@ function list_tasks(brain_file, args)
     
     query = query .. " ORDER BY due_to, subject;"
 
-    result = local_query(brain_file, query)
-    if length(result) > 0 then
+    local result = local_query(brain_file, query)
+    if result then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
         print("Empty task list")
