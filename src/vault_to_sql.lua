@@ -5,7 +5,25 @@ require("utils").using("utils")
 local joinpath = require("paths").joinpath
 local sqlite = require("sqlite3")
 local lfs = require("lfs")
-local parse_links_str = require("note").parse_links_str
+
+-- parse links string like "daily/note1,backend/note2,note3"
+local function parse_links_str(links_str)
+    if links_str == nil or links_str == "" then
+        return {}
+    end
+
+    local links = {}
+    for raw_link in links_str:gmatch("[^,]+") do
+        raw_link = strip(raw_link)  -- remove extra spaces
+        local parts = split(raw_link, "/")
+        if #parts == 2 then
+            table.insert(links, {subject=parts[1], title=parts[2]})
+        else
+            table.insert(links, {subject="", title=parts[1]})
+        end
+    end
+    return links
+end
 
 local function get_last_update_time(file_path)
     local attr = lfs.attributes(file_path)
@@ -156,30 +174,52 @@ function vault_to_sql(vault_path, brain_file)
         print("Failed to read vault")
         return nil
     end
+
     local db = sqlite.open(brain_file)
     db:exec("BEGIN TRANSACTION;")
+
     for subject, notes in pairs(vault_content) do
         for _, note in pairs(notes) do
+            -- Extract cleaned content and parsed links
             local content, links = process_content(note.content)
-            local note_path = ""
+
+            -- Resolve note file path
+            local note_path
             if subject ~= "" then
                 note_path = vault_path .. "/" .. subject .. "/" .. note.name .. ".md"
             else
                 note_path = vault_path .. "/" .. note.name .. ".md"
             end
-            local last_update_time = get_last_update_time(note_path)
-            local insert_notes = "INSERT INTO notes ('time', 'subject', 'name', 'content') VALUES ('" .. last_update_time .. "', '" .. subject .. "', '" .. note.name .. "', '" .. content .. "');"
-            db:exec(insert_notes)
 
+            local last_update_time = get_last_update_time(note_path)
+
+            -- Insert note into notes table
+            local insert_note = string.format(
+                "INSERT INTO notes (time, subject, title, content) VALUES ('%s','%s','%s','%s');",
+                last_update_time,
+                subject,
+                note.name,
+                content
+            )
+            db:exec(insert_note)
+
+            -- Insert connections if any
             if length(links) > 0 then
-                local insert_connections = "INSERT INTO connections ('source', 'target') VALUES "
+                local insert_connections = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
+
                 for _, link in pairs(links) do
-                    local source = "('" .. note.name .. "', "
-                    local target = "'" .. link .. "'), "
-                    insert_connections = insert_connections .. source .. target
+                    local statement_value = string.format(
+                        "('%s','%s','%s','%s'), ",
+                        note.name,
+                        subject,
+                        link.title,
+                        link.subject or ""
+                    )
+                    insert_connections = insert_connections .. statement_value
                 end
-                insert_connections = slice(insert_connections, 1, length(insert_connections) - 2)
-                insert_connections = insert_connections .. ";"
+
+                -- Trim trailing comma and finalize
+                insert_connections = insert_connections:sub(1, -3) .. ";"
                 db:exec(insert_connections)
             end
         end
@@ -190,6 +230,7 @@ function vault_to_sql(vault_path, brain_file)
     return "success"
 end
 
+vault_update.parse_links_str = parse_links_str
 vault_update.process_content = process_content
 vault_update.vault_to_sql = vault_to_sql
 

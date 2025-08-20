@@ -2,34 +2,8 @@
 local note = {}
 
 local lfs = require("lfs")
+local parse_links_str = require("vault_to_sql").parse_links_str
 
--- local function proccess_links_str(links_str)
---     links = split(links_str, ",")
---     for idx,link in pairs(links) do
---         links[idx] = strip(link)
---     end
---     return links
--- end
-
--- parse links string like "daily/note1,backend/note2,note3"
-local function parse_links_str(links_str)
-    if links_str == nil or links_str == "" then
-        return {}
-    end
-
-    local links = {}
-    for raw_link in links_str:gmatch("[^,]+") do
-        raw_link = strip(raw_link)  -- remove extra spaces
-        local parts = split(raw_link, "/")
-        if #parts == 2 then
-            table.insert(links, {subject=parts[1], title=parts[2]})
-        else
-            table.insert(links, {subject="", title=parts[1]})
-        end
-    end
-    return links
-end
-        
 local function insert_note(brain_file, subject, title, content)
     local insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
     local status = local_update(brain_file, insert_statement)
