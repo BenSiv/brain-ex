@@ -13,7 +13,7 @@ brex sql
 
 defaults:
 init -> sqlite database only
-note -> todays note add/edit
+note -> log note add
 task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell

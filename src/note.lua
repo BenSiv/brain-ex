@@ -152,7 +152,6 @@ local function edit_note(brain_file, args)
 
 	if subject == "" and title == "" then
     	subject = "log"
-    	-- title = os.date("%Y-%m-%d")
     	local iso_local = os.date("%Y-%m-%d %H:%M:%S")
      	title = replace(iso_local, " ", "_")
 	end
@@ -200,9 +199,7 @@ local function last_notes(brain_file, args)
 end
 
 local function log_note(brain_file, args)
-    -- Get today's date in the format "YYYY-MM-DD"
     local title = os.date("%Y-%m-%d_%H:%M:%S")
-    -- local title = os.date("%Y-%m-%d")
     local subject = "log"
     local content = args["content"] or ""
     local links_str = args["links"] or ""

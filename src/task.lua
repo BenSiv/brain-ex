@@ -217,7 +217,7 @@ end
 task.do_task = do_task
 
 if arg[0] == "task.lua" then
-    do_task(todays_task)
+    do_task(brain_file)
 else
     -- Export the module
     return task
