@@ -150,10 +150,12 @@ local function edit_note(brain_file, args)
     local editor = get_default_editor()
     local vault_path = get_vault_path()
 
-	if subject == "" and title == "" then
-    	subject = "log"
-    	local iso_local = os.date("%Y-%m-%d %H:%M:%S")
-     	title = replace(iso_local, " ", "_")
+	if title == "" then
+    	-- subject = "log"
+    	-- local iso_local = os.date("%Y-%m-%d %H:%M:%S")
+        -- title = replace(iso_local, " ", "_")
+        print("Must provide title of note to edit")
+        return
 	end
 	
     local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
