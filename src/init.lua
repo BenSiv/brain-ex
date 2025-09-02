@@ -54,8 +54,18 @@ function build_config_dir(home_dir)
     return bx_config_dir
 end
 
+function remove_trailing_slash(path)
+    -- if path is just "/" return as-is
+    if path == "/" then
+        return path
+    end
+    -- remove one or more trailing slashes
+    return (path:gsub("/*$", ""))
+end
+
 function init_bx(args)
     local brain_name = args["name"] or "brain"
+    brain_name = remove_trailing_slash(brain_name)
     local current_dir = lfs.currentdir()
     local brain_path = current_dir .. "/" .. brain_name .. ".db"
     local home_dir = os.getenv("HOME")
@@ -84,6 +94,7 @@ function init_bx_with_vault(args)
     local vault_dir = args["vault"]
     local current_dir = lfs.currentdir()
     local brain_name = args["name"] or args["vault"]
+    brain_name = remove_trailing_slash(brain_name)
     local brain_path = joinpath(current_dir, brain_name .. ".db")
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
