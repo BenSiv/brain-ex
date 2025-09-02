@@ -151,8 +151,10 @@ local function edit_note(brain_file, args)
     local vault_path = get_vault_path()
 
 	if subject == "" and title == "" then
-    	subject = "daily"
-    	title = os.date("%Y-%m-%d")
+    	subject = "log"
+    	-- title = os.date("%Y-%m-%d")
+    	local iso_local = os.date("%Y-%m-%d %H:%M:%S")
+     	title = replace(iso_local, " ", "_")
 	end
 	
     local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
@@ -177,7 +179,7 @@ local function edit_note(brain_file, args)
 end
 
 local function last_notes(brain_file, args)
-    local subject = args["subject"] or "daily"
+    local subject = args["subject"] or "log"
     local num = args["number"] or 5
 
     local query = string.format("SELECT title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s", subject, num)
@@ -197,10 +199,11 @@ local function last_notes(brain_file, args)
     end
 end
 
-local function todays_note(brain_file, args)
+local function log_note(brain_file, args)
     -- Get today's date in the format "YYYY-MM-DD"
-    local title = os.date("%Y-%m-%d")
-    local subject = "daily"
+    local title = os.date("%Y-%m-%d_%H:%M:%S")
+    -- local title = os.date("%Y-%m-%d")
+    local subject = "log"
     local content = args["content"] or ""
     local links_str = args["links"] or ""
     links = parse_links_str(links_str)
@@ -258,8 +261,8 @@ local function todays_note(brain_file, args)
 end
 
 local function do_note_connect(brain_file, args)
-    local title = args["title"] or os.date("%Y-%m-%d")
-    local subject = args["subject"] or "daily"
+    local title = args["title"] or os.date("%Y-%m-%d_%H:%M:%S")
+    local subject = args["subject"] or "log"
     local links_str = args["links"] or ""
     local links = parse_links_str(links_str)
 
@@ -330,7 +333,7 @@ local function do_note(brain_file)
         elseif args["do"] == "connect" then
             do_note_connect(brain_file, args)
         elseif not args["do"] then
-            todays_note(brain_file, args)
+            log_note(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
             print("Available subcommands: add, edit, last")

@@ -10,7 +10,7 @@ local sql_init = [[
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE notes (
-    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
     subject TEXT,
     title TEXT,
     content TEXT,
@@ -27,7 +27,7 @@ CREATE TABLE connections (
 
 CREATE TABLE tasks (
     id INTEGER PRIMARY KEY,
-    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
     content TEXT,
     subject TEXT,
     due_to TIMESTAMP,
