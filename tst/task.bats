@@ -32,3 +32,16 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Empty task list" ]]   # ensures list is empty
 }
+
+@test "NULL values are parsed as empty string in task list" {
+    run brex task add --content "Check null parsing"
+    [ "$status" -eq 0 ]
+
+    # Manually set due_to to NULL
+    sqlite3 tmp_vault.db "UPDATE tasks SET due_to=NULL WHERE content='Check null parsing';"
+
+    run brex task list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Check null parsing" ]]
+    [[ "$output" =~ "due_to" ]]  # Should show blank/empty field
+}

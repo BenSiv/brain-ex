@@ -55,3 +55,21 @@ teardown() {
     grep -q "brain: .*my_brain.db" "$CONFIG"
     grep -q "editor: micro" "$CONFIG"
 }
+
+@test "init with git and auto-backup enabled" {
+    run brex init --vault tmp_vault --git --auto-backup
+    [ "$status" -eq 0 ]
+
+    # A git repo should be created
+    [ -d "tmp_vault/.git" ]
+
+    # Config should record both git and auto_backup flags
+    [ -f "$CONFIG" ]
+    grep -q "auto_backup: true" "$CONFIG"
+    grep -q "git: true" "$CONFIG"
+
+    # Verify that the initial commit exists
+    pushd tmp_vault >/dev/null
+    git log --oneline | grep -q "Initial commit"
+    popd >/dev/null
+}
