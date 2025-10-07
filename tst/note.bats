@@ -82,3 +82,55 @@ teardown() {
     LINKCOUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_title='api-review' AND source_subject='backend' AND ((target_title='todo' AND target_subject='daily') OR (target_title='design' AND target_subject='frontend'));")
     [ "$LINKCOUNT" -eq 2 ]
 }
+
+@test "edit non-existent title creates new note in default editor" {
+    run brex note edit --title "new_idea" --subject "brain-ex"
+    [ "$status" -eq 0 ]
+
+    [ -f "tmp_vault/brain-ex/new_idea.md" ]
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='new_idea' AND subject='brain-ex';")
+    [ "$COUNT" -eq 1 ]
+
+    # Ensure content file is empty initially
+    CONTENT=$(cat tmp_vault/brain-ex/new_idea.md)
+    [ -z "$CONTENT" ]
+}
+
+@test "error when subject is passed without title" {
+    run brex note add --subject "brain-ex"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Error" ]]
+    [[ "$output" =~ "title is required" ]]
+}
+
+@test "update note from file after manual edit" {
+    run brex note add --title "manual-update" --subject "brain-ex" --content "Old content"
+    [ "$status" -eq 0 ]
+
+    # Simulate manual edit
+    echo "New content after edit" >> tmp_vault/brain-ex/manual-update.md
+
+    run brex note update --title "manual-update" --subject "brain-ex" --from-file
+    [ "$status" -eq 0 ]
+
+    # DB content should now include new text
+    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='manual-update' AND subject='brain-ex';")
+    [[ "$CONTENT" =~ "New content after edit" ]]
+}
+
+@test "add with --update flag appends new content to existing note" {
+    run brex note add --title "update-note" --content "Initial line" --subject "brain-ex"
+    [ "$status" -eq 0 ]
+
+    run brex note add --title "update-note" --content "Appended line" --subject "brain-ex" --update
+    [ "$status" -eq 0 ]
+
+    CONTENT=$(cat tmp_vault/brain-ex/update-note.md)
+    [[ "$CONTENT" =~ "Initial line" ]]
+    [[ "$CONTENT" =~ "Appended line" ]]
+
+    DB_CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='update-note' AND subject='brain-ex';")
+    [[ "$DB_CONTENT" =~ "Initial line" ]]
+    [[ "$DB_CONTENT" =~ "Appended line" ]]
+}
+
