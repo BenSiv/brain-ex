@@ -100,6 +100,7 @@ function init_bx_with_vault(args)
     local home_dir = os.getenv("HOME")
     local task_file = joinpath(vault_dir, "tasks.tsv")
     local default_editor = args["editor"] or "nano"
+    local enable_git = args["git"] or false
 	
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -107,23 +108,44 @@ function init_bx_with_vault(args)
     -- create database and tables
     local success = local_update(brain_path, sql_init)
 	if not success then
-		print("Failed to initilize database")
+		print("Failed to initialize database")
 		return
 	end
 
+    -- optional: import existing tasks if available
 	if file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
 	end
+
+        -- ensure vault directory exists
+    if not lfs.attributes(vault_path, "mode") then
+        lfs.mkdir(vault_path)
+    end
+
+    -- if --git flag is used, initialize a Git repo if not present
+    if enable_git then
+        local git_dir = joinpath(vault_path, ".git")
+        local mode = lfs.attributes(git_dir, "mode")
+        if not mode then
+            print("Initializing new git repository in " .. vault_path)
+            os.execute(string.format("git init '%s' >/dev/null 2>&1", vault_path))
+            os.execute(string.format("cd '%s' && git add . && git commit -m 'Initial commit' >/dev/null 2>&1", vault_path))
+        else
+            -- print("Vault is already a git repository")
+        end
+    end
 	
-    -- store info in ~/.config/brain-ex/config.yaml filr
+    -- store info in ~/.config/brain-ex/config.yaml
     local config_dir = build_config_dir(home_dir)
     local config_file = joinpath(config_dir, "config.yaml")
-    file = io.open(config_file, "w")
+    local file = io.open(config_file, "w")
     file:write("vault: " .. vault_path .. "\n")
     file:write("brain: " .. brain_path .. "\n")
-    file:write("editor: " .. default_editor)
+    file:write("editor: " .. default_editor .. "\n")
+    file:write("git: " .. tostring(enable_git) .. "\n")
     file:close()
 
+    -- import existing notes if any
     vault_to_sql(vault_path, brain_path)
 end
 
@@ -132,6 +154,7 @@ local function do_init()
         -n --name arg string false
         -v --vault arg string false
         -e --editor arg string false
+        -g --git flag string false
     ]]
 
     local help_string = get_help_string(arg[0])

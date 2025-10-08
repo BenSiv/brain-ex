@@ -17,6 +17,7 @@ using("note")
 using("task")
 using("update")
 using("sql")
+using("git")
 
 local function main()
     local command_funcs = {
@@ -77,6 +78,10 @@ local function main()
     local brain_file = get_brain_path()
     if brain_file then
         func(brain_file)
+    end
+
+    if is_git() then
+        auto_update()
     end
 end
 

@@ -24,6 +24,7 @@ luastatic brex.lua \
     task.lua \
     update.lua \
     sql.lua \
+    git.lua \
     vault_to_sql.lua \
     help.lua \
     argparse.lua \

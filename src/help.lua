@@ -36,6 +36,7 @@ brex < command > -h or --help for more info
     brex init --name "my_brain"
     brex init --vault "my_vault"
     brex init --name "my_brain" --vault "my_vault" --editor "vim"
+    brex init --name "my_brain" --vault "my_vault" --editor "vim" --git
         ]],
         ["brex note"] = [[
 Description:
