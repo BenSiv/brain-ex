@@ -43,6 +43,11 @@ function config.get_default_editor()
     return cfg and cfg["editor"]
 end
 
+function config.is_git()
+    local cfg = load_config()
+    return cfg["git"] or false
+end
+
 function config.reload()
     cached_config = nil
     return load_config()
