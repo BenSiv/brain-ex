@@ -12,7 +12,7 @@ teardown() {
     rm -f tmp_vault.db
 }
 
-@test "append content to existing daily note" {
+@test "write content to log note" {
     run brex note --content "Initial content"
     [ "$status" -eq 0 ]
 

@@ -30,6 +30,7 @@ function update_overdue(brain_file)
             end
         end
     end
+    return "success"
 end
 
 function backup_tasks(brain_file)
@@ -38,6 +39,7 @@ function backup_tasks(brain_file)
         local backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
+    return "success"
 end
 
 function add_task(brain_file, args)
@@ -74,6 +76,7 @@ function add_task(brain_file, args)
 	end
 
     backup_tasks(brain_file)
+    return "success"
 end
 
 function list_tasks(brain_file, args)
@@ -106,6 +109,7 @@ function list_tasks(brain_file, args)
     else
         print("Empty task list")
     end
+    return "success"
 end
 
 function mark_done(brain_file, args)
@@ -124,6 +128,7 @@ function mark_done(brain_file, args)
         return
     end
     backup_tasks(brain_file)
+    return "success"
 end
 
 function delay_due(brain_file, args)
@@ -154,6 +159,7 @@ function delay_due(brain_file, args)
         return
     end
     backup_tasks(brain_file)
+    return "success"
 end
 
 function last_done(brain_file, args)
@@ -177,6 +183,7 @@ function last_done(brain_file, args)
     else
         print("No tasks to view")
     end
+    return "success"
 end
 
 local function do_task(brain_file)
@@ -193,25 +200,30 @@ local function do_task(brain_file)
     local help_string = get_help_string(arg[0])
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
+    local status
 
     if args then
         if args["do"] == "add" then
-            add_task(brain_file, args)
+            status = add_task(brain_file, args)
         elseif args["do"] == "list" then
-            list_tasks(brain_file, args)
+            status = list_tasks(brain_file, args)
         elseif args["do"] == "done" then
-            mark_done(brain_file, args)
+            status = mark_done(brain_file, args)
         elseif args["do"] == "delay" then
-            delay_due(brain_file, args)
+            status = delay_due(brain_file, args)
         elseif args["do"] == "last" then
-            last_done(brain_file, args)
+            status = last_done(brain_file, args)
         elseif not args["do"] then
-            add_task(brain_file, args)
+            status = add_task(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
             print("Available subcommands: add, list, done, delay, last")
         end
     end
+    if status ~= "success" then
+        print("Task command failed")
+    end
+    return "success"
 end
 
 task.do_task = do_task

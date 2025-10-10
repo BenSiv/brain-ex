@@ -88,6 +88,7 @@ function init_bx(args)
     file:write("brain: " .. brain_path .. "\n")
     file:write("editor: " .. default_editor)
     file:close()
+    return "success"
 end
 
 function init_bx_with_vault(args)
@@ -147,6 +148,7 @@ function init_bx_with_vault(args)
 
     -- import existing notes if any
     vault_to_sql(vault_path, brain_path)
+    return "success"
 end
 
 local function do_init()
@@ -161,13 +163,18 @@ local function do_init()
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
 
+    local status
     if args then
         if args["vault"] then
-            init_bx_with_vault(args)
+            status = init_bx_with_vault(args)
         else
-            init_bx(args)
+            status = init_bx(args)
         end
     end
+    if status ~= "success" then
+        print("Init command failed")
+    end
+    return "success"
 end
 
 init.sql_init = sql_init
