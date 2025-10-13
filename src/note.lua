@@ -151,6 +151,7 @@ local function edit_note(brain_file, args)
     local vault_path = get_vault_path()
 
 	if title == "" then
+	    -- edit last log note?
     	-- subject = "log"
     	-- local iso_local = os.date("%Y-%m-%d %H:%M:%S")
         -- title = replace(iso_local, " ", "_")
@@ -203,10 +204,6 @@ end
 
 local function log_note(brain_file, args)
     local title = os.date("%Y-%m-%d_%H:%M:%S")
-    if args["subject"] and not args["title"] then
-        print("Must provide note title for subjected note")
-        return
-    end
     local subject = "log"
     local content = args["content"] or ""
     local links_str = args["links"] or ""
