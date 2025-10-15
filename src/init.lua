@@ -10,7 +10,7 @@ local sql_init = [[
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE notes (
-    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
     subject TEXT,
     title TEXT,
     content TEXT,
@@ -27,7 +27,7 @@ CREATE TABLE connections (
 
 CREATE TABLE tasks (
     id INTEGER PRIMARY KEY,
-    time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
     content TEXT,
     subject TEXT,
     due_to TIMESTAMP,
@@ -54,8 +54,18 @@ function build_config_dir(home_dir)
     return bx_config_dir
 end
 
+function remove_trailing_slash(path)
+    -- if path is just "/" return as-is
+    if path == "/" then
+        return path
+    end
+    -- remove one or more trailing slashes
+    return (path:gsub("/*$", ""))
+end
+
 function init_bx(args)
     local brain_name = args["name"] or "brain"
+    brain_name = remove_trailing_slash(brain_name)
     local current_dir = lfs.currentdir()
     local brain_path = current_dir .. "/" .. brain_name .. ".db"
     local home_dir = os.getenv("HOME")
@@ -78,12 +88,14 @@ function init_bx(args)
     file:write("brain: " .. brain_path .. "\n")
     file:write("editor: " .. default_editor)
     file:close()
+    return "success"
 end
 
 function init_bx_with_vault(args)
     local vault_dir = args["vault"]
     local current_dir = lfs.currentdir()
     local brain_name = args["name"] or args["vault"]
+    brain_name = remove_trailing_slash(brain_name)
     local brain_path = joinpath(current_dir, brain_name .. ".db")
     local vault_path = joinpath(current_dir, vault_dir)
     local home_dir = os.getenv("HOME")
@@ -136,6 +148,7 @@ function init_bx_with_vault(args)
 
     -- import existing notes if any
     vault_to_sql(vault_path, brain_path)
+    return "success"
 end
 
 local function do_init()
@@ -150,13 +163,18 @@ local function do_init()
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
 
+    local status
     if args then
         if args["vault"] then
-            init_bx_with_vault(args)
+            status = init_bx_with_vault(args)
         else
-            init_bx(args)
+            status = init_bx(args)
         end
     end
+    if status ~= "success" then
+        print("Init command failed")
+    end
+    return "success"
 end
 
 init.sql_init = sql_init

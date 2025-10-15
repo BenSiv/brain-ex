@@ -12,20 +12,17 @@ teardown() {
     rm -f tmp_vault.db
 }
 
-@test "append content to existing daily note" {
+@test "write content to log note" {
     run brex note --content "Initial content"
     [ "$status" -eq 0 ]
 
-    TODAY=$(date +%Y-%m-%d)
-    NOTEFILE="tmp_vault/daily/$TODAY.md"
-
-    run brex note --content "Appended content"
-    [ "$status" -eq 0 ]
+    # Get latest log file created (timestamp-based)
+    NOTEFILE=$(ls -t tmp_vault/log/*.md | head -n1)
+    BASENAME=$(basename "$NOTEFILE" .md)
 
     grep -q "Initial content" "$NOTEFILE"
-    grep -q "Appended content" "$NOTEFILE"
 
-    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='$TODAY' AND subject='daily' AND content LIKE '%Initial content%Appended content%';")
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='$BASENAME' AND subject='log' AND content LIKE '%Initial content%';")
     [ "$COUNT" -eq 1 ]
 }
 
@@ -43,21 +40,20 @@ teardown() {
     [ "$LINKCOUNT" -eq 3 ]
 }
 
-@test "connect link to daily note without content" {
-    TODAY=$(date +%Y-%m-%d)
-    
+@test "connect link to logdaily note without content" {    
     # Connect link only, no new content
     run brex note connect --links "daily/todo"
     [ "$status" -eq 0 ]
 
-    NOTEFILE="tmp_vault/daily/$TODAY.md"
+    NOTEFILE=$(ls -t tmp_vault/log/*.md | head -n1)
+    BASENAME=$(basename "$NOTEFILE" .md)
     [ -f "$NOTEFILE" ]
 
     # The file should contain the Obsidian-style link
     grep -q "\[\[daily/todo\]\]" "$NOTEFILE"
 
     # DB should have connection to the link
-    LINKCOUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_title='$TODAY' AND source_subject='daily' AND target_title='todo' AND target_subject='daily';")
+    LINKCOUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_title='$BASENAME' AND source_subject='log' AND target_title='todo' AND target_subject='daily';")
     [ "$LINKCOUNT" -eq 1 ]
 }
 
@@ -97,10 +93,17 @@ teardown() {
 }
 
 @test "error when subject is passed without title" {
+<<<<<<< HEAD
     run brex note add --subject "brain-ex"
     [ "$status" -ne 0 ]
     [[ "$output" =~ "Error" ]]
     [[ "$output" =~ "title is required" ]]
+=======
+    run brex note --subject "brain-ex"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Error" ]]
+    [[ "$output" =~ "Must provide title of note to edit" ]]
+>>>>>>> origin/timestamp-it
 }
 
 @test "update note from file after manual edit" {

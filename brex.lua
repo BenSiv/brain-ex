@@ -70,14 +70,24 @@ local function main()
         return
     end
     
+    local status
     if command == "init" then
-        func()
-        return
+        status = func()
+        if status ~= "success" then
+            os.exit(1)
+        end
     end
     
     local brain_file = get_brain_path()
     if brain_file then
-        func(brain_file)
+        status = func(brain_file)
+        if status ~= "success" then
+            os.exit(1)
+        end
+    end
+
+    if is_git() then
+        auto_update()
     end
 
     if is_git() then
