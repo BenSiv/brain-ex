@@ -203,6 +203,12 @@ local function last_notes(brain_file, args)
 end
 
 local function log_note(brain_file, args)
+
+    if args["subject"] then
+        print("Use 'add' subcommand to create a note with subject")
+        return
+    end
+
     local title = os.date("%Y-%m-%d_%H:%M:%S")
     local subject = "log"
     local content = args["content"] or ""

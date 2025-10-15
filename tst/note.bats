@@ -93,17 +93,10 @@ teardown() {
 }
 
 @test "error when subject is passed without title" {
-<<<<<<< HEAD
-    run brex note add --subject "brain-ex"
-    [ "$status" -ne 0 ]
-    [[ "$output" =~ "Error" ]]
-    [[ "$output" =~ "title is required" ]]
-=======
     run brex note --subject "brain-ex"
     [ "$status" -ne 0 ]
     [[ "$output" =~ "Error" ]]
     [[ "$output" =~ "Must provide title of note to edit" ]]
->>>>>>> origin/timestamp-it
 }
 
 @test "update note from file after manual edit" {
