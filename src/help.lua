@@ -14,7 +14,7 @@ brex sql
 
 defaults:
 init -> sqlite database only
-note -> todays note add/edit
+note -> log note add/edit
 task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell
@@ -40,7 +40,7 @@ brex < command > -h or --help for more info
         ]],
         ["brex note"] = [[
 Description:
-Creates or updates today's note with the specified content.
+Create log note with the specified content.
 Links can be provided as a comma-separated list.
 
 Required:
@@ -50,8 +50,8 @@ Optional:
 -l --links <links> Links to other notes, separated by commas.
 
 Examples:
-brex note --content "This is today's note content"
-brex note --content "This is today's note content" --links "link1,link2"
+brex note --content "This is log note content"
+brex note --content "This is log note content" --links "link1,link2"
         ]],
         ["brex note add"] = [[
 Description:
@@ -88,7 +88,7 @@ brex note edit --title "My Note" --subject "My Subject"
         ["brex note last"] = [[
 Description:
 Displays the last notes.
-If no subject is provided, defaults to "daily". The number of notes displayed can be specified with the --number option, defaulting to 5.
+If no subject is provided, defaults to "log". The number of notes displayed can be specified with the --number option, defaulting to 5.
 
 Optional:
 -s --subject <subject> Subject of the notes to display.
@@ -96,19 +96,19 @@ Optional:
 
 Examples:
 brex note last
-brex note last --subject "daily" --number 10
+brex note last --subject "log" --number 10
         ]],
         ["brex note connect"] = [[
 Description:
 Connect notes.
 
 Optional:
--t --title <title>     Title of the note to connect, default is today's date
--s --subject <subject> Subject of the note, default is daily
+-t --title <title>     Title of the note to connect, default is log note
+-s --subject <subject> Subject of the note, default is log
 -l --links <links>     Links to other notes, separated by commas.
 
 Examples:
-brex note connect --title "note1" --links "note2,daily/note3"
+brex note connect --title "note1" --links "note2,log/note3"
 brex note connect --links "todo,review"
         ]],
         ["brex task"] = [[

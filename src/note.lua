@@ -150,9 +150,13 @@ local function edit_note(brain_file, args)
     local editor = get_default_editor()
     local vault_path = get_vault_path()
 
-	if subject == "" and title == "" then
-    	subject = "daily"
-    	title = os.date("%Y-%m-%d")
+	if title == "" then
+	    -- edit last log note?
+    	-- subject = "log"
+    	-- local iso_local = os.date("%Y-%m-%d %H:%M:%S")
+        -- title = replace(iso_local, " ", "_")
+        print("Must provide title of note to edit")
+        return
 	end
 	
     local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
@@ -177,7 +181,7 @@ local function edit_note(brain_file, args)
 end
 
 local function last_notes(brain_file, args)
-    local subject = args["subject"] or "daily"
+    local subject = args["subject"] or "log"
     local num = args["number"] or 5
 
     local query = string.format("SELECT title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s", subject, num)
@@ -195,12 +199,18 @@ local function last_notes(brain_file, args)
     else
         print("No notes available")
     end
+    return "success"
 end
 
-local function todays_note(brain_file, args)
-    -- Get today's date in the format "YYYY-MM-DD"
-    local title = os.date("%Y-%m-%d")
-    local subject = "daily"
+local function log_note(brain_file, args)
+
+    if args["subject"] then
+        print("Use 'add' subcommand to create a note with subject")
+        return
+    end
+
+    local title = os.date("%Y-%m-%d_%H:%M:%S")
+    local subject = "log"
     local content = args["content"] or ""
     local links_str = args["links"] or ""
     links = parse_links_str(links_str)
@@ -258,8 +268,8 @@ local function todays_note(brain_file, args)
 end
 
 local function do_note_connect(brain_file, args)
-    local title = args["title"] or os.date("%Y-%m-%d")
-    local subject = args["subject"] or "daily"
+    local title = args["title"] or os.date("%Y-%m-%d_%H:%M:%S")
+    local subject = args["subject"] or "log"
     local links_str = args["links"] or ""
     local links = parse_links_str(links_str)
 
@@ -319,23 +329,27 @@ local function do_note(brain_file)
     local help_string = get_help_string(arg[0])
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
-
+    local status
     if args then
         if args["do"] == "add" then
-            take_note(brain_file, args)
+            status = take_note(brain_file, args)
         elseif args["do"] == "edit" then
-            edit_note(brain_file, args)
+            status = edit_note(brain_file, args)
         elseif args["do"] == "last" then
-            last_notes(brain_file, args)
+            status = last_notes(brain_file, args)
         elseif args["do"] == "connect" then
-            do_note_connect(brain_file, args)
+            status = do_note_connect(brain_file, args)
         elseif not args["do"] then
-            todays_note(brain_file, args)
+            status = log_note(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
             print("Available subcommands: add, edit, last")
         end
     end
+    if status ~= "success" then
+        print("Note command failed")
+    end
+    return "success"
 end
 
 note.do_note = do_note
