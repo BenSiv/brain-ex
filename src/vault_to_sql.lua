@@ -179,16 +179,19 @@ function vault_to_sql(vault_path, brain_file)
     db:exec("BEGIN TRANSACTION;")
 
     for subject, notes in pairs(vault_content) do
+        -- Treat "root" as empty subject
+        local actual_subject = (subject == "root") and "" or subject
+
         for _, note in pairs(notes) do
             -- Extract cleaned content and parsed links
             local content, links = process_content(note.content)
 
             -- Resolve note file path
             local note_path
-            if subject ~= "" then
-                note_path = vault_path .. "/" .. subject .. "/" .. note.name .. ".md"
+            if actual_subject ~= "" then
+                note_path = joinpath(vault_path, actual_subject, note.name .. ".md")
             else
-                note_path = vault_path .. "/" .. note.name .. ".md"
+                note_path = joinpath(vault_path, note.name .. ".md")
             end
 
             local last_update_time = get_last_update_time(note_path)
@@ -197,7 +200,7 @@ function vault_to_sql(vault_path, brain_file)
             local insert_note = string.format(
                 "INSERT INTO notes (time, subject, title, content) VALUES ('%s','%s','%s','%s');",
                 last_update_time,
-                subject,
+                actual_subject,
                 note.name,
                 content
             )
