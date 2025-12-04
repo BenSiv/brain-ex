@@ -67,6 +67,22 @@ package body Src.Sql is
       Header_Line     : Unbounded_String;
       Row             : Row_Type;
 
+      -- Helper to escape single quotes for shell
+      function Escape_For_Shell (S : String) return String is
+         Result_Str : Unbounded_String;
+      begin
+         for I in S'Range loop
+            if S (I) = ''' then
+               Append
+                 (Result_Str,
+                  "'\''");  -- Close quote, add escaped quote, open quote
+            else
+               Append (Result_Str, S (I));
+            end if;
+         end loop;
+         return To_String (Result_Str);
+      end Escape_For_Shell;
+
       -- Re-implementing Split for headers
       package String_Vectors is new
         Ada.Containers.Indefinite_Vectors (Positive, String);
@@ -97,13 +113,13 @@ package body Src.Sql is
         (Tmp_FD); -- Close it, we just want the name and empty file
 
       -- Construct shell command: sqlite3 -header -csv Db_Path "Sql_Cmd" > Temp_File_Name
-      -- Need to be careful with quoting Sql_Cmd
+      -- Need to escape single quotes in Sql_Cmd for shell
       Command_Line :=
         To_Unbounded_String
           ("sqlite3 -header -csv '"
            & Db_Path
            & "' '"
-           & Sql_Cmd
+           & Escape_For_Shell (Sql_Cmd)
            & "' > "
            & Tmp_Name_Access.all);
 
@@ -150,6 +166,19 @@ package body Src.Sql is
 
       return Result;
    end Query;
+
+   function Escape_Sql (S : String) return String is
+      Result : Unbounded_String;
+   begin
+      for I in S'Range loop
+         if S (I) = ''' then
+            Append (Result, "''");
+         else
+            Append (Result, S (I));
+         end if;
+      end loop;
+      return To_String (Result);
+   end Escape_Sql;
 
    procedure Shell (Db_Path : String) is
       Args        : GNAT.OS_Lib.Argument_List (1 .. 3);

@@ -73,11 +73,11 @@ package body Src.Note is
       procedure Insert_Note (S, T, C : String) is
          Sql_Cmd    : constant String :=
            "INSERT INTO notes ('subject', 'title', 'content') VALUES ('"
-           & S
+           & Src.Sql.Escape_Sql (S)
            & "', '"
-           & T
+           & Src.Sql.Escape_Sql (T)
            & "', '"
-           & C
+           & Src.Sql.Escape_Sql (C)
            & "');";
          Vault_Path : constant String := Src.Config.Get_Vault_Path;
          Note_File  : Ada.Text_IO.File_Type;
@@ -208,11 +208,11 @@ package body Src.Note is
                Sql_Cmd : constant Unbounded_String :=
                  To_Unbounded_String
                    ("UPDATE notes SET content = '"
-                    & To_String (Content)
+                    & Src.Sql.Escape_Sql (To_String (Content))
                     & "' WHERE subject = '"
-                    & To_String (Subject)
+                    & Src.Sql.Escape_Sql (To_String (Subject))
                     & "' AND title = '"
-                    & To_String (Title)
+                    & Src.Sql.Escape_Sql (To_String (Title))
                     & "';");
             begin
                Src.Sql.Execute (Brain_File, To_String (Sql_Cmd), Success);
@@ -373,23 +373,23 @@ package body Src.Note is
                Sql_Cmd :=
                  To_Unbounded_String
                    ("INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES ('"
-                    & To_String (Source_Title_Str)
+                    & Src.Sql.Escape_Sql (To_String (Source_Title_Str))
                     & "', '"
-                    & To_String (Source_Subject_Str)
+                    & Src.Sql.Escape_Sql (To_String (Source_Subject_Str))
                     & "', '"
-                    & To_String (Target_Title)
+                    & Src.Sql.Escape_Sql (To_String (Target_Title))
                     & "', '');");
             else
                Sql_Cmd :=
                  To_Unbounded_String
                    ("INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES ('"
-                    & To_String (Source_Title_Str)
+                    & Src.Sql.Escape_Sql (To_String (Source_Title_Str))
                     & "', '"
-                    & To_String (Source_Subject_Str)
+                    & Src.Sql.Escape_Sql (To_String (Source_Subject_Str))
                     & "', '"
-                    & To_String (Target_Title)
+                    & Src.Sql.Escape_Sql (To_String (Target_Title))
                     & "', '"
-                    & To_String (Target_Subject)
+                    & Src.Sql.Escape_Sql (To_String (Target_Subject))
                     & "');");
             end if;
 
@@ -447,7 +447,7 @@ package body Src.Note is
       procedure Last_Notes is
          Sql_Cmd : constant String :=
            "SELECT title, content FROM notes WHERE subject='"
-           & To_String (Subject)
+           & Src.Sql.Escape_Sql (To_String (Subject))
            & "' ORDER BY title DESC LIMIT "
            & Integer'Image (Number);
          Result  : Src.Sql.Result_Type;
@@ -537,11 +537,11 @@ package body Src.Note is
                   Sql_Cmd :=
                     To_Unbounded_String
                       ("UPDATE notes SET content = '"
-                       & To_String (File_Content)
+                       & Src.Sql.Escape_Sql (To_String (File_Content))
                        & "' WHERE subject = '"
-                       & To_String (Subject)
+                       & Src.Sql.Escape_Sql (To_String (Subject))
                        & "' AND title = '"
-                       & To_String (Title)
+                       & Src.Sql.Escape_Sql (To_String (Title))
                        & "';");
                   Src.Sql.Execute (Brain_File, To_String (Sql_Cmd), Success);
                   if not Success then

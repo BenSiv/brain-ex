@@ -24,6 +24,7 @@ package Src.Sql is
    procedure Execute
      (Db_Path : String; Sql_Cmd : String; Success : out Boolean);
    function Query (Db_Path : String; Sql_Cmd : String) return Result_Type;
+   function Escape_Sql (S : String) return String;
    procedure Shell (Db_Path : String);
 
 end Src.Sql;

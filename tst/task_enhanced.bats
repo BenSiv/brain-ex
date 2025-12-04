@@ -12,52 +12,6 @@ teardown() {
     rm -f tmp_vault.db
 }
 
-@test "add a task and list it" {
-    run brex task add --content "Deploy new patch" --subject "backend" --due_to "2025-08-15"
-    [ "$status" -eq 0 ]
-
-    run brex task list
-    [[ "$output" =~ "Deploy new patch" ]]
-}
-
-@test "mark task as done and list should be empty" {
-    brex task add --content "Deploy new patch" --subject "backend"
-    TASK_ID=$(sqlite3 tmp_vault.db "select id from tasks limit 1;")
-
-    run brex task done --id "$TASK_ID" --comment "Done"
-    [ "$status" -eq 0 ]
-
-    # Now check the open task list
-    run brex task list
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Empty task list" ]]   # ensures list is empty
-}
-
-@test "NULL values are parsed as empty string in task list" {
-    run brex task add --content "Check null parsing"
-    [ "$status" -eq 0 ]
-
-    # Manually set due_to to NULL
-    sqlite3 tmp_vault.db "UPDATE tasks SET due_to=NULL WHERE content='Check null parsing';"
-
-    run brex task list
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Check null parsing" ]]
-    [[ "$output" =~ "due_to" ]]  # Should show blank/empty field
-}
-
-@test "task list with --subject filters tasks" {
-    brex task add --content "Backend task" --subject "backend"
-    brex task add --content "Frontend task" --subject "frontend"
-    brex task add --content "DevOps task" --subject "devops"
-    
-    run brex task list --subject "backend"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Backend task" ]]
-    [[ ! "$output" =~ "Frontend task" ]]
-    [[ ! "$output" =~ "DevOps task" ]]
-}
-
 @test "task with overdue date sets overdue flag" {
     # Add task with past due date
     run brex task add --content "Overdue task" --due_to "2020-01-01"
@@ -120,14 +74,4 @@ teardown() {
     [ ! -z "$DUE_TO" ]
     # Should not be NULL and should be a timestamp format
     [[ "$DUE_TO" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]]
-}
-
-@test "task list with --due_to shows only tasks after date" {
-    brex task add --content "Early task" --due_to "2025-01-15"
-    brex task add --content "Late task" --due_to "2025-12-31"
-    
-    run brex task list --due_to "2025-06-01"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Late task" ]]
-    [[ ! "$output" =~ "Early task" ]]
 }

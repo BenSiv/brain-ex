@@ -57,15 +57,24 @@ package body Src.Update is
          Success : Boolean;
          Count_Result : Src.Sql.Result_Type;
          Count : Integer := 0;
+         use type Ada.Directories.File_Kind;
       begin
          if not Ada.Directories.Exists (Path) then
             Ada.Text_IO.Put_Line ("File does not exist: " & Path);
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+            return;
+         end if;
+         
+         if Ada.Directories.Kind (Path) /= Ada.Directories.Ordinary_File then
+            Ada.Text_IO.Put_Line ("Path is not a file: " & Path);
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
             return;
          end if;
          
          Content := To_Unbounded_String (Read_File (Path));
          if Content = Null_Unbounded_String then
             Ada.Text_IO.Put_Line ("Failed to read file or empty: " & Path);
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
             return;
          end if;
          
@@ -91,7 +100,7 @@ package body Src.Update is
          end if;
          
          -- Check if note exists
-         Sql_Cmd := To_Unbounded_String ("SELECT COUNT(*) AS num FROM notes WHERE subject = '" & To_String (Subject) & "' AND title = '" & To_String (Title) & "';");
+         Sql_Cmd := To_Unbounded_String ("SELECT COUNT(*) AS num FROM notes WHERE subject = '" & Src.Sql.Escape_Sql (To_String (Subject)) & "' AND title = '" & Src.Sql.Escape_Sql (To_String (Title)) & "';");
          Count_Result := Src.Sql.Query (Brain_File, To_String (Sql_Cmd));
          if not Count_Result.Is_Empty then
             Count := Integer'Value (Count_Result.First_Element.Element ("num"));
@@ -101,9 +110,9 @@ package body Src.Update is
          -- TODO: Implement proper escaping
          
          if Count > 0 then
-            Sql_Cmd := To_Unbounded_String ("UPDATE notes SET content = '" & To_String (Content) & "' WHERE subject = '" & To_String (Subject) & "' AND title = '" & To_String (Title) & "';");
+            Sql_Cmd := To_Unbounded_String ("UPDATE notes SET content = '" & Src.Sql.Escape_Sql (To_String (Content)) & "' WHERE subject = '" & Src.Sql.Escape_Sql (To_String (Subject)) & "' AND title = '" & Src.Sql.Escape_Sql (To_String (Title)) & "';");
          else
-            Sql_Cmd := To_Unbounded_String ("INSERT INTO notes (subject, title, content) VALUES ('" & To_String (Subject) & "', '" & To_String (Title) & "', '" & To_String (Content) & "');");
+            Sql_Cmd := To_Unbounded_String ("INSERT INTO notes (subject, title, content) VALUES ('" & Src.Sql.Escape_Sql (To_String (Subject)) & "', '" & Src.Sql.Escape_Sql (To_String (Title)) & "', '" & Src.Sql.Escape_Sql (To_String (Content)) & "');");
          end if;
          
          Src.Sql.Execute (Brain_File, To_String (Sql_Cmd), Success);
@@ -111,6 +120,7 @@ package body Src.Update is
             Ada.Text_IO.Put_Line ("Updated note: " & To_String (Subject) & "/" & To_String (Title));
          else
             Ada.Text_IO.Put_Line ("Failed to update note in DB");
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
          end if;
          
       end Update_Note_From_File;
