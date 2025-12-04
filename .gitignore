@@ -1,1 +1,7 @@
-bld
+*.db
+obj/
+*.o
+*.ali
+brain_ex
+test_env/
+GNAT-TEMP-*
