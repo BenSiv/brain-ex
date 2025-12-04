@@ -1,7 +1,5 @@
-with Ada.Strings.Fixed;
 with Ada.Strings.Maps;
 with Ada.Numerics.Discrete_Random;
-with Ada.Calendar;
 
 package body Src.Utils is
 

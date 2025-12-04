@@ -3,10 +3,7 @@ with Ada.Command_Line;
 with Ada.Calendar;
 with Ada.Calendar.Formatting;
 with Ada.Strings.Unbounded;
-with Ada.Strings.Fixed;
 with Src.Sql;
-with Src.Config;
-with Src.Help;
 with Src.Utils;
 
 package body Src.Tasks is
@@ -21,7 +18,6 @@ package body Src.Tasks is
       Due_To     : Unbounded_String;
       Id         : Unbounded_String;
       Comment    : Unbounded_String;
-      Number     : Integer := 5;
 
       Success : Boolean;
 
@@ -61,18 +57,13 @@ package body Src.Tasks is
                   Comment := To_Unbounded_String (Argument (I + 1));
                   I := I + 1;
                end if;
-            elsif Argument (I) = "-n" or Argument (I) = "--number" then
-               if I + 1 <= Argument_Count then
-                  Number := Integer'Value (Argument (I + 1));
-                  I := I + 1;
-               end if;
             end if;
             I := I + 1;
          end loop;
       end Parse_Args;
 
       procedure Add_Task is
-         New_Id       : String := Src.Utils.Generate_Id;
+         New_Id       : constant String := Src.Utils.Generate_Id;
          Due_Date     : Ada.Calendar.Time;
          Due_Date_Str : Unbounded_String;
          Overdue      : Integer := 0;
@@ -156,7 +147,7 @@ package body Src.Tasks is
          if Result.Is_Empty then
             Ada.Text_IO.Put_Line ("Empty task list");
          else
-            Ada.Text_IO.Put_Line ("ID | Subject | Content | Due To | Overdue");
+            Ada.Text_IO.Put_Line ("id | subject | content | due_to | overdue");
             for Row of Result loop
                Ada.Text_IO.Put (Row.Element ("id") & " | ");
                if Row.Contains ("subject") then
@@ -165,7 +156,11 @@ package body Src.Tasks is
                   Ada.Text_IO.Put (" | ");
                end if;
                Ada.Text_IO.Put (Row.Element ("content") & " | ");
-               Ada.Text_IO.Put (Row.Element ("due_to") & " | ");
+               if Row.Contains ("due_to") then
+                  Ada.Text_IO.Put (Row.Element ("due_to") & " | ");
+               else
+                  Ada.Text_IO.Put (" | ");
+               end if;
                Ada.Text_IO.Put_Line (Row.Element ("overdue"));
             end loop;
          end if;

@@ -4,13 +4,12 @@ with Ada.Environment_Variables;
 with Ada.Command_Line;
 with Ada.Strings.Unbounded;
 with Src.Sql;
-with Src.Config;
-with Src.Help;
 with GNAT.OS_Lib;
 
 package body Src.Init is
    use Ada.Strings.Unbounded;
 
+   -- SQL schema
    Sql_Init : constant String :=
      "PRAGMA foreign_keys = ON;"
      & "CREATE TABLE notes ("
@@ -38,6 +37,7 @@ package body Src.Init is
      & "    comment TEXT DEFAULT NULL"
      & ");";
 
+
    procedure Do_Init is
       use Ada.Command_Line;
 
@@ -46,8 +46,7 @@ package body Src.Init is
       Editor     : Unbounded_String := To_Unbounded_String ("nano");
       Git        : Boolean := False;
 
-      Home_Dir    : constant String :=
-        Ada.Environment_Variables.Value ("HOME");
+      Home_Dir    : constant String := Ada.Environment_Variables.Value ("HOME");
       Current_Dir : constant String := Ada.Directories.Current_Directory;
       Brain_Path  : Unbounded_String;
 
@@ -57,7 +56,7 @@ package body Src.Init is
       File    : Ada.Text_IO.File_Type;
       Success : Boolean;
 
-      -- Helper to parse args
+      -- Helper to parse command line args
       procedure Parse_Args is
          I : Integer := 1;
       begin
@@ -84,6 +83,18 @@ package body Src.Init is
          end loop;
       end Parse_Args;
 
+      -- Import tasks from tasks.tsv
+      -- Note: Simplified version without complex parsing
+      -- TODO: Implement proper TSV parsing if needed
+      procedure Import_Tasks (Task_File : String) is
+      begin
+         -- Placeholder for task import functionality
+         -- Full implementation would require custom TSV parser
+         if Ada.Directories.Exists (Task_File) then
+            Ada.Text_IO.Put_Line ("Task import not yet implemented");
+         end if;
+      end Import_Tasks;
+
    begin
       Parse_Args;
 
@@ -105,22 +116,27 @@ package body Src.Init is
              (Current_Dir & "/" & To_String (Brain_Name) & ".db");
       end if;
 
+      -- Remove old database
       if Ada.Directories.Exists (To_String (Brain_Path)) then
          Ada.Directories.Delete_File (To_String (Brain_Path));
       end if;
 
+      -- Create tables
       Src.Sql.Execute (To_String (Brain_Path), Sql_Init, Success);
       if not Success then
          Ada.Text_IO.Put_Line ("Failed to initialize database");
          return;
       end if;
 
+      -- Create config directory
       if not Ada.Directories.Exists (Config_Dir) then
          Ada.Directories.Create_Path (Config_Dir);
       end if;
 
       Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Config_File);
       Ada.Text_IO.Put_Line (File, "brain: " & To_String (Brain_Path));
+
+      -- Handle vault
       if Vault_Path /= Null_Unbounded_String then
          -- Create vault directory structure
          if not Ada.Directories.Exists (To_String (Vault_Path)) then
@@ -129,18 +145,29 @@ package body Src.Init is
 
          Ada.Text_IO.Put_Line (File, "vault: " & To_String (Vault_Path));
 
+         -- Import tasks.tsv
+         declare
+            Task_File : constant String :=
+              To_String (Vault_Path) & "/tasks.tsv";
+         begin
+            Import_Tasks (Task_File);
+         end;
+
+
          -- Initialize git if requested
          if Git then
             declare
-               Git_Success : Boolean;
                Git_Cmd     : constant String :=
                  "cd " & To_String (Vault_Path) & " && git init";
                Args        : GNAT.OS_Lib.Argument_List (1 .. 2);
-               Return_Code : Integer;
             begin
                Args (1) := new String'("-c");
                Args (2) := new String'(Git_Cmd);
-               Return_Code := GNAT.OS_Lib.Spawn ("/bin/sh", Args);
+               declare
+                  Unused : constant Integer := GNAT.OS_Lib.Spawn ("/bin/sh", Args);
+               begin
+                  null;
+               end;
                GNAT.OS_Lib.Free (Args (1));
                GNAT.OS_Lib.Free (Args (2));
             end;
@@ -155,8 +182,7 @@ package body Src.Init is
       end if;
       Ada.Text_IO.Close (File);
 
-      Ada.Text_IO.Put_Line
-        ("Initialized brain-ex in " & To_String (Brain_Path));
+      Ada.Text_IO.Put_Line ("Initialized brain-ex in " & To_String (Brain_Path));
 
    -- TODO: Handle vault import if Vault_Path is set
 

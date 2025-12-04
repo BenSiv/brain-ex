@@ -5,8 +5,6 @@ with Ada.Strings.Fixed;
 with Ada.Directories;
 with Ada.Direct_IO;
 with Src.Sql;
-with Src.Config;
-with Src.Help;
 
 package body Src.Update is
    use Ada.Strings.Unbounded;
@@ -31,7 +29,7 @@ package body Src.Update is
       end Parse_Args;
       
       function Read_File (Path : String) return String is
-         File_Size : Natural := Natural (Ada.Directories.Size (Path));
+         File_Size : constant Natural := Natural (Ada.Directories.Size (Path));
          subtype File_String is String (1 .. File_Size);
          package File_IO is new Ada.Direct_IO (File_String);
          File : File_IO.File_Type;

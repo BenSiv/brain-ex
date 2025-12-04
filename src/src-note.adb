@@ -2,18 +2,13 @@ with Ada.Text_IO;
 with Ada.Command_Line;
 with Ada.Calendar;
 with Ada.Calendar.Formatting;
-with Ada.Strings.Unbounded;
-with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Src.Sql;
 with Src.Config;
-with Src.Help;
-with Src.Utils;
 with Ada.Directories;
 with GNAT.OS_Lib;
-with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 
 package body Src.Note is
-   use Ada.Strings.Unbounded;
 
    procedure Do_Note (Brain_File : String) is
       use Ada.Command_Line;
@@ -76,7 +71,7 @@ package body Src.Note is
       end Parse_Args;
 
       procedure Insert_Note (S, T, C : String) is
-         Sql_Cmd    : String :=
+         Sql_Cmd    : constant String :=
            "INSERT INTO notes ('subject', 'title', 'content') VALUES ('"
            & S
            & "', '"
@@ -84,7 +79,7 @@ package body Src.Note is
            & "', '"
            & C
            & "');";
-         Vault_Path : String := Src.Config.Get_Vault_Path;
+         Vault_Path : constant String := Src.Config.Get_Vault_Path;
          Note_File  : Ada.Text_IO.File_Type;
          File_Path  : Unbounded_String;
       begin
@@ -117,8 +112,8 @@ package body Src.Note is
       end Insert_Note;
 
       procedure Log_Note is
-         Now             : Ada.Calendar.Time := Ada.Calendar.Clock;
-         Timestamp       : String := Ada.Calendar.Formatting.Image (Now);
+         Now             : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+         Timestamp       : constant String := Ada.Calendar.Formatting.Image (Now);
          -- Format: YYYY-MM-DD HH:MM:SS.SS
          -- We want: YYYY-MM-DD_HH-MM-SS
          Formatted_Title : String (1 .. 19);
@@ -150,11 +145,11 @@ package body Src.Note is
          Vault_Path       : constant String := Src.Config.Get_Vault_Path;
          File_Path        : Unbounded_String;
          Existing_Content : Unbounded_String;
+         Note_Exists      : Boolean := False;
       begin
          if Title = Null_Unbounded_String then
             if Subject /= To_Unbounded_String ("log") then
-               Ada.Text_IO.Put_Line
-                 ("Error: Must provide title of note to edit");
+               Ada.Text_IO.Put_Line ("Error: Must provide title of note to edit");
                Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
                return;
             end if;
@@ -177,6 +172,7 @@ package body Src.Note is
                  & To_String (Title)
                  & ".md");
             if Ada.Directories.Exists (To_String (File_Path)) then
+               Note_Exists := True;
                -- Read existing content
                declare
                   Input_File : Ada.Text_IO.File_Type;
@@ -205,8 +201,50 @@ package body Src.Note is
             end if;
          end if;
 
-         Insert_Note
-           (To_String (Subject), To_String (Title), To_String (Content));
+         -- Use UPDATE if note exists and we're in update mode, otherwise INSERT
+         if Update_Mode and Note_Exists then
+            -- Update existing note in database
+            declare
+               Sql_Cmd : constant Unbounded_String :=
+                 To_Unbounded_String
+                   ("UPDATE notes SET content = '"
+                    & To_String (Content)
+                    & "' WHERE subject = '"
+                    & To_String (Subject)
+                    & "' AND title = '"
+                    & To_String (Title)
+                    & "';");
+            begin
+               Src.Sql.Execute (Brain_File, To_String (Sql_Cmd), Success);
+               if not Success then
+                  Ada.Text_IO.Put_Line ("Failed to update database");
+                  return;
+               end if;
+
+               -- Update file in vault
+               if Vault_Path /= "" then
+                  declare
+                     Note_File  : Ada.Text_IO.File_Type;
+                     Subject_Dir : constant String := Vault_Path & "/" & To_String (Subject);
+                  begin
+                     -- Create subject directory if it doesn't exist
+                     if not Ada.Directories.Exists (Subject_Dir) then
+                        Ada.Directories.Create_Path (Subject_Dir);
+                     end if;
+
+                     -- Write updated content to file
+                     Ada.Text_IO.Create
+                       (Note_File, Ada.Text_IO.Out_File, To_String (File_Path));
+                     Ada.Text_IO.Put_Line (Note_File, To_String (Content));
+                     Ada.Text_IO.Close (Note_File);
+                  end;
+               end if;
+            end;
+         else
+            -- Insert new note
+            Insert_Note
+              (To_String (Subject), To_String (Title), To_String (Content));
+         end if;
       end Add_Note;
 
       procedure Connect_Links is
@@ -260,7 +298,6 @@ package body Src.Note is
                      Subject_Dir  : constant String := Vault_Path & "/log";
                      File_Path    : constant String :=
                        Subject_Dir & "/" & To_String (Formatted_Title) & ".md";
-                     Link_Content : Unbounded_String;
                   begin
                      if not Ada.Directories.Exists (Subject_Dir) then
                         Ada.Directories.Create_Path (Subject_Dir);
@@ -366,7 +403,6 @@ package body Src.Note is
          File_Path   : Unbounded_String;
          Note_File   : Ada.Text_IO.File_Type;
          Args        : GNAT.OS_Lib.Argument_List (1 .. 1);
-         Return_Code : Integer;
       begin
          if Title = Null_Unbounded_String then
             Ada.Text_IO.Put_Line ("Must provide note title");
@@ -398,14 +434,18 @@ package body Src.Note is
 
                -- Open in editor
                Args (1) := new String'(To_String (File_Path));
-               Return_Code := GNAT.OS_Lib.Spawn (Editor, Args);
+               declare
+                  Unused : constant Integer := GNAT.OS_Lib.Spawn (Editor, Args);
+               begin
+                  null;
+               end;
                GNAT.OS_Lib.Free (Args (1));
             end;
          end if;
       end Edit_Note;
 
       procedure Last_Notes is
-         Sql_Cmd : String :=
+         Sql_Cmd : constant String :=
            "SELECT title, content FROM notes WHERE subject='"
            & To_String (Subject)
            & "' ORDER BY title DESC LIMIT "

@@ -65,15 +65,7 @@ package body Src.Sql is
       Result          : Result_Type;
       Line            : Unbounded_String;
       Header_Line     : Unbounded_String;
-      Headers         : Row_Vectors.Vector;
       Row             : Row_Type;
-
-      -- Helper to split CSV line
-      procedure Split_Csv (S : String; V : in out Row_Vectors.Vector) is
-      begin
-         -- Unused now
-         null;
-      end Split_Csv;
 
       -- Re-implementing Split for headers
       package String_Vectors is new
@@ -161,13 +153,16 @@ package body Src.Sql is
 
    procedure Shell (Db_Path : String) is
       Args        : GNAT.OS_Lib.Argument_List (1 .. 3);
-      Return_Code : Integer;
    begin
       Args (1) := new String'("-column");
       Args (2) := new String'("-header");
       Args (3) := new String'(Db_Path);
 
-      Return_Code := GNAT.OS_Lib.Spawn ("sqlite3", Args);
+      declare
+         Unused : constant Integer := GNAT.OS_Lib.Spawn ("sqlite3", Args);
+      begin
+         null;
+      end;
 
       GNAT.OS_Lib.Free (Args (1));
       GNAT.OS_Lib.Free (Args (2));
