@@ -37,6 +37,7 @@ begin
    Brain_File := To_Unbounded_String (Src.Config.Get_Brain_Path);
    if Brain_File = Null_Unbounded_String then
       -- Error already printed by Get_Brain_Path if config missing
+      Set_Exit_Status (Failure);
       return;
    end if;
 

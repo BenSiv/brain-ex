@@ -37,7 +37,7 @@ package body Src.Sql is
         To_Unbounded_String
           ("printf '%s\n' '"
            & Escape_For_Shell (Sql_Cmd)
-           & "' | sqlite3 '"
+           & "' | sqlite3 -cmd '.timeout 5000' '"
            & Db_Path
            & "'");
 
@@ -76,6 +76,7 @@ package body Src.Sql is
                Append
                  (Result_Str,
                   "'\''");  -- Close quote, add escaped quote, open quote
+
             else
                Append (Result_Str, S (I));
             end if;
@@ -116,7 +117,7 @@ package body Src.Sql is
       -- Need to escape single quotes in Sql_Cmd for shell
       Command_Line :=
         To_Unbounded_String
-          ("sqlite3 -header -csv '"
+          ("sqlite3 -cmd '.timeout 5000' -header -csv '"
            & Db_Path
            & "' '"
            & Escape_For_Shell (Sql_Cmd)
@@ -181,7 +182,7 @@ package body Src.Sql is
    end Escape_Sql;
 
    procedure Shell (Db_Path : String) is
-      Args        : GNAT.OS_Lib.Argument_List (1 .. 3);
+      Args : GNAT.OS_Lib.Argument_List (1 .. 3);
    begin
       Args (1) := new String'("-column");
       Args (2) := new String'("-header");
