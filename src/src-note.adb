@@ -18,12 +18,14 @@ package body Src.Note is
    procedure Do_Note (Brain_File : String) is
       use Ada.Command_Line;
 
-      Subcommand : Unbounded_String;
-      Subject    : Unbounded_String := To_Unbounded_String ("log");
-      Title      : Unbounded_String;
-      Content    : Unbounded_String;
-      Links      : Unbounded_String;
-      Number     : Integer := 5;
+      Subcommand  : Unbounded_String;
+      Subject     : Unbounded_String := To_Unbounded_String ("log");
+      Title       : Unbounded_String;
+      Content     : Unbounded_String;
+      Links       : Unbounded_String;
+      Number      : Integer := 5;
+      From_File   : Boolean := False;
+      Update_Mode : Boolean := False;
 
       Success : Boolean;
 
@@ -64,6 +66,10 @@ package body Src.Note is
                   Number := Integer'Value (Argument (I + 1));
                   I := I + 1;
                end if;
+            elsif Argument (I) = "--from-file" then
+               From_File := True;
+            elsif Argument (I) = "--update" then
+               Update_Mode := True;
             end if;
             I := I + 1;
          end loop;
@@ -141,11 +147,15 @@ package body Src.Note is
       end Log_Note;
 
       procedure Add_Note is
+         Vault_Path       : constant String := Src.Config.Get_Vault_Path;
+         File_Path        : Unbounded_String;
+         Existing_Content : Unbounded_String;
       begin
          if Title = Null_Unbounded_String then
             if Subject /= To_Unbounded_String ("log") then
                Ada.Text_IO.Put_Line
                  ("Error: Must provide title of note to edit");
+               Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
                return;
             end if;
             Ada.Text_IO.Put_Line ("Must provide note title");
@@ -154,6 +164,45 @@ package body Src.Note is
          if Content = Null_Unbounded_String then
             Ada.Text_IO.Put_Line ("Must provide note content");
             return;
+         end if;
+
+         -- Handle update mode: append to existing content
+         if Update_Mode and Vault_Path /= "" then
+            File_Path :=
+              To_Unbounded_String
+                (Vault_Path
+                 & "/"
+                 & To_String (Subject)
+                 & "/"
+                 & To_String (Title)
+                 & ".md");
+            if Ada.Directories.Exists (To_String (File_Path)) then
+               -- Read existing content
+               declare
+                  Input_File : Ada.Text_IO.File_Type;
+                  Line       : String (1 .. 1024);
+                  Last       : Natural;
+               begin
+                  Ada.Text_IO.Open
+                    (Input_File, Ada.Text_IO.In_File, To_String (File_Path));
+                  while not Ada.Text_IO.End_Of_File (Input_File) loop
+                     Ada.Text_IO.Get_Line (Input_File, Line, Last);
+                     Append (Existing_Content, Line (1 .. Last));
+                     if not Ada.Text_IO.End_Of_File (Input_File) then
+                        Append (Existing_Content, ASCII.LF);
+                     end if;
+                  end loop;
+                  Ada.Text_IO.Close (Input_File);
+               exception
+                  when others =>
+                     null;
+               end;
+
+               -- Append new content
+               if Existing_Content /= Null_Unbounded_String then
+                  Content := Existing_Content & ASCII.LF & Content;
+               end if;
+            end if;
          end if;
 
          Insert_Note
@@ -168,8 +217,8 @@ package body Src.Note is
          Target_Subject     : Unbounded_String;
          Target_Title       : Unbounded_String;
          Sql_Cmd            : Unbounded_String;
-         Source_Title_Str   : String := To_String (Title);
-         Source_Subject_Str : String := To_String (Subject);
+         Source_Title_Str   : Unbounded_String := Title;
+         Source_Subject_Str : Unbounded_String := Subject;
       begin
          -- If no title for source, use current log note
          if Title = Null_Unbounded_String then
@@ -179,26 +228,30 @@ package body Src.Note is
                  Ada.Calendar.Clock;
                Timestamp       : constant String :=
                  Ada.Calendar.Formatting.Image (Now);
-               Formatted_Title : String (1 .. 19);
+               Formatted_Title : Unbounded_String;
                Vault_Path      : constant String := Src.Config.Get_Vault_Path;
                Note_File       : Ada.Text_IO.File_Type;
+               Temp_Title      : String (1 .. 19);
             begin
-               Formatted_Title (1 .. 10) := Timestamp (1 .. 10);
-               Formatted_Title (11) := '_';
-               Formatted_Title (12 .. 13) := Timestamp (12 .. 13);
-               Formatted_Title (14) := '-';
-               Formatted_Title (15 .. 16) := Timestamp (15 .. 16);
-               Formatted_Title (17) := '-';
-               Formatted_Title (18 .. 19) := Timestamp (18 .. 19);
+               -- Build formatted title
+               Temp_Title (1 .. 10) := Timestamp (1 .. 10);
+               Temp_Title (11) := '_';
+               Temp_Title (12 .. 13) := Timestamp (12 .. 13);
+               Temp_Title (14) := '-';
+               Temp_Title (15 .. 16) := Timestamp (15 .. 16);
+               Temp_Title (17) := '-';
+               Temp_Title (18 .. 19) := Timestamp (18 .. 19);
+               Formatted_Title := To_Unbounded_String (Temp_Title);
                Source_Title_Str := Formatted_Title;
-               Source_Subject_Str := "log";
+               Source_Subject_Str := To_Unbounded_String ("log");
 
                -- Create the log note if content exists, or create empty if just connecting
                if Content /= Null_Unbounded_String then
-                  Insert_Note ("log", Formatted_Title, To_String (Content));
+                  Insert_Note
+                    ("log", To_String (Formatted_Title), To_String (Content));
                else
                   -- Just create empty note for connection
-                  Insert_Note ("log", Formatted_Title, "");
+                  Insert_Note ("log", To_String (Formatted_Title), "");
                end if;
 
                -- Also create the file with link
@@ -206,7 +259,7 @@ package body Src.Note is
                   declare
                      Subject_Dir  : constant String := Vault_Path & "/log";
                      File_Path    : constant String :=
-                       Subject_Dir & "/" & Formatted_Title & ".md";
+                       Subject_Dir & "/" & To_String (Formatted_Title) & ".md";
                      Link_Content : Unbounded_String;
                   begin
                      if not Ada.Directories.Exists (Subject_Dir) then
@@ -283,9 +336,9 @@ package body Src.Note is
                Sql_Cmd :=
                  To_Unbounded_String
                    ("INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES ('"
-                    & Source_Title_Str
+                    & To_String (Source_Title_Str)
                     & "', '"
-                    & Source_Subject_Str
+                    & To_String (Source_Subject_Str)
                     & "', '"
                     & To_String (Target_Title)
                     & "', '');");
@@ -293,9 +346,9 @@ package body Src.Note is
                Sql_Cmd :=
                  To_Unbounded_String
                    ("INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES ('"
-                    & Source_Title_Str
+                    & To_String (Source_Title_Str)
                     & "', '"
-                    & Source_Subject_Str
+                    & To_String (Source_Subject_Str)
                     & "', '"
                     & To_String (Target_Title)
                     & "', '"
@@ -385,12 +438,95 @@ package body Src.Note is
          Edit_Note;
       elsif Subcommand = "last" then
          Last_Notes;
+      elsif Subcommand = "update" then
+         -- Handle note update command
+         if From_File then
+            -- Update from file
+            declare
+               Vault_Path : constant String := Src.Config.Get_Vault_Path;
+               File_Path  : Unbounded_String;
+            begin
+               if Title = Null_Unbounded_String then
+                  Ada.Text_IO.Put_Line ("Must provide note title for update");
+                  Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+                  return;
+               end if;
+
+               if Vault_Path = "" then
+                  Ada.Text_IO.Put_Line ("No vault configured");
+                  Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+                  return;
+               end if;
+
+               File_Path :=
+                 To_Unbounded_String
+                   (Vault_Path
+                    & "/"
+                    & To_String (Subject)
+                    & "/"
+                    & To_String (Title)
+                    & ".md");
+
+               if not Ada.Directories.Exists (To_String (File_Path)) then
+                  Ada.Text_IO.Put_Line
+                    ("File does not exist: " & To_String (File_Path));
+                  Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+                  return;
+               end if;
+
+               -- Read file content
+               declare
+                  Input_File   : Ada.Text_IO.File_Type;
+                  Line         : String (1 .. 1024);
+                  Last         : Natural;
+                  File_Content : Unbounded_String;
+                  Sql_Cmd      : Unbounded_String;
+               begin
+                  Ada.Text_IO.Open
+                    (Input_File, Ada.Text_IO.In_File, To_String (File_Path));
+                  while not Ada.Text_IO.End_Of_File (Input_File) loop
+                     Ada.Text_IO.Get_Line (Input_File, Line, Last);
+                     Append (File_Content, Line (1 .. Last));
+                     if not Ada.Text_IO.End_Of_File (Input_File) then
+                        Append (File_Content, ASCII.LF);
+                     end if;
+                  end loop;
+                  Ada.Text_IO.Close (Input_File);
+
+                  -- Update database
+                  Sql_Cmd :=
+                    To_Unbounded_String
+                      ("UPDATE notes SET content = '"
+                       & To_String (File_Content)
+                       & "' WHERE subject = '"
+                       & To_String (Subject)
+                       & "' AND title = '"
+                       & To_String (Title)
+                       & "';");
+                  Src.Sql.Execute (Brain_File, To_String (Sql_Cmd), Success);
+                  if not Success then
+                     Ada.Text_IO.Put_Line ("Failed to update database");
+                     Ada.Command_Line.Set_Exit_Status
+                       (Ada.Command_Line.Failure);
+                  end if;
+               exception
+                  when others =>
+                     Ada.Text_IO.Put_Line ("Error reading file");
+                     Ada.Command_Line.Set_Exit_Status
+                       (Ada.Command_Line.Failure);
+               end;
+            end;
+         else
+            Ada.Text_IO.Put_Line ("Update command requires --from-file flag");
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+         end if;
       elsif Subcommand = Null_Unbounded_String then
          -- Check for error: subject without title
          if Subject /= To_Unbounded_String ("log")
            and Title = Null_Unbounded_String
          then
             Ada.Text_IO.Put_Line ("Error: Must provide title of note to edit");
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
             return;
          end if;
          Log_Note;
