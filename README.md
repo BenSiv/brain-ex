@@ -4,7 +4,7 @@ A note and task management CLI tool written in Ada.
 
 ## About
 
-Brain-Ex is a command-line tool for managing notes and tasks using SQLite as the backend. This is an Ada implementation of the original Lua version (available in `archive/lua/`).
+Brain-Ex is a command-line tool for managing notes and tasks using SQLite as the backend.
 
 ## Features
 
@@ -22,7 +22,7 @@ Brain-Ex is a command-line tool for managing notes and tasks using SQLite as the
 ## Building
 
 ```bash
-./build_ada.sh
+./build.sh
 ```
 
 This creates the `brain_ex` executable in the project root.
