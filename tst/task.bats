@@ -30,7 +30,7 @@ teardown() {
     # Now check the open task list
     run brex task list
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Empty task list" ]]   # ensures list is empty
+    [[ "$output" =~ "No pending tasks" ]]   # ensures list is empty
 }
 
 @test "NULL values are parsed as empty string in task list" {
@@ -43,7 +43,7 @@ teardown() {
     run brex task list
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Check null parsing" ]]
-    [[ "$output" =~ "due_to" ]]  # Should show blank/empty field
+    [[ "$output" =~ "Due Date" ]]  # Should show blank/empty field
 }
 
 @test "task list with --subject filters tasks" {

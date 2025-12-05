@@ -134,6 +134,14 @@ package body Src.Tasks is
            To_Unbounded_String
              ("SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL");
          Result  : Src.Sql.Result_Type;
+
+         W_Id      : Natural := 2;  -- "ID"
+         W_Subject : Natural := 7;  -- "Subject"
+         W_Content : Natural := 4;  -- "Task"
+         W_Due     : Natural := 8;  -- "Due Date"
+         W_Status  : Natural := 6;  -- "Status"
+
+         Gap : constant String := "  ";
       begin
          if Subject /= Null_Unbounded_String then
             Append (Sql_Cmd, " AND subject = '" & To_String (Subject) & "'");
@@ -147,14 +155,71 @@ package body Src.Tasks is
          if Result.Is_Empty then
             Ada.Text_IO.Put_Line ("No pending tasks");
          else
-            -- Print header
-            Ada.Text_IO.Put_Line
-              ("┌────────────┬──────────────┬────────────────────────────────────────┬────────────┬────────┐");
-            Ada.Text_IO.Put_Line
-              ("│ ID         │ Subject      │ Task                                   │ Due Date   │ Status │");
-            Ada.Text_IO.Put_Line
-              ("├────────────┼──────────────┼────────────────────────────────────────┼────────────┼────────┤");
+            -- Calculate widths
+            for Row of Result loop
+               declare
+                  Id_Str      : constant String := Row.Element ("id");
+                  Subject_Str : constant String :=
+                    (if Row.Contains ("subject")
+                     then Row.Element ("subject")
+                     else "");
+                  Content_Str : constant String := Row.Element ("content");
+                  Due_Full    : constant String :=
+                    (if Row.Contains ("due_to")
+                     then Row.Element ("due_to")
+                     else "");
+                  Due_Str     : constant String :=
+                    (if Due_Full'Length > 0
+                     then
+                       Due_Full
+                         (Due_Full'First
+                          .. Integer'Min (Due_Full'First + 9, Due_Full'Last))
+                     else "");
+               begin
+                  W_Id := Integer'Max (W_Id, Id_Str'Length);
+                  W_Subject := Integer'Max (W_Subject, Subject_Str'Length);
+                  W_Content := Integer'Max (W_Content, Content_Str'Length);
+                  W_Due := Integer'Max (W_Due, Due_Str'Length);
+               end;
+            end loop;
 
+            -- Print Header
+            Ada.Text_IO.Put (Character'Val (27) & "[1m");
+
+            Ada.Text_IO.Put ("ID");
+            for I in 1 .. W_Id - 2 loop
+               Ada.Text_IO.Put (" ");
+            end loop;
+            Ada.Text_IO.Put (Gap);
+
+            Ada.Text_IO.Put ("Subject");
+            for I in 1 .. W_Subject - 7 loop
+               Ada.Text_IO.Put (" ");
+            end loop;
+            Ada.Text_IO.Put (Gap);
+
+            Ada.Text_IO.Put ("Task");
+            for I in 1 .. W_Content - 4 loop
+               Ada.Text_IO.Put (" ");
+            end loop;
+            Ada.Text_IO.Put (Gap);
+
+            Ada.Text_IO.Put ("Due Date");
+            for I in 1 .. W_Due - 8 loop
+               Ada.Text_IO.Put (" ");
+            end loop;
+            Ada.Text_IO.Put (Gap);
+
+            Ada.Text_IO.Put ("Status");
+            -- Last column, no padding needed for header itself, but for consistency if we added more
+            for I in 1 .. W_Status - 6 loop
+               Ada.Text_IO.Put (" ");
+            end loop;
+
+            Ada.Text_IO.Put (Character'Val (27) & "[0m");
+            Ada.Text_IO.New_Line;
+
+            -- Print Rows
             for Row of Result loop
                declare
                   Id_Str      : constant String := Row.Element ("id");
@@ -177,51 +242,35 @@ package body Src.Tasks is
                   Overdue_Str : constant String := Row.Element ("overdue");
                   Status      : constant String :=
                     (if Overdue_Str = "1" then "! OVER" else "  OK  ");
-
-                  -- Truncate long strings to fit columns
-                  Id_Display      : constant String :=
-                    (if Id_Str'Length > 10 then Id_Str (1 .. 10) else Id_Str);
-                  Subject_Display : constant String :=
-                    (if Subject_Str'Length > 12
-                     then Subject_Str (1 .. 12)
-                     else Subject_Str);
-                  Content_Display : constant String :=
-                    (if Content_Str'Length > 38
-                     then Content_Str (1 .. 35) & "..."
-                     else Content_Str);
                begin
-                  Ada.Text_IO.Put ("│ ");
-                  Ada.Text_IO.Put (Id_Display);
-                  for I in Id_Display'Length + 1 .. 10 loop
+                  Ada.Text_IO.Put (Id_Str);
+                  for I in 1 .. W_Id - Id_Str'Length loop
                      Ada.Text_IO.Put (" ");
                   end loop;
+                  Ada.Text_IO.Put (Gap);
 
-                  Ada.Text_IO.Put (" │ ");
-                  Ada.Text_IO.Put (Subject_Display);
-                  for I in Subject_Display'Length + 1 .. 12 loop
+                  Ada.Text_IO.Put (Subject_Str);
+                  for I in 1 .. W_Subject - Subject_Str'Length loop
                      Ada.Text_IO.Put (" ");
                   end loop;
+                  Ada.Text_IO.Put (Gap);
 
-                  Ada.Text_IO.Put (" │ ");
-                  Ada.Text_IO.Put (Content_Display);
-                  for I in Content_Display'Length + 1 .. 38 loop
+                  Ada.Text_IO.Put (Content_Str);
+                  for I in 1 .. W_Content - Content_Str'Length loop
                      Ada.Text_IO.Put (" ");
                   end loop;
+                  Ada.Text_IO.Put (Gap);
 
-                  Ada.Text_IO.Put (" │ ");
                   Ada.Text_IO.Put (Due_Str);
-                  for I in Due_Str'Length + 1 .. 10 loop
+                  for I in 1 .. W_Due - Due_Str'Length loop
                      Ada.Text_IO.Put (" ");
                   end loop;
+                  Ada.Text_IO.Put (Gap);
 
-                  Ada.Text_IO.Put (" │ ");
                   Ada.Text_IO.Put (Status);
-                  Ada.Text_IO.Put_Line (" │");
+                  Ada.Text_IO.New_Line;
                end;
             end loop;
-
-            Ada.Text_IO.Put_Line
-              ("└────────────┴──────────────┴────────────────────────────────────────┴────────────┴────────┘");
          end if;
       end List_Tasks;
 
