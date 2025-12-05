@@ -141,28 +141,87 @@ package body Src.Tasks is
          if Due_To /= Null_Unbounded_String then
             Append (Sql_Cmd, " AND due_to > '" & To_String (Due_To) & "'");
          end if;
-         Append (Sql_Cmd, " ORDER BY due_to, subject;");
+         Append (Sql_Cmd, " ORDER BY overdue DESC, due_to, subject;");
 
          Result := Src.Sql.Query (Brain_File, To_String (Sql_Cmd));
          if Result.Is_Empty then
-            Ada.Text_IO.Put_Line ("Empty task list");
+            Ada.Text_IO.Put_Line ("No pending tasks");
          else
-            Ada.Text_IO.Put_Line ("id | subject | content | due_to | overdue");
+            -- Print header
+            Ada.Text_IO.Put_Line
+              ("┌────────────┬──────────────┬────────────────────────────────────────┬────────────┬────────┐");
+            Ada.Text_IO.Put_Line
+              ("│ ID         │ Subject      │ Task                                   │ Due Date   │ Status │");
+            Ada.Text_IO.Put_Line
+              ("├────────────┼──────────────┼────────────────────────────────────────┼────────────┼────────┤");
+
             for Row of Result loop
-               Ada.Text_IO.Put (Row.Element ("id") & " | ");
-               if Row.Contains ("subject") then
-                  Ada.Text_IO.Put (Row.Element ("subject") & " | ");
-               else
-                  Ada.Text_IO.Put (" | ");
-               end if;
-               Ada.Text_IO.Put (Row.Element ("content") & " | ");
-               if Row.Contains ("due_to") then
-                  Ada.Text_IO.Put (Row.Element ("due_to") & " | ");
-               else
-                  Ada.Text_IO.Put (" | ");
-               end if;
-               Ada.Text_IO.Put_Line (Row.Element ("overdue"));
+               declare
+                  Id_Str      : constant String := Row.Element ("id");
+                  Subject_Str : constant String :=
+                    (if Row.Contains ("subject")
+                     then Row.Element ("subject")
+                     else "");
+                  Content_Str : constant String := Row.Element ("content");
+                  Due_Full    : constant String :=
+                    (if Row.Contains ("due_to")
+                     then Row.Element ("due_to")
+                     else "");
+                  Due_Str     : constant String :=
+                    (if Due_Full'Length > 0
+                     then
+                       Due_Full
+                         (Due_Full'First
+                          .. Integer'Min (Due_Full'First + 9, Due_Full'Last))
+                     else "");
+                  Overdue_Str : constant String := Row.Element ("overdue");
+                  Status      : constant String :=
+                    (if Overdue_Str = "1" then "! OVER" else "  OK  ");
+
+                  -- Truncate long strings to fit columns
+                  Id_Display      : constant String :=
+                    (if Id_Str'Length > 10 then Id_Str (1 .. 10) else Id_Str);
+                  Subject_Display : constant String :=
+                    (if Subject_Str'Length > 12
+                     then Subject_Str (1 .. 12)
+                     else Subject_Str);
+                  Content_Display : constant String :=
+                    (if Content_Str'Length > 38
+                     then Content_Str (1 .. 35) & "..."
+                     else Content_Str);
+               begin
+                  Ada.Text_IO.Put ("│ ");
+                  Ada.Text_IO.Put (Id_Display);
+                  for I in Id_Display'Length + 1 .. 10 loop
+                     Ada.Text_IO.Put (" ");
+                  end loop;
+
+                  Ada.Text_IO.Put (" │ ");
+                  Ada.Text_IO.Put (Subject_Display);
+                  for I in Subject_Display'Length + 1 .. 12 loop
+                     Ada.Text_IO.Put (" ");
+                  end loop;
+
+                  Ada.Text_IO.Put (" │ ");
+                  Ada.Text_IO.Put (Content_Display);
+                  for I in Content_Display'Length + 1 .. 38 loop
+                     Ada.Text_IO.Put (" ");
+                  end loop;
+
+                  Ada.Text_IO.Put (" │ ");
+                  Ada.Text_IO.Put (Due_Str);
+                  for I in Due_Str'Length + 1 .. 10 loop
+                     Ada.Text_IO.Put (" ");
+                  end loop;
+
+                  Ada.Text_IO.Put (" │ ");
+                  Ada.Text_IO.Put (Status);
+                  Ada.Text_IO.Put_Line (" │");
+               end;
             end loop;
+
+            Ada.Text_IO.Put_Line
+              ("└────────────┴──────────────┴────────────────────────────────────────┴────────────┴────────┘");
          end if;
       end List_Tasks;
 

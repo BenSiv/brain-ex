@@ -3,7 +3,11 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Command_Line;
 with Ada.Strings.Unbounded;
+with Ada.Strings.Fixed;
+with Ada.Calendar;
+with Ada.Calendar.Formatting;
 with Src.Sql;
+with Src.Utils;
 with GNAT.OS_Lib;
 
 package body Src.Init is
@@ -46,7 +50,8 @@ package body Src.Init is
       Editor     : Unbounded_String := To_Unbounded_String ("nano");
       Git        : Boolean := False;
 
-      Home_Dir    : constant String := Ada.Environment_Variables.Value ("HOME");
+      Home_Dir    : constant String :=
+        Ada.Environment_Variables.Value ("HOME");
       Current_Dir : constant String := Ada.Directories.Current_Directory;
       Brain_Path  : Unbounded_String;
 
@@ -84,15 +89,155 @@ package body Src.Init is
       end Parse_Args;
 
       -- Import tasks from tasks.tsv
-      -- Note: Simplified version without complex parsing
-      -- TODO: Implement proper TSV parsing if needed
       procedure Import_Tasks (Task_File : String) is
+         File         : Ada.Text_IO.File_Type;
+         Line         : Unbounded_String;
+         Line_Num     : Natural := 0;
+         Imported     : Natural := 0;
+         Tab1_Pos     : Natural;
+         Tab2_Pos     : Natural;
+         Content      : Unbounded_String;
+         Subject      : Unbounded_String;
+         Due_To       : Unbounded_String;
+         Task_Id      : Unbounded_String;
+         Overdue      : Integer;
+         Sql_Cmd      : Unbounded_String;
+         Success      : Boolean;
+         Due_Date     : Ada.Calendar.Time;
+         Due_Date_Str : Unbounded_String;
       begin
-         -- Placeholder for task import functionality
-         -- Full implementation would require custom TSV parser
-         if Ada.Directories.Exists (Task_File) then
-            Ada.Text_IO.Put_Line ("Task import not yet implemented");
+         if not Ada.Directories.Exists (Task_File) then
+            return;  -- No tasks file, silently skip
+
+
          end if;
+
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Task_File);
+
+         while not Ada.Text_IO.End_Of_File (File) loop
+            Line := To_Unbounded_String (Ada.Text_IO.Get_Line (File));
+            Line_Num := Line_Num + 1;
+
+            -- Skip empty lines and header
+            if Length (Line) = 0 or Line_Num = 1 then
+               goto Continue;
+            end if;
+
+            -- Parse TSV: content<TAB>subject<TAB>due_to
+            Tab1_Pos :=
+              Ada.Strings.Fixed.Index (To_String (Line), "" & ASCII.HT);
+            if Tab1_Pos = 0 then
+               -- No tabs, treat entire line as content
+               Content := Line;
+               Subject := Null_Unbounded_String;
+               Due_To := Null_Unbounded_String;
+            else
+               Content := Unbounded_Slice (Line, 1, Tab1_Pos - 1);
+               Tab2_Pos :=
+                 Ada.Strings.Fixed.Index
+                   (To_String (Line), "" & ASCII.HT, Tab1_Pos + 1);
+
+               if Tab2_Pos = 0 then
+                  -- Only one tab: content and subject
+                  Subject :=
+                    Unbounded_Slice (Line, Tab1_Pos + 1, Length (Line));
+                  Due_To := Null_Unbounded_String;
+               else
+                  -- Two tabs: content, subject, and due_to
+                  Subject :=
+                    Unbounded_Slice (Line, Tab1_Pos + 1, Tab2_Pos - 1);
+                  Due_To :=
+                    Unbounded_Slice (Line, Tab2_Pos + 1, Length (Line));
+               end if;
+            end if;
+
+            -- Skip if content is empty
+            if Length (Content) = 0 then
+               goto Continue;
+            end if;
+
+            -- Generate task ID
+            Task_Id := To_Unbounded_String (Src.Utils.Generate_Id);
+
+            -- Handle due date
+            if Due_To = Null_Unbounded_String or Length (Due_To) = 0 then
+               -- Default to tomorrow
+               Due_Date := Ada.Calendar."+" (Ada.Calendar.Clock, 86400.0);
+               Due_Date_Str :=
+                 To_Unbounded_String
+                   (Ada.Calendar.Formatting.Image (Due_Date) (1 .. 19));
+            else
+               Due_Date_Str := Due_To;
+            end if;
+
+            -- Compute overdue flag
+            if To_String (Due_Date_Str)
+              < Ada.Calendar.Formatting.Image (Ada.Calendar.Clock) (1 .. 19)
+            then
+               Overdue := 1;
+            else
+               Overdue := 0;
+            end if;
+
+            -- Build INSERT statement
+            if Subject = Null_Unbounded_String or Length (Subject) = 0 then
+               Sql_Cmd :=
+                 To_Unbounded_String
+                   ("INSERT INTO tasks (id, subject, content, due_to, overdue, done) VALUES ('"
+                    & To_String (Task_Id)
+                    & "', NULL, '"
+                    & Src.Sql.Escape_Sql (To_String (Content))
+                    & "', '"
+                    & To_String (Due_Date_Str)
+                    & "', "
+                    & Integer'Image (Overdue)
+                    & ", NULL);");
+            else
+               Sql_Cmd :=
+                 To_Unbounded_String
+                   ("INSERT INTO tasks (id, subject, content, due_to, overdue, done) VALUES ('"
+                    & To_String (Task_Id)
+                    & "', '"
+                    & Src.Sql.Escape_Sql (To_String (Subject))
+                    & "', '"
+                    & Src.Sql.Escape_Sql (To_String (Content))
+                    & "', '"
+                    & To_String (Due_Date_Str)
+                    & "', "
+                    & Integer'Image (Overdue)
+                    & ", NULL);");
+            end if;
+
+            -- Execute insert
+            Src.Sql.Execute
+              (To_String (Brain_Path), To_String (Sql_Cmd), Success);
+            if Success then
+               Imported := Imported + 1;
+            else
+               Ada.Text_IO.Put_Line
+                 ("Warning: Failed to import task on line"
+                  & Natural'Image (Line_Num));
+            end if;
+
+            <<Continue>>
+         end loop;
+
+         Ada.Text_IO.Close (File);
+
+         if Imported > 0 then
+            Ada.Text_IO.Put_Line
+              ("Imported"
+               & Natural'Image (Imported)
+               & " tasks from "
+               & Task_File);
+         end if;
+
+      exception
+         when others =>
+            if Ada.Text_IO.Is_Open (File) then
+               Ada.Text_IO.Close (File);
+            end if;
+            Ada.Text_IO.Put_Line ("Error reading tasks file: " & Task_File);
       end Import_Tasks;
 
    begin
@@ -157,14 +302,15 @@ package body Src.Init is
          -- Initialize git if requested
          if Git then
             declare
-               Git_Cmd     : constant String :=
+               Git_Cmd : constant String :=
                  "cd " & To_String (Vault_Path) & " && git init";
-               Args        : GNAT.OS_Lib.Argument_List (1 .. 2);
+               Args    : GNAT.OS_Lib.Argument_List (1 .. 2);
             begin
                Args (1) := new String'("-c");
                Args (2) := new String'(Git_Cmd);
                declare
-                  Unused : constant Integer := GNAT.OS_Lib.Spawn ("/bin/sh", Args);
+                  Unused : constant Integer :=
+                    GNAT.OS_Lib.Spawn ("/bin/sh", Args);
                begin
                   null;
                end;
@@ -182,7 +328,8 @@ package body Src.Init is
       end if;
       Ada.Text_IO.Close (File);
 
-      Ada.Text_IO.Put_Line ("Initialized brain-ex in " & To_String (Brain_Path));
+      Ada.Text_IO.Put_Line
+        ("Initialized brain-ex in " & To_String (Brain_Path));
 
    -- TODO: Handle vault import if Vault_Path is set
 
