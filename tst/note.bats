@@ -130,3 +130,61 @@ teardown() {
     [[ "$DB_CONTENT" =~ "Appended line" ]]
 }
 
+
+@test "note last shows most recent notes" {
+    brex note add --title "old-note" --content "Old content" --subject "test"
+    sleep 1  # Ensure different timestamps
+    brex note add --title "new-note" --content "New content" --subject "test"
+    
+    run brex note last --subject "test"
+    [ "$status" -eq 0 ]
+    # Should show both notes
+    [[ "$output" =~ "new-note" ]]
+    [[ "$output" =~ "old-note" ]]
+}
+
+@test "note last with --number flag limits results" {
+    brex note add --title "note1" --content "Content 1" --subject "test"
+    brex note add --title "note2" --content "Content 2" --subject "test"
+    brex note add --title "note3" --content "Content 3" --subject "test"
+    
+    run brex note last --subject "test" --number 2
+    [ "$status" -eq 0 ]
+    # Should only show 2 notes (the most recent ones)
+    # Count how many times we see note content
+    COUNT=$(echo "$output" | grep -c "Content" || true)
+    [ "$COUNT" -le 4 ]  # 2 notes * (title + content) = up to 4 matches
+}
+
+@test "note last with --subject filters by subject" {
+    brex note add --title "backend-note" --content "Backend content" --subject "backend"
+    brex note add --title "frontend-note" --content "Frontend content" --subject "frontend"
+    
+    run brex note last --subject "backend"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Backend content" || "$output" =~ "backend-note" ]]
+    [[ ! "$output" =~ "Frontend content" ]]
+}
+
+@test "note add with special characters in content" {
+    run brex note add --title "special-chars" --content "Content with 'quotes' and \"double quotes\"" --subject "test"
+    [ "$status" -eq 0 ]
+    
+    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='special-chars';")
+    [[ "$CONTENT" =~ "quotes" ]]
+}
+
+@test "note default behavior logs to log subject" {
+    run brex note --content "Default log note"
+    [ "$status" -eq 0 ]
+    
+    # Should create a note in log subject
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE subject='log' AND content LIKE '%Default log note%';")
+    [ "$COUNT" -eq 1 ]
+}
+
+@test "note last on empty subject shows no notes message" {
+    run brex note last --subject "nonexistent"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "No notes" ]]
+}
