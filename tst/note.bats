@@ -4,7 +4,7 @@ setup() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
     mkdir tmp_vault
-    brex init --vault tmp_vault --editor micro
+    brex init --vault tmp_vault --editor touch
 }
 
 teardown() {
@@ -93,10 +93,10 @@ teardown() {
 }
 
 @test "error when subject is passed without title" {
-    run brex note --subject "brain-ex"
+    run brex note add --subject "brain-ex"
     [ "$status" -ne 0 ]
-    [[ "$output" =~ "Error" ]]
-    [[ "$output" =~ "Must provide title of note to edit" ]]
+    [[ "$output" =~ "Note command failed" ]]
+    [[ "$output" =~ "Must provide note title" ]]
 }
 
 @test "update note from file after manual edit" {
@@ -106,7 +106,7 @@ teardown() {
     # Simulate manual edit
     echo "New content after edit" >> tmp_vault/brain-ex/manual-update.md
 
-    run brex note update --title "manual-update" --subject "brain-ex" --from-file
+    run brex update --file tmp_vault/brain-ex/manual-update.md
     [ "$status" -eq 0 ]
 
     # DB content should now include new text

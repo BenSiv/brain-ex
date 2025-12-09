@@ -84,6 +84,8 @@ local function main()
         if status ~= "success" then
             os.exit(1)
         end
+    else
+        os.exit(1)
     end
 
     if is_git() then

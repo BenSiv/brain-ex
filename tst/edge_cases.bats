@@ -6,7 +6,7 @@ setup() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
     mkdir tmp_vault
-    brex init --vault tmp_vault --editor micro
+    brex init --vault tmp_vault --editor touch
 }
 
 teardown() {

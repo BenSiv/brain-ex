@@ -100,7 +100,7 @@ local function update_note_from_file(brain_file, note_path)
 	end
 
 	-- Clear existing connections for this note
-    local clear_links = string.format("DELETE FROM connections WHERE source = '%s';", title)
+    local clear_links = string.format("DELETE FROM connections WHERE source_title = '%s' AND source_subject = '%s';", title, subject)
 	success = local_update(brain_file, clear_links)
 	if not success then
 		print("Failed to clear note links from file: " .. note_path)
@@ -109,9 +109,9 @@ local function update_note_from_file(brain_file, note_path)
 
 	-- Insert updated links
     if #links > 0 then
-        local insert_links = "INSERT INTO connections (source, target) VALUES "
+        local insert_links = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
         for i, link in ipairs(links) do
-            insert_links = insert_links .. string.format("('%s', '%s')%s", title, link, i < #links and "," or ";")
+            insert_links = insert_links .. string.format("('%s', '%s', '%s', '%s')%s", title, subject, link.title, link.subject or "", i < #links and "," or ";")
         end
 		success = local_update(brain_file, insert_links)
 		if not success then
@@ -120,6 +120,8 @@ local function update_note_from_file(brain_file, note_path)
 		end
     end
 
+
+    print("Updated note: " .. note_path)
 
 
 	return "success"

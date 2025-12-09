@@ -48,6 +48,10 @@ function backup_tasks(brain_file)
     return "success"
 end
 
+local function escape_sql(str)
+    return str:gsub("'", "''")
+end
+
 function add_task(brain_file, args)
     -- get note info
     local subject = args["subject"] or "NULL"
@@ -70,10 +74,14 @@ function add_task(brain_file, args)
 
     local overdue = check_overdue(due_to) and 1 or 0
     local id = generate_id("tasks")
+    
+    local esc_subject = escape_sql(subject)
+    local esc_content = escape_sql(content)
+    
     local insert_statement = string.format([[
     INSERT INTO tasks (id, subject, content, due_to, overdue, done)
     VALUES ('%s', '%s', '%s', '%s', '%s', NULL);
-    ]], id, subject, content, due_to, overdue)
+    ]], id, esc_subject, esc_content, due_to, overdue)
     -- write note info
     local success = local_update(brain_file, insert_statement)
 	if not success then
@@ -100,7 +108,7 @@ function list_tasks(brain_file, args)
 
     local query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
     if subject ~= "" then
-        query = query .. string.format("AND subject = '%s'", subject)
+        query = query .. string.format("AND subject = '%s'", escape_sql(subject))
     end
 
     if due_to then
@@ -127,7 +135,7 @@ function mark_done(brain_file, args)
         return
     end
 
-    local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. comment .. "' WHERE id = " .. task_id .. ";"
+    local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
     local status = local_update(brain_file, update_statement)
     if not status then
         print("Failed to mark task as done")
@@ -174,7 +182,7 @@ function last_done(brain_file, args)
 
     local query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
     if subject ~= "" then
-        query = query .. string.format("AND subject='%s'", subject)
+        query = query .. string.format("AND subject='%s'", escape_sql(subject))
     end
     
     query = query .. " ORDER BY done DESC "

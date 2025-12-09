@@ -4,7 +4,14 @@ local note = {}
 local lfs = require("lfs")
 local parse_links_str = require("vault_to_sql").parse_links_str
 
+local function escape_sql(str)
+    return str:gsub("'", "''")
+end
+
 local function insert_note(brain_file, subject, title, content)
+    subject = escape_sql(subject)
+    title = escape_sql(title)
+    content = escape_sql(content)
     local insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
     local status = local_update(brain_file, insert_statement)
     if not status then
@@ -15,15 +22,20 @@ local function insert_note(brain_file, subject, title, content)
 end
 
 local function append_content(brain_file, subject, title, content)
-    local query = string.format("SELECT content FROM notes WHERE title='%s' AND subject='%s';", title, subject)
+    -- subject and title used in query must be escaped
+    local esc_subject = escape_sql(subject)
+    local esc_title = escape_sql(title)
+
+    local query = string.format("SELECT content FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     local result = local_query(brain_file, query)
-    if not result then
-        print("Failed to query note")
+    if not result or #result == 0 then
+        print("Failed to find note for append: " .. title)
         return nil
     end
     local new_content = result[1].content .. "\n" .. content
+    local esc_content = escape_sql(new_content)
 
-    local update_statement = string.format("UPDATE notes SET content='%s' WHERE title='%s' AND subject='%s';", new_content, title, subject)
+    local update_statement = string.format("UPDATE notes SET content='%s' WHERE title='%s' AND subject='%s';", esc_content, esc_title, esc_subject)
 
     local status = local_update(brain_file, update_statement)
     if not status then
@@ -119,10 +131,18 @@ local function take_note(brain_file, args)
         return
     end
 
-    local insert_status = insert_note(brain_file, subject, title, content)
-    if not insert_status then
-        print("Error: note insertion failed")
-        return
+    if args["update"] then
+        local append_status = append_content(brain_file, subject, title, content)
+        if not append_status then
+             print("Error: append content failed")
+             return
+        end
+    else
+        local insert_status = insert_note(brain_file, subject, title, content)
+        if not insert_status then
+            print("Error: note insertion failed")
+            return
+        end
     end
     
     if not isempty(links) then
@@ -200,11 +220,8 @@ local function last_notes(brain_file, args)
 
     local query = string.format("SELECT title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s", subject, num)
     local result = local_query(brain_file, query)
-    if not result then
-        print("Failed to query notes")
-        return
-    end
-    if length(result) > 0 then
+
+    if result and length(result) > 0 then
         -- view(result)
         for i, note in pairs(result) do
             bold(note.title)
@@ -231,7 +248,9 @@ local function log_note(brain_file, args)
     end
 
     -- Check if the note exists
-    local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", title, subject)
+    local esc_subject = escape_sql(subject)
+    local esc_title = escape_sql(title) -- title comes from os.date usually but good practice to escape if it ever changes
+    local query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     local result = local_query(brain_file, query)
     if not result then
         print("Failed to query note database")
@@ -332,12 +351,13 @@ local function do_note(brain_file)
         -c --content arg string false
         -l --links arg string false
         -n --number arg number false
+        -u --update flag boolean false
     ]]
 
     local help_string = get_help_string(arg[0])
     local expected_args = def_args(arg_string)
     local args = parse_args(arg, expected_args, help_string)
-    local status
+    
     if args then
         if args["do"] == "add" then
             status = take_note(brain_file, args)
@@ -356,6 +376,7 @@ local function do_note(brain_file)
     end
     if status ~= "success" then
         print("Note command failed")
+        return nil
     end
     return "success"
 end
