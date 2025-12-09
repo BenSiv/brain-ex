@@ -136,11 +136,12 @@ local function do_update(brain_file)
 
 	if args then
 		if args["file"] then
-			update_note_from_file(brain_file, args["file"])
+			return update_note_from_file(brain_file, args["file"])
 		else
-			update_from_vault(brain_file)
+			return update_from_vault(brain_file)
 		end
 	end
+	return "success"
 end
 
 update.update_note_from_file = update_note_from_file

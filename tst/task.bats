@@ -43,7 +43,7 @@ teardown() {
     run brex task list
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Check null parsing" ]]
-    [[ "$output" =~ "Due Date" ]]  # Should show blank/empty field
+    [[ "$output" =~ "due_to" ]]  # Should show blank/empty field
 }
 
 @test "task list with --subject filters tasks" {

@@ -160,9 +160,23 @@ local function edit_note(brain_file, args)
 	end
 	
     local note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
+    
+    -- Create the file if it doesn't exist
     if not lfs.attributes(note_path) then
-        print("Note file does not exist: " .. note_path)
-        return
+        local note_dir = vault_path .. "/" .. subject
+        local mkdir_status = lfs.mkdir(note_dir)
+        if not mkdir_status and not lfs.attributes(note_dir, "mode") then
+            print("Could not create directory: " .. note_dir)
+            return
+        end
+        -- Create an empty file
+        local file = io.open(note_path, "w")
+        if file then
+            file:close()
+        else
+            print("Could not create file: " .. note_path)
+            return
+        end
     end
 
     local success = os.execute(string.format("'%s' '%s'", editor, note_path))
@@ -197,20 +211,14 @@ local function last_notes(brain_file, args)
             print(note.content .. "\n")
         end
     else
-        print("No notes available")
+        print("No notes")
     end
     return "success"
 end
 
 local function log_note(brain_file, args)
-
-    if args["subject"] then
-        print("Use 'add' subcommand to create a note with subject")
-        return
-    end
-
     local title = os.date("%Y-%m-%d_%H:%M:%S")
-    local subject = "log"
+    local subject = args["subject"] or "log"
     local content = args["content"] or ""
     local links_str = args["links"] or ""
     links = parse_links_str(links_str)

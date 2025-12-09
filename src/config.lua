@@ -45,7 +45,7 @@ end
 
 function config.is_git()
     local cfg = load_config()
-    return cfg["git"] or false
+    return cfg and cfg["git"] or false
 end
 
 function config.reload()

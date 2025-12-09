@@ -4,15 +4,21 @@ local task = {}
 local os = require("os")
 
 function check_overdue(due_to)
+    if not due_to or due_to == "" then
+        return false
+    end
     local current_time = os.time()
     local year, month, day, hour, min, sec = due_to:match("(%d%d%d%d)%-(%d%d)%-(%d%d) (%d%d):(%d%d):(%d%d)")
+    if not year then
+        return false
+    end
     local task_time = os.time{year=year, month=month, day=day, hour=hour, min=min, sec=sec}
     return current_time > task_time
 end
 
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
-    local query = "SELECT id, due_to FROM tasks WHERE done IS NULL;"
+    local query = "SELECT id, due_to FROM tasks WHERE done IS NULL AND due_to IS NOT NULL;"
     local unfinished = local_query(brain_file, query)
 
     local overdue = false
@@ -82,7 +88,7 @@ end
 function list_tasks(brain_file, args)
     local tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
-        print("Empty task list")
+        print("No pending tasks")
         return
     end
     
@@ -104,10 +110,10 @@ function list_tasks(brain_file, args)
     query = query .. " ORDER BY due_to, subject;"
 
     local result = local_query(brain_file, query)
-    if result then
+    if result and length(result) > 0 then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
-        print("Empty task list")
+        print("No pending tasks")
     end
     return "success"
 end

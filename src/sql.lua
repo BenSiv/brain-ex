@@ -30,6 +30,7 @@ local function do_sql(brain_file)
             sqlite_shell(brain_file)
         end
     end
+    return "success"
 end
 
 sql.do_sql = do_sql
