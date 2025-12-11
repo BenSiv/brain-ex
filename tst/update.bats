@@ -70,3 +70,13 @@ teardown() {
     run brex update --file tmp_vault/test/notafile
     [ "$status" -ne 0 ]
 }
+
+@test "update from file in root directory with no subject" {
+    echo "Content in root" > tmp_vault/root_note.md
+    
+    run brex update --file tmp_vault/root_note.md
+    [ "$status" -eq 0 ]
+    
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='root_note' AND subject='';")
+    [ "$COUNT" -eq 1 ]
+}

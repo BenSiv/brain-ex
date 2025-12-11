@@ -47,7 +47,7 @@ local function update_note_from_file(brain_file, note_path)
 	if vault_path then
 		-- Extract subject and title from the note path
 		title = note_path:match("([^/]+)%.md$")
-		subject = note_path:match(".*/([^/]+)/[^/]+%.md$")
+		subject = note_path:match(".*/([^/]+)/[^/]+%.md$") or ""
 	else
 		title = user.input("Title: ")
 		subject = user.input("Subject: ")

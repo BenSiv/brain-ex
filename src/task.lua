@@ -54,7 +54,7 @@ end
 
 function add_task(brain_file, args)
     -- get note info
-    local subject = args["subject"] or "NULL"
+    local subject = args["subject"]
     local content = args["content"] or ""
     local time_input_str = args["due_to"] or ""
     local due_to = normalize_datetime(time_input_str)
@@ -75,12 +75,15 @@ function add_task(brain_file, args)
     local overdue = check_overdue(due_to) and 1 or 0
     local id = generate_id("tasks")
     
-    local esc_subject = escape_sql(subject)
+    local esc_subject = "NULL"
+    if subject then
+        esc_subject = "'" .. escape_sql(subject) .. "'"
+    end
     local esc_content = escape_sql(content)
     
     local insert_statement = string.format([[
     INSERT INTO tasks (id, subject, content, due_to, overdue, done)
-    VALUES ('%s', '%s', '%s', '%s', '%s', NULL);
+    VALUES ('%s', %s, '%s', '%s', '%s', NULL);
     ]], id, esc_subject, esc_content, due_to, overdue)
     -- write note info
     local success = local_update(brain_file, insert_statement)
