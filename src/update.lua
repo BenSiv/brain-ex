@@ -60,17 +60,11 @@ function update_note_from_file(brain_file, note_path)
 		return
 	end
 
+	links = {}
 	if content != "" then
-		result = process_content(content)
-		if type(result) == "table" then
-			content = result[1] or ""
-			links = result[2] or {}
-		else
-			content = result or ""
-			links = {}
-		end
-	else
-		links = {}
+		content, links = process_content(content)
+        -- Ensure links is a table if nil returned
+        links = links or {}
 	end
 
 	-- Escape single quotes for SQL

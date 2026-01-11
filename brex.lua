@@ -78,10 +78,6 @@ function main()
     if is_git() then
         auto_update()
     end
-
-    if is_git() then
-        auto_update()
-    end
 end
 
 -- run program

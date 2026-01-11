@@ -32,7 +32,9 @@ function append_content(brain_file, subject, title, content)
         print("Failed to find note for append: " .. title)
         return nil
     end
-    new_content = result[1].content .. "\n" .. content
+    -- Handle both named and numeric column access
+    old_content = result[1].content or result[1][1] or ""
+    new_content = old_content .. "\n" .. content
     esc_content = escape_sql(new_content)
 
     update_statement = string.format("UPDATE notes SET content='%s' WHERE title='%s' AND subject='%s';", esc_content, esc_title, esc_subject)
