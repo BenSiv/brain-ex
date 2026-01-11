@@ -229,7 +229,7 @@ function vault_to_sql(vault_path, brain_file)
     end
 
     db.exec(db, "COMMIT;")
-    io.close(db)
+    db.close(db)
     return "success"
 end
 

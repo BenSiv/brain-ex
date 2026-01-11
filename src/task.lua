@@ -204,6 +204,11 @@ function last_done(brain_file, args)
 end
 
 function do_task(brain_file, cmd_args)
+    -- print("Debug: cmd_args[1] IN: " .. tostring(cmd_args[1]))
+    if cmd_args[1] and string.sub(cmd_args[1], 1, 1) != "-" then
+        table.insert(cmd_args, 1, "-d")
+    end
+    -- print("Debug: cmd_args[1] OUT: " .. tostring(cmd_args[1]))
     arg_string = """
         -d --do arg string false
         -s --subject arg string false

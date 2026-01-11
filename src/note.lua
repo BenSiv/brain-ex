@@ -345,6 +345,9 @@ function do_note_connect(brain_file, args)
 end
 
 function do_note(brain_file, cmd_args)
+    if cmd_args[1] and string.sub(cmd_args[1], 1, 1) != "-" then
+        table.insert(cmd_args, 1, "-d")
+    end
     arg_string = """
         -d --do arg string false
         -s --subject arg string false
