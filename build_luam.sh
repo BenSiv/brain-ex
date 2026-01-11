@@ -41,22 +41,29 @@ CC="" "$LUAM_BIN" "$STATIC_TOOL" \
     -I "$LUAM_DIR/src" \
     -lm -ldl -lreadline -lpthread
 
-# Inject lsqlite3 preload
+# Inject lsqlite3 and lfs preload
 sed -i '/luaL_openlibs(L);/a \
   int luaopen_lsqlite3(lua_State *L); \
+  int luaopen_lfs(lua_State *L); \
   lua_getglobal(L, "package"); \
   lua_getfield(L, -1, "preload"); \
   lua_pushcfunction(L, luaopen_lsqlite3); \
   lua_setfield(L, -2, "lsqlite3"); \
+  lua_pushcfunction(L, luaopen_lfs); \
+  lua_setfield(L, -2, "lfs"); \
   lua_pop(L, 2);' brex.static.c
 
 # Compile lsqlite3
 cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/sqlite/lsqlite3.c" -o lsqlite3.o
 
+# Compile lfs
+cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/filesystem/src/lfs.c" -o lfs.o
+
 # Compile binary
-cc -Os brex.static.c lsqlite3.o "$LUAM_LIB" \
+cc -Os brex.static.c lsqlite3.o lfs.o "$LUAM_LIB" \
     -I "$LUAM_DIR/src" \
     -lm -ldl -lreadline -lpthread -lsqlite3 \
+    -Wl,--export-dynamic \
     -o brex
 
 popd > /dev/null
