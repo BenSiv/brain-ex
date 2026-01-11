@@ -60,7 +60,11 @@ function update_note_from_file(brain_file, note_path)
 		return
 	end
 
-	content, links = process_content(content)
+	if content != "" then
+		content, links = process_content(content)
+	else
+		links = {}
+	end
 
 	-- Escape single quotes for SQL
     content = string.gsub(content, "'", "''")
@@ -74,7 +78,8 @@ function update_note_from_file(brain_file, note_path)
 	num_rows = 0
 	result = local_query(brain_file, note_exists_query)
 	if result then
-		num_rows = tonumber(result[1].num)
+		-- Handle both named and numeric column access
+		num_rows = tonumber(result[1].num or result[1][1]) or 0
 	end
 
 	-- Construct INSERT or UPDATE statement

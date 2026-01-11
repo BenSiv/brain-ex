@@ -119,6 +119,9 @@ end
 
 -- Function to remove all instances of the link pattern
 function remove_link(input_line, link)
+    if not input_line or input_line == "" then
+        return ""
+    end
     link_pattern = "%[%[" .. link .. "%]%]"
     output_line = replace(input_line, link_pattern, "")
     if match(output_line, "^%s*$") then
