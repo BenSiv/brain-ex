@@ -61,12 +61,20 @@ function update_note_from_file(brain_file, note_path)
 	end
 
 	if content != "" then
-		content, links = process_content(content)
+		result = process_content(content)
+		if type(result) == "table" then
+			content = result[1] or ""
+			links = result[2] or {}
+		else
+			content = result or ""
+			links = {}
+		end
 	else
 		links = {}
 	end
 
 	-- Escape single quotes for SQL
+    content = content or ""
     content = string.gsub(content, "'", "''")
 
 	-- Check if the note already exists

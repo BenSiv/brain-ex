@@ -75,8 +75,11 @@ function get_vault_files(vault_path)
 end
 
 function read_note(vault_path, note)
+    if not note then
+        return nil
+    end
     note_path = joinpath(vault_path, note)
-    note_name = replace(note, ".md", "")
+    note_name = string.gsub(note, "%.md$", "")
     note_content = read(note_path)
     return {name = note_name, content = note_content}
 end
@@ -147,8 +150,11 @@ end
 
 
 function clean_content(content)
-    cleaned_content = replace(content, "'", "")
-    cleaned_content = replace(cleaned_content, '"', "")
+    if not content then
+        return ""
+    end
+    cleaned_content = string.gsub(content, "'", "")
+    cleaned_content = string.gsub(cleaned_content, '"', "")
     return cleaned_content
 end
 
