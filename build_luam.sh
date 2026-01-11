@@ -41,16 +41,19 @@ CC="" "$LUAM_BIN" "$STATIC_TOOL" \
     -I "$LUAM_DIR/src" \
     -lm -ldl -lreadline -lpthread
 
-# Inject lsqlite3 and lfs preload
+# Inject lsqlite3, lfs, and yaml preload
 sed -i '/luaL_openlibs(L);/a \
   int luaopen_lsqlite3(lua_State *L); \
   int luaopen_lfs(lua_State *L); \
+  int luaopen_yaml(lua_State *L); \
   lua_getglobal(L, "package"); \
   lua_getfield(L, -1, "preload"); \
   lua_pushcfunction(L, luaopen_lsqlite3); \
   lua_setfield(L, -2, "lsqlite3"); \
   lua_pushcfunction(L, luaopen_lfs); \
   lua_setfield(L, -2, "lfs"); \
+  lua_pushcfunction(L, luaopen_yaml); \
+  lua_setfield(L, -2, "yaml"); \
   lua_pop(L, 2);' brex.static.c
 
 # Compile lsqlite3
@@ -59,8 +62,15 @@ cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/sqlite/lsqlite3.c" -o lsqlite3.o
 # Compile lfs
 cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/filesystem/src/lfs.c" -o lfs.o
 
+# Compile yaml (all source files)
+YAML_SRC="$LUAM_DIR/lib/yaml"
+cc -c -O2 -I"$LUAM_DIR/src" -I"$YAML_SRC" \
+    "$YAML_SRC/lyaml.c" "$YAML_SRC/api.c" "$YAML_SRC/b64.c" \
+    "$YAML_SRC/dumper.c" "$YAML_SRC/emitter.c" "$YAML_SRC/loader.c" \
+    "$YAML_SRC/parser.c" "$YAML_SRC/reader.c" "$YAML_SRC/scanner.c" "$YAML_SRC/writer.c"
+
 # Compile binary
-cc -Os brex.static.c lsqlite3.o lfs.o "$LUAM_LIB" \
+cc -Os brex.static.c lsqlite3.o lfs.o lyaml.o api.o b64.o dumper.o emitter.o loader.o parser.o reader.o scanner.o writer.o "$LUAM_LIB" \
     -I "$LUAM_DIR/src" \
     -lm -ldl -lreadline -lpthread -lsqlite3 \
     -Wl,--export-dynamic \
