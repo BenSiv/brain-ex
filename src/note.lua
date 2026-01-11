@@ -222,10 +222,12 @@ function last_notes(brain_file, args)
     result = local_query(brain_file, query)
 
     if result and length(result) > 0 then
-        -- view(result)
         for i, note in pairs(result) do
-            bold(note.title)
-            print(note.content .. "\n")
+            -- Handle both named and numeric column access
+            note_title = note.title or note[1] or ""
+            note_content = note.content or note[2] or ""
+            bold(note_title)
+            print(note_content .. "\n")
         end
     else
         print("No notes")
