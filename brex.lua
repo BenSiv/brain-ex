@@ -48,6 +48,11 @@ function main()
     end
     cmd_args[0] = arg[0]
     
+    if not command then
+        print(help_string)
+        return
+    end
+
     func = command_funcs[command]
     if not func then
         print("'" .. command .. "' is not a valid command\n")
