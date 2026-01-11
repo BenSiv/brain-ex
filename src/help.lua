@@ -1,9 +1,9 @@
 -- Define a module table
-local help = {}
+help = {}
 
-local function get_help_string(command)
-    local help_strings = {
-        ["brex"] = [[
+function get_help_string(command)
+    help_strings = {
+        ["brex"] = """
 Usage: brex < command > < subcommand > < argument >
 
 brex init
@@ -20,8 +20,8 @@ update -> rebuild from vault
 sql -> sqlite shell
 
 brex < command > -h or --help for more info
-        ]],
-        ["brex init"] = [[
+        """,
+        ["brex init"] = """
     Description:
     Initializes a new brain-ex database in the current directory.
     If a vault directory is specified, it will also import notes and tasks from the vault.
@@ -37,8 +37,8 @@ brex < command > -h or --help for more info
     brex init --vault "my_vault"
     brex init --name "my_brain" --vault "my_vault" --editor "vim"
     brex init --name "my_brain" --vault "my_vault" --editor "vim" --git
-        ]],
-        ["brex note"] = [[
+        """,
+        ["brex note"] = """
 Description:
 Create log note with the specified content.
 Links can be provided as a comma-separated list.
@@ -52,8 +52,8 @@ Optional:
 Examples:
 brex note --content "This is log note content"
 brex note --content "This is log note content" --links "link1,link2"
-        ]],
-        ["brex note add"] = [[
+        """,
+        ["brex note add"] = """
 Description:
 Adds a new note with the specified title, and content.
 Links can be provided as a comma-separated list.
@@ -69,8 +69,8 @@ Optional:
 Examples:
 brex note add --title "My Note" --content "This is the content of my note"
 brex note add --title "My Note" --content "This is the content of my note" --subject "My Subject" --links "link1,link2"
-        ]],
-        ["brex note edit"] = [[
+        """,
+        ["brex note edit"] = """
 Description:
 Opens the specified note in the default editor for editing.
 If the note does not exist, it will be created.
@@ -84,8 +84,8 @@ Optional:
 Examples:
 brex note edit --title "My Note"
 brex note edit --title "My Note" --subject "My Subject"
-        ]],
-        ["brex note last"] = [[
+        """,
+        ["brex note last"] = """
 Description:
 Displays the last notes.
 If no subject is provided, defaults to "log". The number of notes displayed can be specified with the --number option, defaulting to 5.
@@ -97,8 +97,8 @@ Optional:
 Examples:
 brex note last
 brex note last --subject "log" --number 10
-        ]],
-        ["brex note connect"] = [[
+        """,
+        ["brex note connect"] = """
 Description:
 Connect notes.
 
@@ -110,8 +110,8 @@ Optional:
 Examples:
 brex note connect --title "note1" --links "note2,log/note3"
 brex note connect --links "todo,review"
-        ]],
-        ["brex task"] = [[
+        """,
+        ["brex task"] = """
 Description:
 Adds a new task. The due date can be specified in the format yyyy-mm-dd HH:MM:SS, or part of it.
 
@@ -125,8 +125,8 @@ Optional:
 Examples:
 brex task add --content "This is a new task"
 brex task --content "This is a work task" --subject "work" --due_to "2024-12-31"
-        ]],
-        ["brex task add"] = [[
+        """,
+        ["brex task add"] = """
 Description:
 Adds a new task. The due date can be specified in the format yyyy-mm-dd HH:MM:SS, or part of it.
 
@@ -140,8 +140,8 @@ Optional:
 Examples:
 brex task add --content "This is a new task"
 brex task --content "This is a work task" --subject "work" --due_to "2024-12-31"
-        ]],
-        ["brex task list"] = [[
+        """,
+        ["brex task list"] = """
 Description:
 Lists all tasks that are not done yet.
 
@@ -153,8 +153,8 @@ Example:
 brex task list
 brex task list --subject "work"
 brex task list --due_to "2024-12-31"
-        ]],
-        ["brex task done"] = [[
+        """,
+        ["brex task done"] = """
 Description:
 Marks a task as done by its ID and optionally adds a comment.
 
@@ -167,8 +167,8 @@ Optional:
 Example:
 brex task done
 brex task done --comment "This task is completed"            
-        ]],
-        ["brex task delay"] = [[
+        """,
+        ["brex task delay"] = """
 Description:
 Delays a task's due time, pass * for all tasks.
 
@@ -181,8 +181,8 @@ Optional:
 Example:
 brex task delay --id "85560914" --due_to "2024-12-31"
 brex task delay --id "*"
-        ]],
-        ["brex update"] = [[
+        """,
+        ["brex update"] = """
 Description:
 Update the brain database from the vault.
 By default, this command will reinitialize the database and import all notes and tasks from the vault.
@@ -193,8 +193,8 @@ Options:
 Examples:
 brex update
 brex update --file "/path/to/vault/subject/note.md"
-    	]],
-    	["brex sql"] = [[
+    	""",
+    	["brex sql"] = """
  Description:
  Opens an interactive sqlite3 shell or runs a query on the database.
 
@@ -204,7 +204,7 @@ brex update --file "/path/to/vault/subject/note.md"
  Examples:
  brex sql
  brex sql --query "SELECT * FROM tasks;"
-	    ]]
+	    """
     }
 
     return help_strings[command]

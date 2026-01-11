@@ -1,20 +1,26 @@
 -- Define a module table
-local bx_utils = {}
+bx_utils = {}
 
-local sqlite = require("sqlite3")
+sqlite = require("sqlite3")
 
-local function is_id_unique(table_name, target_id)
-    local brain_file = get_brain_path()
-    local query = string.format("SELECT COUNT(*) FROM %s WHERE id = '%s';", table_name, target_id)
-    local db = sqlite.open(brain_file)
-    local is_unique = nil
-    local count = db:rows(query)()
-    if count["COUNT(*)"] ~= 0 then
+function is_id_unique(table_name, target_id)
+    brain_file = get_brain_path()
+    query = string.format("SELECT COUNT(*) FROM %s WHERE id = '%s';", table_name, target_id)
+    db = sqlite.open(brain_file)
+    is_unique = nil
+    
+    count_val = 0
+    for row in db.rows(db, query) do
+        -- count_val = row["COUNT(*)"] or row[1] -- row might be indexed or keyed
+        for _, v in pairs(row) do count_val = v break end 
+    end
+    
+    if count_val != 0 then
         is_unique = false
     else
         is_unique = true
     end
-    db:close()
+    db.close(db)
     return is_unique
 end
 
@@ -23,8 +29,8 @@ function generate_id(table_name, desired_length, seed)
     seed = seed or os.time()
     math.randomseed(seed)
 
-    local id = ""
-    local id_unique = false
+    id = ""
+    id_unique = false
     while not id_unique do
         id = string.format("%0" .. desired_length .. "d", math.random(10 ^ (desired_length - 1)))
         id_unique = is_id_unique(table_name, id)
@@ -34,8 +40,8 @@ function generate_id(table_name, desired_length, seed)
 end
 
 function is_timestamp(str)
-    local pattern = "^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d$"
-    local match = string.match(str, pattern)
+    pattern = "^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d$"
+    match = string.match(str, pattern)
     if match then
         return true
     else
@@ -44,15 +50,15 @@ function is_timestamp(str)
 end
 
 function is_sqlite_empty(brain_file, table_name)
-    local query = "SELECT COUNT(*) FROM " .. table_name .. ";"
-    local db = sqlite.open(brain_file)
-    local answer = false
-    for row in db:rows(query) do
+    query = "SELECT COUNT(*) FROM " .. table_name .. ";"
+    db = sqlite.open(brain_file)
+    answer = false
+    for row in db.rows(db, query) do
         for _ ,element in pairs(row) do
             answer = element == 0
        end
     end
-    db:close()
+    db.close(db)
     return answer
 end
 

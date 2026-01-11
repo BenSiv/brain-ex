@@ -1,11 +1,11 @@
 -- Define a module table
-local git = {}
+git = {}
 
-local function auto_update()
-    local vault_path = get_vault_path()
+function auto_update()
+    vault_path = get_vault_path()
 
     -- Check if there are any changes
-    local output, success = exec_command(string.format( "git -C '%s' status --porcelain", vault_path))
+    output, success = exec_command(string.format( "git -C '%s' status --porcelain", vault_path))
     if not success then
         return "Failed to check git status"
     end

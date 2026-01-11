@@ -1,34 +1,34 @@
 -- Define a module table
-local task = {}
+task = {}
 
-local os = require("os")
+os = require("os")
 
 function check_overdue(due_to)
     if not due_to or due_to == "" then
         return false
     end
-    local current_time = os.time()
-    local year, month, day, hour, min, sec = due_to:match("(%d%d%d%d)%-(%d%d)%-(%d%d) (%d%d):(%d%d):(%d%d)")
+    current_time = os.time()
+    year, month, day, hour, min, sec = string.match(due_to, "(%d%d%d%d)%-(%d%d)%-(%d%d) (%d%d):(%d%d):(%d%d)")
     if not year then
         return false
     end
-    local task_time = os.time{year=year, month=month, day=day, hour=hour, min=min, sec=sec}
+    task_time = os.time({year=year, month=month, day=day, hour=hour, min=min, sec=sec})
     return current_time > task_time
 end
 
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
-    local query = "SELECT id, due_to FROM tasks WHERE done IS NULL AND due_to IS NOT NULL;"
-    local unfinished = local_query(brain_file, query)
+    query = "SELECT id, due_to FROM tasks WHERE done IS NULL AND due_to IS NOT NULL;"
+    unfinished = local_query(brain_file, query)
 
-    local overdue = false
-    local update_statement = ""
+    overdue = false
+    update_statement = ""
     if unfinished then
         for _, task in pairs(unfinished) do
             overdue = check_overdue(task.due_to)
             if overdue then
                 update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
-                local success = local_update(brain_file, update_statement)
+                success = local_update(brain_file, update_statement)
                 if not success then
                     print("Failed to update overdue status for task ID: " .. task.id)
                     return
@@ -40,24 +40,24 @@ function update_overdue(brain_file)
 end
 
 function backup_tasks(brain_file)
-    local vault_path = get_vault_path()
+    vault_path = get_vault_path()
     if vault_path then
-        local backup_path = joinpath(vault_path, "tasks.tsv")
+        backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
     return "success"
 end
 
-local function escape_sql(str)
-    return str:gsub("'", "''")
+function escape_sql(str)
+    return string.gsub(str, "'", "''")
 end
 
 function add_task(brain_file, args)
     -- get note info
-    local subject = args["subject"]
-    local content = args["content"] or ""
-    local time_input_str = args["due_to"] or ""
-    local due_to = normalize_datetime(time_input_str)
+    subject = args["subject"]
+    content = args["content"] or ""
+    time_input_str = args["due_to"] or ""
+    due_to = normalize_datetime(time_input_str)
 
     if content == "" then
         print("Must provide task content")
@@ -65,28 +65,28 @@ function add_task(brain_file, args)
     end
 
 	if not due_to then
-		local current_time = os.time()
+		current_time = os.time()
 		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     elseif not is_valid_timestamp(due_to) then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
         return
     end
 
-    local overdue = check_overdue(due_to) and 1 or 0
-    local id = generate_id("tasks")
+    overdue = check_overdue(due_to) and 1 or 0
+    id = generate_id("tasks")
     
-    local esc_subject = "NULL"
+    esc_subject = "NULL"
     if subject then
         esc_subject = "'" .. escape_sql(subject) .. "'"
     end
-    local esc_content = escape_sql(content)
+    esc_content = escape_sql(content)
     
-    local insert_statement = string.format([[
+    insert_statement = string.format("""
     INSERT INTO tasks (id, subject, content, due_to, overdue, done)
     VALUES ('%s', %s, '%s', '%s', '%s', NULL);
-    ]], id, esc_subject, esc_content, due_to, overdue)
+    """, id, esc_subject, esc_content, due_to, overdue)
     -- write note info
-    local success = local_update(brain_file, insert_statement)
+    success = local_update(brain_file, insert_statement)
 	if not success then
 		print("Failed to add task")
 		return
@@ -97,7 +97,7 @@ function add_task(brain_file, args)
 end
 
 function list_tasks(brain_file, args)
-    local tasks_empty = is_sqlite_empty(brain_file, "tasks")
+    tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("No pending tasks")
         return
@@ -105,12 +105,12 @@ function list_tasks(brain_file, args)
     
     update_overdue(brain_file)
 
-    local subject = args["subject"] or ""
-    local time_input_str = args["due_to"] or ""
-    local due_to = normalize_datetime(time_input_str)
+    subject = args["subject"] or ""
+    time_input_str = args["due_to"] or ""
+    due_to = normalize_datetime(time_input_str)
 
-    local query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
-    if subject ~= "" then
+    query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
+    if subject != "" then
         query = query .. string.format("AND subject = '%s'", escape_sql(subject))
     end
 
@@ -120,7 +120,7 @@ function list_tasks(brain_file, args)
     
     query = query .. " ORDER BY due_to, subject;"
 
-    local result = local_query(brain_file, query)
+    result = local_query(brain_file, query)
     if result and length(result) > 0 then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
@@ -130,16 +130,16 @@ function list_tasks(brain_file, args)
 end
 
 function mark_done(brain_file, args)
-    local task_id = args["id"] or ""
-    local comment = args["comment"] or ""
+    task_id = args["id"] or ""
+    comment = args["comment"] or ""
 
     if task_id == "" then
         print("Must provide task id")
         return
     end
 
-    local update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
-    local status = local_update(brain_file, update_statement)
+    update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
+    status = local_update(brain_file, update_statement)
     if not status then
         print("Failed to mark task as done")
         return
@@ -149,28 +149,28 @@ function mark_done(brain_file, args)
 end
 
 function delay_due(brain_file, args)
-    local task_id = args["id"] or ""
-    local time_input_str = args["due_to"] or ""
-    local due_to = normalize_datetime(time_input_str)
+    task_id = args["id"] or ""
+    time_input_str = args["due_to"] or ""
+    due_to = normalize_datetime(time_input_str)
 
     if not due_to then
-        -- local current_due_to = local_query(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
+        -- current_due_to = local_query(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
    		-- due_to = os.date("%Y-%m-%d %H:%M:%S", current_due_to + 86400) -- one day later
-   		local current_time = os.time()
+   		current_time = os.time()
         due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     elseif not is_valid_timestamp(due_to) then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
         return
     end
 
-    local overdue = check_overdue(due_to) and 1 or 0
-    local update_statement
+    overdue = check_overdue(due_to) and 1 or 0
+    update_statement = nil
     if task_id == "*" then
         update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE done IS NULL;", due_to, overdue)
     else
         update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, overdue, task_id)
     end
-    local status = local_update(brain_file, update_statement)
+    status = local_update(brain_file, update_statement)
     if not status then
         print("Failed to delay task due date")
         return
@@ -180,17 +180,17 @@ function delay_due(brain_file, args)
 end
 
 function last_done(brain_file, args)
-    local subject = args["subject"] or ""
-    local num = args["number"] or 5
+    subject = args["subject"] or ""
+    num = args["number"] or 5
 
-    local query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
-    if subject ~= "" then
+    query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
+    if subject != "" then
         query = query .. string.format("AND subject='%s'", escape_sql(subject))
     end
     
     query = query .. " ORDER BY done DESC "
 
-    if num ~= "" then
+    if num != "" then
         query = query .. string.format("LIMIT %s", num)
     end
 
@@ -203,8 +203,8 @@ function last_done(brain_file, args)
     return "success"
 end
 
-local function do_task(brain_file)
-    local arg_string = [[
+function do_task(brain_file, cmd_args)
+    arg_string = """
         -d --do arg string false
         -s --subject arg string false
         -t --due_to arg string false
@@ -212,13 +212,12 @@ local function do_task(brain_file)
         -m --comment arg string false
         -c --content arg string false
         -n --number arg number false
-    ]]
+    """
 
-    local help_string = get_help_string(arg[0])
-    local expected_args = def_args(arg_string)
-    local args = parse_args(arg, expected_args, help_string)
-    local status
-
+    help_string = get_help_string(arg[0])
+    expected_args = def_args(arg_string)
+    args = parse_args(cmd_args, expected_args, help_string)
+    status = nil
     if args then
         if args["do"] == "add" then
             status = add_task(brain_file, args)
@@ -237,7 +236,7 @@ local function do_task(brain_file)
             print("Available subcommands: add, list, done, delay, last")
         end
     end
-    if status ~= "success" then
+    if status != "success" then
         print("Task command failed")
     end
     return "success"

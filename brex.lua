@@ -19,8 +19,8 @@ using("update")
 using("sql")
 using("git")
 
-local function main()
-    local command_funcs = {
+function main()
+    command_funcs = {
         ["init"] = do_init,
         ["note"] = do_note,
         ["task"] = do_task,
@@ -30,7 +30,7 @@ local function main()
 
     arg[-1] = "lua" -- for the executable
 
-    local command = arg[1]
+    command = arg[1]
     
     if command and not starts_with(command, "-") then
         arg[0] = "brex " .. command
@@ -38,50 +38,37 @@ local function main()
         arg[0] = "brex"
     end
 
-    local help_string = get_help_string(arg[0])
+    help_string = get_help_string(arg[0])
     
-    if length(arg) == 2 then
-        print("Missing command")
-        print(help_string)
-        return
+    -- Collect remaining arguments into a clean list for subcommands
+    cmd_args = {}
+    -- arg[1] is the command (init, note, etc.)
+    -- Arguments for the command start at arg[2]
+    for i = 2, #arg do
+        table.insert(cmd_args, arg[i])
     end
+    cmd_args[0] = arg[0]
     
-    if length(arg) == 3 then
-        arg[1] = nil
-    end
-
-    if length(arg) > 3 then
-        if not starts_with(arg[2], "-") then
-            arg[0] = arg[0] .. " " .. arg[2]
-            arg[1] = "--do"
-        else
-            for i,_ in pairs(arg) do
-                if i > 0 then
-                    arg[i] = arg[i+1]
-                end
-            end
-        end
-    end
-
-    local func = command_funcs[command]
+    func = command_funcs[command]
     if not func then
         print("'" .. command .. "' is not a valid command\n")
         print(help_string)
         return
     end
     
-    local status
+    status = nil
     if command == "init" then
-        status = func()
-        if status ~= "success" then
+        status = func(cmd_args)
+        if status != "success" then
             os.exit(1)
         end
+        return
     end
     
-    local brain_file = get_brain_path()
+    brain_file = get_brain_path()
     if brain_file then
-        status = func(brain_file)
-        if status ~= "success" then
+        status = func(brain_file, cmd_args)
+        if status != "success" then
             os.exit(1)
         end
     else
