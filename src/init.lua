@@ -114,7 +114,7 @@ function init_bx_with_vault(args)
 	end
 
     -- optional: import existing tasks if available
-	if file_exists(task_file) then
+	if is file_exists(task_file) and file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
 	end
 
@@ -124,7 +124,7 @@ function init_bx_with_vault(args)
     end
 
     -- if --git flag is used, initialize a Git repo if not present
-    if enable_git then
+    if is enable_git and enable_git then
         git_dir = joinpath(vault_path, ".git")
         mode = lfs.attributes(git_dir, "mode")
         if not is mode then
@@ -164,8 +164,8 @@ function do_init(cmd_args)
     args = parse_args(cmd_args, expected_args, help_string)
 
     status = nil
-    if args then
-        if args["vault"] then
+    if is args then
+        if is args["vault"] then
             status = init_bx_with_vault(args)
         else
             status = init_bx(args)
