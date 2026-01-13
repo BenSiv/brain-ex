@@ -1,22 +1,39 @@
 
-require("utils")
-using("database")
-using("prettyprint")
-using("dataframes")
-using("argparse")
-using("paths")
-using("dates")
+utils = require("utils")
+starts_with = utils.starts_with
+database = require("database")
+prettyprint = require("prettyprint")
+dataframes = require("dataframes")
+argparse = require("argparse")
+paths = require("paths")
+dates = require("dates")
 
 package.path = "src/?.lua;" .. package.path
-using("bx_utils")
-using("config")
-using("help")
-using("init")
-using("note")
-using("task")
-using("update")
-using("sql")
-using("git")
+bx_utils = require("bx_utils")
+config = require("config")
+get_brain_path = config.get_brain_path
+is_git = config.is_git
+
+help = require("help")
+get_help_string = help.get_help_string
+
+init = require("init")
+do_init = init.do_init
+
+note = require("note")
+do_note = note.do_note
+
+task = require("task")
+do_task = task.do_task
+
+update = require("update")
+do_update = update.do_update
+
+sql = require("sql")
+do_sql = sql.do_sql
+
+git = require("git")
+auto_update = git.auto_update
 
 function main()
     command_funcs = {
@@ -31,7 +48,7 @@ function main()
 
     command = arg[1]
     
-    if command and not starts_with(command, "-") then
+    if is command and not starts_with(command, "-") then
         arg[0] = "brex " .. command
     else
         arg[0] = "brex"
@@ -48,13 +65,13 @@ function main()
     end
     cmd_args[0] = arg[0]
     
-    if not command then
+    if not is command then
         print(help_string)
         return
     end
 
     func = command_funcs[command]
-    if not func then
+    if not is func then
         print("'" .. command .. "' is not a valid command\n")
         print(help_string)
         return
@@ -70,7 +87,7 @@ function main()
     end
     
     brain_file = get_brain_path()
-    if brain_file then
+    if is brain_file then
         status = func(brain_file, cmd_args)
         if status != "success" then
             os.exit(1)

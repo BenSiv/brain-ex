@@ -1,7 +1,7 @@
 -- update brain file from obsidian vault
 vault_update = {}
 
-require("utils").using("utils")
+utils = require("utils")
 joinpath = require("paths").joinpath
 sqlite = require("sqlite3")
 lfs = require("lfs")
@@ -75,7 +75,7 @@ function get_vault_files(vault_path)
 end
 
 function read_note(vault_path, note)
-    if not note then
+    if not is note then
         return nil
     end
     note_path = joinpath(vault_path, note)
@@ -122,7 +122,7 @@ end
 
 -- Function to remove all instances of the link pattern
 function remove_link(input_line, link)
-    if not input_line or input_line == "" then
+    if not is input_line or input_line == "" then
         return ""
     end
     link_pattern = "%[%[" .. link .. "%]%]"
@@ -150,7 +150,7 @@ end
 
 
 function clean_content(content)
-    if not content then
+    if not is content then
         return ""
     end
     cleaned_content = string.gsub(content, "'", "")
@@ -179,13 +179,13 @@ end
 
 function vault_to_sql(vault_path, brain_file)
     vault_content = read_vault(vault_path)
-    if not vault_content then
+    if not is vault_content then
         print("Failed to read vault")
         return nil
     end
 
     db = sqlite.open(brain_file)
-    db.exec(db, "BEGIN TRANSACTION;")
+    sqlite.exec(db, "BEGIN TRANSACTION;")
 
     for subject, notes in pairs(vault_content) do
         -- Treat "root" as empty subject
@@ -213,7 +213,7 @@ function vault_to_sql(vault_path, brain_file)
                 note.name,
                 content
             )
-            db.exec(db, insert_note)
+            sqlite.exec(db, insert_note)
 
             -- Insert connections if any
             if length(links) > 0 then
@@ -232,13 +232,13 @@ function vault_to_sql(vault_path, brain_file)
 
                 -- Trim trailing comma and finalize
                 insert_connections = string.sub(insert_connections, 1, -3) .. ";"
-                db.exec(db, insert_connections)
+                sqlite.exec(db, insert_connections)
             end
         end
     end
 
-    db.exec(db, "COMMIT;")
-    db.close(db)
+    sqlite.exec(db, "COMMIT;")
+    sqlite.close(db)
     return "success"
 end
 

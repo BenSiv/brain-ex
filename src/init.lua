@@ -1,7 +1,11 @@
 -- Define a module table
 init = {}
 
-require("utils").using("utils")
+utils = require("utils")
+argparse = require("argparse")
+database = require("database")
+local_update = database.local_update
+local_query = database.local_query
 lfs = require("lfs")
 vault_to_sql = require("vault_to_sql").vault_to_sql
 get_help_string = require("help").get_help_string
@@ -180,8 +184,8 @@ end
 init.sql_init = sql_init
 init.do_init = do_init
 
-if arg[0] == "init.lua" then
-    do_init()
+if is string.match(arg[0], "init.lua$") then
+    do_init(arg)
 else
     -- Export the module
     return init

@@ -1,6 +1,13 @@
 -- Define a module table
 note = {}
 
+utils = require("utils")
+argparse = require("argparse")
+database = require("database")
+local_update = database.local_update
+local_query = database.local_query
+config = require("config")
+get_brain_path = config.get_brain_path
 lfs = require("lfs")
 parse_links_str = require("vault_to_sql").parse_links_str
 
@@ -14,7 +21,7 @@ function insert_note(brain_file, subject, title, content)
     content = escape_sql(content)
     insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
     status = local_update(brain_file, insert_statement)
-    if not status then
+    if not is status then
         print("Failed to update database")
         return nil
     end
@@ -28,7 +35,7 @@ function append_content(brain_file, subject, title, content)
 
     query = string.format("SELECT content FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     result = local_query(brain_file, query)
-    if not result or #result == 0 then
+    if not is result or #result == 0 then
         print("Failed to find note for append: " .. title)
         return nil
     end
@@ -40,7 +47,7 @@ function append_content(brain_file, subject, title, content)
     update_statement = string.format("UPDATE notes SET content='%s' WHERE title='%s' AND subject='%s';", esc_content, esc_title, esc_subject)
 
     status = local_update(brain_file, update_statement)
-    if not status then
+    if not is status then
         print("Failed to update database")
         return nil
     end
@@ -72,7 +79,7 @@ function connect_notes(brain_file, source_title, source_subject, links)
     insert_statement = string.sub(insert_statement, 1, -3) .. ";"
 
     status = local_update(brain_file, insert_statement)
-    if not status then
+    if not is status then
         print("Failed to connect notes")
         return nil
     end
@@ -84,7 +91,7 @@ function write_note(vault_dir, subject, title, content, links)
     for _, link in pairs(links) do
         -- each link is a table {title=..., subject=...}
         link_path = nil
-        if link.subject != "" then
+        if is link.subject and link.subject != "" then
             link_path = link.subject .. "/" .. link.title
         else
             link_path = link.title
@@ -103,7 +110,7 @@ function write_note(vault_dir, subject, title, content, links)
     end
 
     note_file = io.open(note_path, "a")
-    if not note_file then
+    if not is note_file then
         print("Error: Could not open file: " .. note_path)
         return
     end
@@ -135,13 +142,13 @@ function take_note(brain_file, args)
 
     if args["update"] then
         append_status = append_content(brain_file, subject, title, content)
-        if not append_status then
+        if not is append_status then
              print("Error: append content failed")
              return
         end
     else
         insert_status = insert_note(brain_file, subject, title, content)
-        if not insert_status then
+        if not is insert_status then
             print("Error: note insertion failed")
             return
         end
@@ -149,7 +156,7 @@ function take_note(brain_file, args)
     
     if not isempty(links) then
         connect_status = connect_notes(brain_file, title, subject, links)
-        if not connect_status then
+        if not is connect_status then
             print("Error: notes connection failed")
             return
         end
@@ -157,7 +164,7 @@ function take_note(brain_file, args)
 
     if vault_path then
         write_status = write_note(vault_path, subject, title, content, links)
-        if not write_status then
+        if not is write_status then
             print("Error: note writing to file failed")
             return
         end
@@ -184,10 +191,10 @@ function edit_note(brain_file, args)
     note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
     
     -- Create the file if it doesn't exist
-    if not lfs.attributes(note_path) then
+    if not is lfs.attributes(note_path) then
         note_dir = vault_path .. "/" .. subject
         mkdir_status = lfs.mkdir(note_dir)
-        if not mkdir_status and not lfs.attributes(note_dir, "mode") then
+        if not mkdir_status and not is lfs.attributes(note_dir, "mode") then
             print("Could not create directory: " .. note_dir)
             return
         end
@@ -202,13 +209,13 @@ function edit_note(brain_file, args)
     end
 
     success = os.execute(string.format("'%s' '%s'", editor, note_path))
-    if not success then
+    if not is success then
         print("Failed to open editor")
         return
     end
 
     success = update_note_from_file(brain_file, note_path)
-    if not success then
+    if not is success then
         print("Failed to edit note in brain file")
         return
     end
@@ -256,7 +263,7 @@ function log_note(brain_file, args)
     esc_title = escape_sql(title) -- title comes from os.date usually but good practice to escape if it ever changes
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     result = local_query(brain_file, query)
-    if not result then
+    if not is result then
         print("Failed to query note database")
     end
 
@@ -267,13 +274,13 @@ function log_note(brain_file, args)
     if not isempty(content) then
         if note_exists then
             append_status = append_content(brain_file, subject, title, content)
-            if not append_status then
+            if not is append_status then
                 print("Error: append content failed")
                 return
             end
         else
             insert_status = insert_note(brain_file, subject, title, content)
-            if not insert_status then
+            if not is insert_status then
                 print("Error: note insertion failed")
                 return
             end
@@ -282,7 +289,7 @@ function log_note(brain_file, args)
 
     if not isempty(links) then
         connect_status = connect_notes(brain_file, title, subject, links)
-        if not connect_status then
+        if not is connect_status then
             print("Error: notes connection failed")
             return
         end
@@ -290,7 +297,7 @@ function log_note(brain_file, args)
 
     if vault_path then
         write_status = write_note(vault_path, subject, title, content, links)
-        if not write_status then
+        if not is write_status then
             print("Error: note writing to file failed")
             return
         end
@@ -312,7 +319,7 @@ function do_note_connect(brain_file, args)
 
     -- Connect in the database
     status = connect_notes(brain_file, title, subject, links)
-    if not status then
+    if not is status then
         print("Failed to connect notes")
         return
     end
@@ -324,7 +331,7 @@ function do_note_connect(brain_file, args)
         note_path = note_dir .. "/" .. title .. ".md"
 
         -- Ensure directory exists
-        if not lfs.attributes(note_dir, "mode") then
+        if not is lfs.attributes(note_dir, "mode") then
             lfs.mkdir(note_dir)
         end
 
@@ -392,8 +399,8 @@ end
 
 note.do_note = do_note
 
-if arg[0] == "note.lua" then
-    do_note(brain_file)
+if is string.match(arg[0], "note.lua$") then
+    do_note(get_brain_path(), arg)
 else
     -- Export the module
     return note

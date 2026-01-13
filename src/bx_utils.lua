@@ -2,6 +2,8 @@
 bx_utils = {}
 
 sqlite = require("sqlite3")
+config = require("config")
+get_brain_path = config.get_brain_path
 
 function is_id_unique(table_name, target_id)
     brain_file = get_brain_path()
@@ -10,7 +12,7 @@ function is_id_unique(table_name, target_id)
     is_unique = nil
     
     count_val = 0
-    for row in db.rows(db, query) do
+    for row in sqlite.rows(db, query) do
         -- count_val = row["COUNT(*)"] or row[1] -- row might be indexed or keyed
         for _, v in pairs(row) do count_val = v break end 
     end
@@ -20,7 +22,7 @@ function is_id_unique(table_name, target_id)
     else
         is_unique = true
     end
-    db.close(db)
+    sqlite.close(db)
     return is_unique
 end
 
@@ -53,12 +55,12 @@ function is_sqlite_empty(brain_file, table_name)
     query = "SELECT COUNT(*) FROM " .. table_name .. ";"
     db = sqlite.open(brain_file)
     answer = false
-    for row in db.rows(db, query) do
+    for row in sqlite.rows(db, query) do
         for _ ,element in pairs(row) do
             answer = element == 0
        end
     end
-    db.close(db)
+    sqlite.close(db)
     return answer
 end
 

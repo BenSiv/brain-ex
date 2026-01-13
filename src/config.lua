@@ -1,12 +1,21 @@
 -- Define a module table
 config = {}
 
+-- Explicit imports
+paths = require("paths")
+joinpath = paths.joinpath
+utils = require("utils")
+file_exists = paths.file_exists
+read_yaml = utils.read_yaml
+
+-- Module-level cache
+
 -- Module-level cache
 cached_config = nil
 config_path = nil
 
 function get_config_path()
-    if not config_path then
+    if not is config_path then
         home_dir = os.getenv("HOME")
         config_path = joinpath(home_dir, ".config", "brain-ex", "config.yaml")
     end
@@ -14,7 +23,7 @@ function get_config_path()
 end
 
 function load_config()
-    if cached_config then
+    if is cached_config then
         return cached_config
     end
     
@@ -45,7 +54,12 @@ end
 
 function config.is_git()
     cfg = load_config()
-    return cfg and cfg["git"] or false
+    val = cfg and cfg["git"]
+    if is val and (val == true or val == "true") then
+        return true
+    else
+        return false
+    end
 end
 
 function config.reload()

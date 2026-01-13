@@ -1,6 +1,12 @@
 -- Define a module table
 sql = {}
 
+utils = require("utils")
+argparse = require("argparse")
+database = require("database")
+local_query = database.local_query
+config = require("config")
+get_brain_path = config.get_brain_path
 function sqlite_shell(brain_file)
     os.execute("sqlite3 -column -header " .. brain_file)
 end
@@ -35,8 +41,8 @@ end
 
 sql.do_sql = do_sql
 
-if arg[0] == "sql.lua" then
-    do_sql()
+if is string.match(arg[0], "sql.lua$") then
+    do_sql(get_brain_path(), arg)
 else
     -- Export the module
     return sql
