@@ -40,14 +40,14 @@ CREATE TABLE tasks (
 function build_config_dir(home_dir)
 	config_dir = joinpath(home_dir, ".config")
 	status = create_dir_if_not_exists(config_dir)
-	if not status then
+	if not is status then
 		return
 	end
 
 	bx_config_dir = joinpath(home_dir, ".config", "brain-ex")
 	status = create_dir_if_not_exists(bx_config_dir)
 
-	if not status then
+	if not is status then
 		return
 	end
 	
@@ -76,7 +76,7 @@ function init_bx(args)
 
     -- create database and tables
     success = local_update(brain_path, sql_init)
-	if not success then
+	if not is success then
 		print("Failed to initilize database")
 		return
 	end
@@ -108,7 +108,7 @@ function init_bx_with_vault(args)
     
     -- create database and tables
     success = local_update(brain_path, sql_init)
-	if not success then
+	if not is success then
 		print("Failed to initialize database")
 		return
 	end
@@ -119,7 +119,7 @@ function init_bx_with_vault(args)
 	end
 
         -- ensure vault directory exists
-    if not lfs.attributes(vault_path, "mode") then
+    if not is lfs.attributes(vault_path, "mode") then
         lfs.mkdir(vault_path)
     end
 
@@ -127,7 +127,7 @@ function init_bx_with_vault(args)
     if enable_git then
         git_dir = joinpath(vault_path, ".git")
         mode = lfs.attributes(git_dir, "mode")
-        if not mode then
+        if not is mode then
             print("Initializing new git repository in " .. vault_path)
             os.execute(string.format("git init '%s' >/dev/null 2>&1", vault_path))
             os.execute(string.format("cd '%s' && git add . && git commit -m 'Initial commit' >/dev/null 2>&1", vault_path))
