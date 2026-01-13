@@ -48,7 +48,7 @@ function main()
 
     command = arg[1]
     
-    if is command and not starts_with(command, "-") then
+    if command != nil and not starts_with(command, "-") then
         arg[0] = "brex " .. command
     else
         arg[0] = "brex"
@@ -65,13 +65,13 @@ function main()
     end
     cmd_args[0] = arg[0]
     
-    if not is command then
+    if command == nil then
         print(help_string)
         return
     end
 
     func = command_funcs[command]
-    if not is func then
+    if func == nil then
         print("'" .. command .. "' is not a valid command\n")
         print(help_string)
         return
@@ -87,7 +87,7 @@ function main()
     end
     
     brain_file = get_brain_path()
-    if is brain_file then
+    if brain_file != nil then
         status = func(brain_file, cmd_args)
         if status != "success" then
             os.exit(1)

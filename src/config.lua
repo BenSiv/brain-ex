@@ -15,7 +15,7 @@ cached_config = nil
 config_path = nil
 
 function get_config_path()
-    if not is config_path then
+    if config_path == nil then
         home_dir = os.getenv("HOME")
         config_path = joinpath(home_dir, ".config", "brain-ex", "config.yaml")
     end
@@ -23,7 +23,7 @@ function get_config_path()
 end
 
 function load_config()
-    if is cached_config then
+    if cached_config != nil then
         return cached_config
     end
     
@@ -55,7 +55,7 @@ end
 function config.is_git()
     cfg = load_config()
     val = cfg and cfg["git"]
-    if is val and (val == true or val == "true") then
+    if val != nil and (val == true or val == "true") then
         return true
     else
         return false

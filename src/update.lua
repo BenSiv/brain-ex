@@ -21,13 +21,13 @@ function update_from_vault(brain_file)
 
         -- create database and tables
         status = local_update(brain_file, sql_init)
-        if not is status then
+        if status == nil then
             print("Failed to update database")
             return nil
         end
 
         status = vault_to_sql(vault_path, brain_file)
-        if not is status then
+        if status == nil then
             print("Failed to update from vault")
             return nil
         end
@@ -35,7 +35,7 @@ function update_from_vault(brain_file)
 
     if file_exists(task_file) then
         status = import_delimited(brain_file, task_file, "tasks", "\t")
-        if not is status then
+        if status == nil then
             print("Failed to import tasks")
             return nil
         end
@@ -61,7 +61,7 @@ function update_note_from_file(brain_file, note_path)
 
 	-- Read content from the note file
 	content = read(note_path)
-	if not is content then
+	if content == nil then
 		print("Failed to read note: " .. note_path)
 		return
 	end
@@ -107,7 +107,7 @@ function update_note_from_file(brain_file, note_path)
 
 	-- Execute the statement
 	success = local_update(brain_file, stmt)
-	if not is success then
+	if success == nil then
 		print("Failed to update note from file: " .. note_path)
 		return
 	end
@@ -115,7 +115,7 @@ function update_note_from_file(brain_file, note_path)
 	-- Clear existing connections for this note
     clear_links = string.format("DELETE FROM connections WHERE source_title = '%s' AND source_subject = '%s';", title, subject)
 	success = local_update(brain_file, clear_links)
-	if not is success then
+	if success == nil then
 		print("Failed to clear note links from file: " .. note_path)
 		return
 	end
@@ -127,7 +127,7 @@ function update_note_from_file(brain_file, note_path)
             insert_links = insert_links .. string.format("('%s', '%s', '%s', '%s')%s", title, subject, link.title, link.subject or "", i < #links and "," or ";")
         end
 		success = local_update(brain_file, insert_links)
-		if not is success then
+		if success == nil then
 			print("Failed to update note links from file: " .. note_path)
 			return
 		end
@@ -162,7 +162,7 @@ end
 update.update_note_from_file = update_note_from_file
 update.do_update = do_update
 
-if is string.match(arg[0], "update.lua$") then
+if string.match(arg[0], "update.lua$") != nil then
     do_update(get_brain_path(), arg)
 else
     -- Export the module

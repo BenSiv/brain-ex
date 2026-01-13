@@ -41,7 +41,7 @@ end
 
 sql.do_sql = do_sql
 
-if is string.match(arg[0], "sql.lua$") then
+if string.match(arg[0], "sql.lua$") != nil then
     do_sql(get_brain_path(), arg)
 else
     -- Export the module

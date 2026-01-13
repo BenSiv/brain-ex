@@ -44,14 +44,14 @@ CREATE TABLE tasks (
 function build_config_dir(home_dir)
 	config_dir = joinpath(home_dir, ".config")
 	status = create_dir_if_not_exists(config_dir)
-	if not is status then
+	if status == nil then
 		return
 	end
 
 	bx_config_dir = joinpath(home_dir, ".config", "brain-ex")
 	status = create_dir_if_not_exists(bx_config_dir)
 
-	if not is status then
+	if status == nil then
 		return
 	end
 	
@@ -80,7 +80,7 @@ function init_bx(args)
 
     -- create database and tables
     success = local_update(brain_path, sql_init)
-	if not is success then
+	if success == nil then
 		print("Failed to initilize database")
 		return
 	end
@@ -112,26 +112,26 @@ function init_bx_with_vault(args)
     
     -- create database and tables
     success = local_update(brain_path, sql_init)
-	if not is success then
+	if success == nil then
 		print("Failed to initialize database")
 		return
 	end
 
     -- optional: import existing tasks if available
-	if is file_exists(task_file) and file_exists(task_file) then
+	if file_exists(task_file) != nil and file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
 	end
 
         -- ensure vault directory exists
-    if not is lfs.attributes(vault_path, "mode") then
+    if lfs.attributes(vault_path, "mode") == nil then
         lfs.mkdir(vault_path)
     end
 
     -- if --git flag is used, initialize a Git repo if not present
-    if is enable_git and enable_git then
+    if enable_git != nil and enable_git then
         git_dir = joinpath(vault_path, ".git")
         mode = lfs.attributes(git_dir, "mode")
-        if not is mode then
+        if mode == nil then
             print("Initializing new git repository in " .. vault_path)
             os.execute(string.format("git init '%s' >/dev/null 2>&1", vault_path))
             os.execute(string.format("cd '%s' && git add . && git commit -m 'Initial commit' >/dev/null 2>&1", vault_path))
@@ -168,8 +168,8 @@ function do_init(cmd_args)
     args = parse_args(cmd_args, expected_args, help_string)
 
     status = nil
-    if is args then
-        if is args["vault"] then
+    if args != nil then
+        if args["vault"] != nil then
             status = init_bx_with_vault(args)
         else
             status = init_bx(args)
@@ -184,7 +184,7 @@ end
 init.sql_init = sql_init
 init.do_init = do_init
 
-if is string.match(arg[0], "init.lua$") then
+if string.match(arg[0], "init.lua$") != nil then
     do_init(arg)
 else
     -- Export the module

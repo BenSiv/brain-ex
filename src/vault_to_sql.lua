@@ -75,7 +75,7 @@ function get_vault_files(vault_path)
 end
 
 function read_note(vault_path, note)
-    if not is note then
+    if note == nil then
         return nil
     end
     note_path = joinpath(vault_path, note)
@@ -122,7 +122,7 @@ end
 
 -- Function to remove all instances of the link pattern
 function remove_link(input_line, link)
-    if not is input_line or input_line == "" then
+    if input_line == nil or input_line == "" then
         return ""
     end
     link_pattern = "%[%[" .. link .. "%]%]"
@@ -150,7 +150,7 @@ end
 
 
 function clean_content(content)
-    if not is content then
+    if content == nil then
         return ""
     end
     cleaned_content = string.gsub(content, "'", "")
@@ -179,7 +179,7 @@ end
 
 function vault_to_sql(vault_path, brain_file)
     vault_content = read_vault(vault_path)
-    if not is vault_content then
+    if vault_content == nil then
         print("Failed to read vault")
         return nil
     end

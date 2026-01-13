@@ -18,12 +18,12 @@ dataframes = require("dataframes")
 view = dataframes.view
 
 function check_overdue(due_to)
-    if not is due_to or due_to == "" then
+    if due_to == nil or due_to == "" then
         return false
     end
     current_time = os.time()
     year, month, day, hour, min, sec = string.match(due_to, "(%d%d%d%d)%-(%d%d)%-(%d%d) (%d%d):(%d%d):(%d%d)")
-    if not is year then
+    if year == nil then
         return false
     end
     task_time = os.time({year=year, month=month, day=day, hour=hour, min=min, sec=sec})
@@ -37,13 +37,13 @@ function update_overdue(brain_file)
 
     overdue = false
     update_statement = ""
-    if is unfinished then
+    if unfinished != nil then
         for _, task in pairs(unfinished) do
             overdue = check_overdue(task.due_to)
             if overdue then
                 update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
                 success = local_update(brain_file, update_statement)
-                if not is success then
+                if success == nil then
                     print("Failed to update overdue status for task ID: " .. task.id)
                     return
                 end
@@ -55,7 +55,7 @@ end
 
 function backup_tasks(brain_file)
     vault_path = get_vault_path()
-    if is vault_path then
+    if vault_path != nil then
         backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
@@ -78,7 +78,7 @@ function add_task(brain_file, args)
         return
     end
 
-	if not is due_to then
+	if due_to == nil then
 		current_time = os.time()
 		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     elseif not is_valid_timestamp(due_to) then
@@ -90,7 +90,7 @@ function add_task(brain_file, args)
     id = generate_id("tasks")
     
     esc_subject = "NULL"
-    if is subject then
+    if subject != nil then
         esc_subject = "'" .. escape_sql(subject) .. "'"
     end
     esc_content = escape_sql(content)
@@ -101,7 +101,7 @@ function add_task(brain_file, args)
     """, id, esc_subject, esc_content, due_to, overdue)
     -- write note info
     success = local_update(brain_file, insert_statement)
-	if not is success then
+	if success == nil then
 		print("Failed to add task")
 		return
 	end
@@ -128,14 +128,14 @@ function list_tasks(brain_file, args)
         query = query .. string.format("AND subject = '%s'", escape_sql(subject))
     end
 
-    if is due_to then
+    if due_to != nil then
         query = query .. string.format("AND due_to > '%s'", due_to)
     end
     
     query = query .. " ORDER BY due_to, subject;"
 
     result = local_query(brain_file, query)
-    if is result and length(result) > 0 then
+    if result != nil and length(result) > 0 then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
         print("No pending tasks")
@@ -154,7 +154,7 @@ function mark_done(brain_file, args)
 
     update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
     status = local_update(brain_file, update_statement)
-    if not is status then
+    if status == nil then
         print("Failed to mark task as done")
         return
     end
@@ -167,7 +167,7 @@ function delay_due(brain_file, args)
     time_input_str = args["due_to"] or ""
     due_to = normalize_datetime(time_input_str)
 
-    if not is due_to then
+    if due_to == nil then
         -- current_due_to = local_query(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
    		-- due_to = os.date("%Y-%m-%d %H:%M:%S", current_due_to + 86400) -- one day later
    		current_time = os.time()
@@ -185,7 +185,7 @@ function delay_due(brain_file, args)
         update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, overdue, task_id)
     end
     status = local_update(brain_file, update_statement)
-    if not is status then
+    if status == nil then
         print("Failed to delay task due date")
         return
     end
@@ -219,7 +219,7 @@ end
 
 function do_task(brain_file, cmd_args)
     -- print("Debug: cmd_args[1] IN: " .. tostring(cmd_args[1]))
-    if is cmd_args[1] and string.sub(cmd_args[1], 1, 1) != "-" then
+    if cmd_args[1] != nil and string.sub(cmd_args[1], 1, 1) != "-" then
         table.insert(cmd_args, 1, "-d")
     end
     -- print("Debug: cmd_args[1] OUT: " .. tostring(cmd_args[1]))
@@ -237,7 +237,7 @@ function do_task(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
     status = nil
-    if is args then
+    if args != nil then
         if args["do"] == "add" then
             status = add_task(brain_file, args)
         elseif args["do"] == "list" then
@@ -248,7 +248,7 @@ function do_task(brain_file, cmd_args)
             status = delay_due(brain_file, args)
         elseif args["do"] == "last" then
             status = last_done(brain_file, args)
-        elseif not is args["do"] then
+        elseif args["do"] == nil then
             status = add_task(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
@@ -263,7 +263,7 @@ end
 
 task.do_task = do_task
 
-if is string.match(arg[0], "task.lua$") then
+if string.match(arg[0], "task.lua$") != nil then
     do_task(get_brain_path(), arg)
 else
     -- Export the module
