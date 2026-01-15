@@ -4,13 +4,13 @@ help = {}
 function get_help_string(command)
     help_strings = {
         ["brex"] = """
-Usage: brex < command > < subcommand > < argument >
+Usage: brex [brain] <command> [subcommand] [arguments]
 
-brex init
-brex note < add | edit | connect | last >
-brex task < add | list | done | delay | last >
-brex update < file >
-brex sql
+brex [brain] init
+brex [brain] note < add | edit | connect | last >
+brex [brain] task < add | list | done | delay | last >
+brex [brain] update < file >
+brex [brain] sql
 
 defaults:
 init -> sqlite database only
@@ -19,7 +19,7 @@ task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell
 
-brex < command > -h or --help for more info
+brex <command> -h or --help for more info
         """,
         ["brex init"] = """
     Description:
