@@ -6,7 +6,7 @@ function get_help_string(command)
         ["brex"] = """
 Usage: brex [brain] <command> [subcommand] [arguments]
 
-brex [brain] init
+brex init
 brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
@@ -26,9 +26,6 @@ brex <command> -h or --help for more info
     Initializes a new brain-ex database in the current directory.
     If a vault directory is specified, it will also import notes and tasks from the vault.
 
-    Usage:
-    brex [brain] init [options]
-
     Options:
     -n --name <name>      Name of the brain database (default: "brain").
     -v --vault <vault>    Path to the vault directory to import notes and tasks from.
@@ -36,7 +33,6 @@ brex <command> -h or --help for more info
 
     Examples:
     brex init
-    brex work init
     brex init --name "my_brain"
     brex init --vault "my_vault"
     brex init --name "my_brain" --vault "my_vault" --editor "vim"

@@ -63,6 +63,11 @@ function main()
         target_brain = command
         command = arg[2]
         args_start = 3
+        
+        if command == "init" then
+             print("Error: 'init' command does not accept a positional brain name. Use 'brex init --name <name>' instead.")
+             os.exit(1)
+        end
     end
 
     
