@@ -44,13 +44,12 @@ function update_overdue(brain_file)
                 update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
                 success = local_update(brain_file, update_statement)
                 if success == nil then
-                    print("Failed to update overdue status for task ID: " .. task.id)
-                    return
+                    return nil, "Failed to update overdue status for task ID: " .. task.id
                 end
             end
         end
     end
-    return "success"
+    return true
 end
 
 function backup_tasks(brain_file)
@@ -59,7 +58,7 @@ function backup_tasks(brain_file)
         backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
-    return "success"
+    return true
 end
 
 function escape_sql(str)
@@ -74,16 +73,14 @@ function add_task(brain_file, args)
     due_to = dates.normalize_datetime(time_input_str)
 
     if content == "" then
-        print("Must provide task content")
-        return
+        return nil, "Must provide task content"
     end
 
 	if due_to == nil then
 		current_time = os.time()
 		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     elseif dates.is_valid_timestamp(due_to) == false then
-        print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
-        return
+        return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
     end
 
     overdue_bool = check_overdue(due_to)
@@ -106,19 +103,18 @@ function add_task(brain_file, args)
     -- write note info
     success = local_update(brain_file, insert_statement)
 	if success == nil then
-		print("Failed to add task")
-		return
+		return nil, "Failed to add task"
 	end
 
     backup_tasks(brain_file)
-    return "success"
+    return true
 end
 
 function list_tasks(brain_file, args)
     tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("No pending tasks")
-        return "success"
+        return true
     end
     
     update_overdue(brain_file)
@@ -144,7 +140,7 @@ function list_tasks(brain_file, args)
     else
         print("No pending tasks")
     end
-    return "success"
+    return true
 end
 
 function mark_done(brain_file, args)
@@ -152,18 +148,16 @@ function mark_done(brain_file, args)
     comment = args["comment"] or ""
 
     if task_id == "" then
-        print("Must provide task id")
-        return
+        return nil, "Must provide task id"
     end
 
     update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
     status = local_update(brain_file, update_statement)
     if status == nil then
-        print("Failed to mark task as done")
-        return
+        return nil, "Failed to mark task as done"
     end
     backup_tasks(brain_file)
-    return "success"
+    return true
 end
 
 function delay_due(brain_file, args)
@@ -177,8 +171,7 @@ function delay_due(brain_file, args)
    		current_time = os.time()
         due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     elseif dates.is_valid_timestamp(due_to) == false then
-        print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
-        return
+        return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
     end
 
     overdue_bool = check_overdue(due_to)
@@ -194,11 +187,10 @@ function delay_due(brain_file, args)
     end
     status = local_update(brain_file, update_statement)
     if status == nil then
-        print("Failed to delay task due date")
-        return
+        return nil, "Failed to delay task due date"
     end
     backup_tasks(brain_file)
-    return "success"
+    return true
 end
 
 function last_done(brain_file, args)
@@ -222,7 +214,7 @@ function last_done(brain_file, args)
     else
         print("No tasks to view")
     end
-    return "success"
+    return true
 end
 
 function do_task(brain_file, cmd_args)
@@ -244,27 +236,29 @@ function do_task(brain_file, cmd_args)
     help_string = help.get_help_string(arg[0])
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
-    status = nil
+    status, err = nil, nil
     if args != nil then
         if args["do"] == "add" then
-            status = add_task(brain_file, args)
+            status, err = add_task(brain_file, args)
         elseif args["do"] == "list" then
-            status = list_tasks(brain_file, args)
+            status, err = list_tasks(brain_file, args)
         elseif args["do"] == "done" then
-            status = mark_done(brain_file, args)
+            status, err = mark_done(brain_file, args)
         elseif args["do"] == "delay" then
-            status = delay_due(brain_file, args)
+            status, err = delay_due(brain_file, args)
         elseif args["do"] == "last" then
-            status = last_done(brain_file, args)
+            status, err = last_done(brain_file, args)
         elseif args["do"] == nil then
-            status = add_task(brain_file, args)
+            status, err = add_task(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
             print("Available subcommands: add, list, done, delay, last")
+            return "success" -- Help printed
         end
     end
-    if status != "success" then
-        print("Task command failed")
+    if status != true then
+        print(err or "Task command failed")
+        return "error"
     end
     return "success"
 end

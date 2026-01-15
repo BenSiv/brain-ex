@@ -23,25 +23,22 @@ function update_from_vault(brain_file)
         -- create database and tables
         status = local_update(brain_file, sql_init)
         if status == nil then
-            print("Failed to update database")
-            return nil
+            return nil, "Failed to update database"
         end
 
         status = vault_to_sql(vault_path, brain_file)
         if status == nil then
-            print("Failed to update from vault")
-            return nil
+            return nil, "Failed to update from vault"
         end
     end
 
     if file_exists(task_file) then
         status = import_delimited(brain_file, task_file, "tasks", "\t")
         if status == nil then
-            print("Failed to import tasks")
-            return nil
+            return nil, "Failed to import tasks"
         end
     end
-    return "success"
+    return true
 end
 
 function update_note_from_file(brain_file, note_path)
@@ -63,8 +60,7 @@ function update_note_from_file(brain_file, note_path)
 	-- Read content from the note file
 	content = utils.read(note_path)
 	if content == nil then
-		print("Failed to read note: " .. note_path)
-		return
+		return nil, "Failed to read note: " .. note_path
 	end
 
 	links = {}
@@ -109,16 +105,14 @@ function update_note_from_file(brain_file, note_path)
 	-- Execute the statement
 	success = local_update(brain_file, stmt)
 	if success == nil then
-		print("Failed to update note from file: " .. note_path)
-		return
+		return nil, "Failed to update note from file: " .. note_path
 	end
 
 	-- Clear existing connections for this note
     clear_links = string.format("DELETE FROM connections WHERE source_title = '%s' AND source_subject = '%s';", title, subject)
 	success = local_update(brain_file, clear_links)
 	if success == nil then
-		print("Failed to clear note links from file: " .. note_path)
-		return
+		return nil, "Failed to clear note links from file: " .. note_path
 	end
 
 	-- Insert updated links
@@ -129,16 +123,13 @@ function update_note_from_file(brain_file, note_path)
         end
 		success = local_update(brain_file, insert_links)
 		if success == nil then
-			print("Failed to update note links from file: " .. note_path)
-			return
+			return nil, "Failed to update note links from file: " .. note_path
 		end
     end
 
 
     print("Updated note: " .. note_path)
-
-
-	return "success"
+	return true
 end
 
 function do_update(brain_file, cmd_args)
@@ -150,12 +141,17 @@ function do_update(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
 
+	status, err = true, nil
 	if args != nil then
 		if args["file"] != nil then
-			return update_note_from_file(brain_file, args["file"])
+			status, err = update_note_from_file(brain_file, args["file"])
 		else
-			return update_from_vault(brain_file)
+			status, err = update_from_vault(brain_file)
 		end
+	end
+	if status != true then
+		print(err or "Update command failed")
+		return "error"
 	end
 	return "success"
 end

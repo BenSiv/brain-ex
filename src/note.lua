@@ -25,10 +25,9 @@ function insert_note(brain_file, subject, title, content)
     insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
     status = local_update(brain_file, insert_statement)
     if status == nil then
-        print("Failed to update database")
-        return nil
+        return nil, "Failed to update database"
     end
-    return "success"
+    return true
 end
 
 function append_content(brain_file, subject, title, content)
@@ -39,8 +38,7 @@ function append_content(brain_file, subject, title, content)
     query = string.format("SELECT content FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     result = local_query(brain_file, query)
     if result == nil or #result == 0 then
-        print("Failed to find note for append: " .. title)
-        return nil
+        return nil, "Failed to find note for append: " .. title
     end
     -- Handle both named and numeric column access
     old_content = result[1].content or result[1][1] or ""
@@ -59,7 +57,7 @@ end
 
 function connect_notes(brain_file, source_title, source_subject, links)
     if isempty(links) == true then
-        return "success"
+        return true
     end
 
     insert_statement = "INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
@@ -83,10 +81,9 @@ function connect_notes(brain_file, source_title, source_subject, links)
 
     status = local_update(brain_file, insert_statement)
     if status == nil then
-        print("Failed to connect notes")
-        return nil
+        return nil, "Failed to connect notes"
     end
-    return "success"
+    return true
 end
 
 function write_note(vault_dir, subject, title, content, links)
@@ -108,20 +105,18 @@ function write_note(vault_dir, subject, title, content, links)
     -- Ensure the directory exists
     mkdir_status = lfs.mkdir(note_dir)
     if mkdir_status != true and lfs.attributes(note_dir, "mode") == nil then
-        print("Could not create directory: " .. note_dir)
-        return
+        return nil, "Could not create directory: " .. note_dir
     end
 
     note_file = io.open(note_path, "a")
     if note_file == nil then
-        print("Error: Could not open file: " .. note_path)
-        return
+        return nil, "Error: Could not open file: " .. note_path
     end
 
     to_write = content .. "\n" .. table.concat(obsidian_links, "\n") .. "\n"
     io.write(note_file, to_write)
     io.close(note_file)
-    return "success"
+    return true
 end
 
 function take_note(brain_file, args)
@@ -134,46 +129,40 @@ function take_note(brain_file, args)
     vault_path = get_vault_path()
 
     if title == "" then
-        print("Must provide note title")
-        return
+        return nil, "Must provide note title"
     end
 
     if content == "" then
-        print("Must provide note content")
-        return
+        return nil, "Must provide note content"
     end
 
     if args["update"] == true then
-        append_status = append_content(brain_file, subject, title, content)
-        if append_status == nil then
-             print("Error: append content failed")
-             return
+        status, err = append_content(brain_file, subject, title, content)
+        if status == nil then
+             return nil, err
         end
     else
-        insert_status = insert_note(brain_file, subject, title, content)
-        if insert_status == nil then
-            print("Error: note insertion failed")
-            return
+        status, err = insert_note(brain_file, subject, title, content)
+        if status == nil then
+            return nil, err
         end
     end
     
     if isempty(links) == false then
-        connect_status = connect_notes(brain_file, title, subject, links)
-        if connect_status == nil then
-            print("Error: notes connection failed")
-            return
+        status, err = connect_notes(brain_file, title, subject, links)
+        if status == nil then
+            return nil, err
         end
     end
 
     if vault_path != nil then
-        write_status = write_note(vault_path, subject, title, content, links)
-        if write_status == nil then
-            print("Error: note writing to file failed")
-            return
+        status, err = write_note(vault_path, subject, title, content, links)
+        if status == nil then
+            return nil, err
         end
     end
 
-    return "success"
+    return true
 end
 
 function edit_note(brain_file, args)
@@ -187,8 +176,7 @@ function edit_note(brain_file, args)
     	-- subject = "log"
     	-- iso_local = os.date("%Y-%m-%d %H:%M:%S")
         -- title = replace(iso_local, " ", "_")
-        print("Must provide title of note to edit")
-        return
+        return nil, "Must provide title of note to edit"
 	end
 	
     note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
@@ -198,32 +186,28 @@ function edit_note(brain_file, args)
         note_dir = vault_path .. "/" .. subject
         mkdir_status = lfs.mkdir(note_dir)
         if mkdir_status != true and lfs.attributes(note_dir, "mode") == nil then
-            print("Could not create directory: " .. note_dir)
-            return
+            return nil, "Could not create directory: " .. note_dir
         end
         -- Create an empty file
         file = io.open(note_path, "w")
         if file != nil then
             io.close(file)
         else
-            print("Could not create file: " .. note_path)
-            return
+            return nil, "Could not create file: " .. note_path
         end
     end
 
     success = os.execute(string.format("'%s' '%s'", editor, note_path))
     if success == nil then
-        print("Failed to open editor")
-        return
+        return nil, "Failed to open editor"
     end
 
     success = update.update_note_from_file(brain_file, note_path)
     if success == nil then
-        print("Failed to edit note in brain file")
-        return
+        return nil, "Failed to edit note in brain file"
     end
 
-    return "success"
+    return true
 end
 
 function last_notes(brain_file, args)
@@ -244,7 +228,7 @@ function last_notes(brain_file, args)
     else
         print("No notes")
     end
-    return "success"
+    return true
 end
 
 function log_note(brain_file, args)
@@ -257,8 +241,7 @@ function log_note(brain_file, args)
     vault_path = get_vault_path()
 
     if content == "" then
-        print("Must provide note content")
-        return
+        return nil, "Must provide note content"
     end
 
     -- Check if the note exists
@@ -267,7 +250,7 @@ function log_note(brain_file, args)
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     result = local_query(brain_file, query)
     if result == nil then
-        print("Failed to query note database")
+        return nil, "Failed to query note database"
     end
 
     count_val = result[1].count or result[1][1]
@@ -276,37 +259,33 @@ function log_note(brain_file, args)
     -- Insert or append content
     if isempty(content) == false then
         if note_exists then
-            append_status = append_content(brain_file, subject, title, content)
-            if append_status == nil then
-                print("Error: append content failed")
-                return
+            status, err = append_content(brain_file, subject, title, content)
+            if status == nil then
+                return nil, err
             end
         else
-            insert_status = insert_note(brain_file, subject, title, content)
-            if insert_status == nil then
-                print("Error: note insertion failed")
-                return
+            status, err = insert_note(brain_file, subject, title, content)
+            if status == nil then
+                return nil, err
             end
         end
     end
 
     if isempty(links) == false then
-        connect_status = connect_notes(brain_file, title, subject, links)
-        if connect_status == nil then
-            print("Error: notes connection failed")
-            return
+        status, err = connect_notes(brain_file, title, subject, links)
+        if status == nil then
+            return nil, err
         end
     end
 
     if vault_path != nil then
-        write_status = write_note(vault_path, subject, title, content, links)
-        if write_status == nil then
-            print("Error: note writing to file failed")
-            return
+        status, err = write_note(vault_path, subject, title, content, links)
+        if status == nil then
+            return nil, err
         end
     end
 
-    return "success"
+    return true
 end
 
 function do_note_connect(brain_file, args)
@@ -316,15 +295,13 @@ function do_note_connect(brain_file, args)
     links = parse_links_str(links_str)
 
     if isempty(links) then
-        print("No links provided to connect.")
-        return
+        return nil, "No links provided to connect."
     end
 
     -- Connect in the database
-    status = connect_notes(brain_file, title, subject, links)
+    status, err = connect_notes(brain_file, title, subject, links)
     if status == nil then
-        print("Failed to connect notes")
-        return
+        return nil, err
     end
 
     -- Also append links to the note file
@@ -355,7 +332,7 @@ function do_note_connect(brain_file, args)
         end
     end
 
-    return "success"
+    return true
 end
 
 function do_note(brain_file, cmd_args)
@@ -376,26 +353,27 @@ function do_note(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
     
-    status = "not_run"
+    status, err = nil, nil
     if args != nil then
         if args["do"] == "add" then
-            status = take_note(brain_file, args)
+            status, err = take_note(brain_file, args)
         elseif args["do"] == "edit" then
-            status = edit_note(brain_file, args)
+            status, err = edit_note(brain_file, args)
         elseif args["do"] == "last" then
-            status = last_notes(brain_file, args)
+            status, err = last_notes(brain_file, args)
         elseif args["do"] == "connect" then
-            status = do_note_connect(brain_file, args)
+            status, err = do_note_connect(brain_file, args)
         elseif args["do"] == nil then
-            status = log_note(brain_file, args)
+            status, err = log_note(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
             print("Available subcommands: add, edit, last")
+            return "success" -- Help printed
         end
     end
-    if status != "success" then
-        print("Note command failed")
-        return nil
+    if status != true then
+        print(err or "Note command failed")
+        return "error"
     end
     return "success"
 end

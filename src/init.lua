@@ -124,8 +124,7 @@ function init_bx(args)
     -- create database and tables
     success = local_update(brain_path, sql_init)
 	if success == nil then
-		print("Failed to initilize database")
-		return
+		return nil, "Failed to initialize database"
 	end
 
     -- store info in ~/.config/brain-ex/config.yaml filr
@@ -140,7 +139,7 @@ function init_bx(args)
         updates.brains[brain_name] = brain_path
     end
     update_config_file(home_dir, updates)
-    return "success"
+    return true
 end
 
 function init_bx_with_vault(args)
@@ -161,8 +160,7 @@ function init_bx_with_vault(args)
     -- create database and tables
     success = local_update(brain_path, sql_init)
 	if success == nil then
-		print("Failed to initialize database")
-		return
+		return nil, "Failed to initialize database"
 	end
 
     -- optional: import existing tasks if available
@@ -205,7 +203,7 @@ function init_bx_with_vault(args)
 
     -- import existing notes if any
     vault_to_sql(vault_path, brain_path)
-    return "success"
+    return true
 end
 
 function do_init(cmd_args)
@@ -220,16 +218,20 @@ function do_init(cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
 
-    status = nil
+    status, err = nil, nil
     if args != nil then
         if args["vault"] != nil then
-            status = init_bx_with_vault(args)
+            status, err = init_bx_with_vault(args)
         else
-            status = init_bx(args)
+            status, err = init_bx(args)
         end
+    else
+        return "error" -- parse_args prints help
     end
-    if status != "success" then
-        print("Init command failed")
+
+    if status == nil then
+        print(err or "Init command failed")
+        return "error"
     end
     return "success"
 end

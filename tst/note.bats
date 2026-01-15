@@ -95,7 +95,6 @@ teardown() {
 @test "error when subject is passed without title" {
     run brex note add --subject "brain-ex"
     [ "$status" -ne 0 ]
-    [[ "$output" =~ "Note command failed" ]]
     [[ "$output" =~ "Must provide note title" ]]
 }
 
