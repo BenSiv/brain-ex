@@ -19,7 +19,7 @@ teardown() {
 }
 
 @test "init named brain (work)" {
-    run brex work init
+    run brex init --name work
     [ "$status" -eq 0 ]
     [ -f "work.db" ]
     
@@ -30,7 +30,7 @@ teardown() {
 @test "switch between brains using CLI" {
     # Initialize both
     run brex init
-    run brex work init
+    run brex init --name work
     
     # Add task to default
     run brex task add -c "Default Task"

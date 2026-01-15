@@ -70,7 +70,6 @@ function main()
         end
     end
 
-    
     if command != nil and not starts_with(command, "-") then
         arg[0] = "brex " .. command
     else
