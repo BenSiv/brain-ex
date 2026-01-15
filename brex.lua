@@ -46,7 +46,25 @@ function main()
 
     arg[-1] = "lua" -- for the executable
 
+    -- Simple argument parsing to check for [brain_name]
+    -- Potential commands
+    valid_commands = {}
+    for k,v in pairs(command_funcs) do
+        valid_commands[k] = true
+    end
+
+    target_brain = nil
     command = arg[1]
+    args_start = 2
+
+    -- Check if first arg is a command or a brain name
+    if command != nil and valid_commands[command] == nil and not starts_with(command, "-") then
+        -- Assume it is a brain name
+        target_brain = command
+        command = arg[2]
+        args_start = 3
+    end
+
     
     if command != nil and not starts_with(command, "-") then
         arg[0] = "brex " .. command
@@ -60,7 +78,10 @@ function main()
     cmd_args = {}
     -- arg[1] is the command (init, note, etc.)
     -- Arguments for the command start at arg[2]
-    for i = 2, #arg do
+    -- Collect remaining arguments into a clean list for subcommands
+    cmd_args = {}
+    -- Arguments for the command start at args_start
+    for i = args_start, #arg do
         table.insert(cmd_args, arg[i])
     end
     cmd_args[0] = arg[0]
@@ -79,6 +100,10 @@ function main()
     
     status = nil
     if command == "init" then
+        if target_brain != nil then
+             table.insert(cmd_args, "--name")
+             table.insert(cmd_args, target_brain)
+        end
         status = func(cmd_args)
         if status != "success" then
             os.exit(1)
@@ -86,13 +111,18 @@ function main()
         return
     end
     
-    brain_file = get_brain_path()
+    brain_file = get_brain_path(target_brain)
     if brain_file != nil then
         status = func(brain_file, cmd_args)
         if status != "success" then
             os.exit(1)
         end
     else
+        if target_brain != nil then
+            print("Error: Brain '" .. target_brain .. "' not configured.")
+        else
+            print("Error: Default brain not configured.")
+        end
         os.exit(1)
     end
 

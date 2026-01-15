@@ -5,6 +5,7 @@ utils = require("utils")
 argparse = require("argparse")
 config = require("config")
 get_brain_path = config.get_brain_path
+get_vault_path = config.get_vault_path
 database = require("database")
 local_update = database.local_update
 local_query = database.local_query
@@ -16,7 +17,7 @@ function update_from_vault(brain_file)
     vault_path = get_vault_path()
     task_file = joinpath(vault_path, "tasks.tsv")
 
-    if brain_file and vault_path then
+    if brain_file != nil and vault_path != nil then
         os.remove(brain_file)
 
         -- create database and tables
@@ -50,7 +51,7 @@ function update_note_from_file(brain_file, note_path)
 	subject = ""
 	vault_path = get_vault_path()
 
-	if vault_path then
+	if vault_path != nil then
 		-- Extract subject and title from the note path
 		title = string.match(note_path, "([^/]+)%.md$")
 		subject = string.match(note_path, ".*/([^/]+)/[^/]+%.md$") or ""
@@ -60,7 +61,7 @@ function update_note_from_file(brain_file, note_path)
 	end
 
 	-- Read content from the note file
-	content = read(note_path)
+	content = utils.read(note_path)
 	if content == nil then
 		print("Failed to read note: " .. note_path)
 		return
@@ -85,7 +86,7 @@ function update_note_from_file(brain_file, note_path)
 	
 	num_rows = 0
 	result = local_query(brain_file, note_exists_query)
-	if result then
+	if result != nil then
 		-- Handle both named and numeric column access
 		num_rows = tonumber(result[1].num or result[1][1]) or 0
 	end
@@ -149,8 +150,8 @@ function do_update(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
 
-	if args then
-		if args["file"] then
+	if args != nil then
+		if args["file"] != nil then
 			return update_note_from_file(brain_file, args["file"])
 		else
 			return update_from_vault(brain_file)

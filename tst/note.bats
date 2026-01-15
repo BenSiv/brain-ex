@@ -3,7 +3,7 @@
 setup() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
-    mkdir tmp_vault
+    mkdir -p tmp_vault
     brex init --vault tmp_vault --editor touch
 }
 

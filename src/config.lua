@@ -37,9 +37,26 @@ function load_config()
     return cached_config
 end
 
-function config.get_brain_path()
+function config.get_brain_path(name)
     cfg = load_config()
-    return cfg and cfg["brain"]
+    if cfg == nil then return nil end
+
+    if name != nil then
+        if cfg["brains"] != nil and cfg["brains"][name] != nil then
+            return cfg["brains"][name]
+        end
+        -- Fallback: if name is not found in "brains" list, checking if it is the "default" one
+        -- but if user asked for a specific name and it doesn't exist, we probably should return nil or error?
+        -- The robust way is to return nil here so the caller knows it wasn't found.
+        return nil
+    end
+
+    -- No name provided, try "default" in brains or legacy "brain"
+    if cfg["brains"] != nil and cfg["brains"]["default"] != nil then
+        return cfg["brains"]["default"]
+    end
+    
+    return cfg["brain"]
 end
 
 function config.get_vault_path()

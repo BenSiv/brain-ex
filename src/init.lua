@@ -58,6 +58,49 @@ function build_config_dir(home_dir)
     return bx_config_dir
 end
 
+function save_config(path, conf)
+    file = io.open(path, "w")
+    if conf.brain != nil then io.write(file, "brain: " .. conf.brain .. "\n") end
+    if conf.editor != nil then io.write(file, "editor: " .. conf.editor .. "\n") end
+    if conf.vault != nil then io.write(file, "vault: " .. conf.vault .. "\n") end
+    if conf.git != nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+    
+    if conf.brains != nil then
+        io.write(file, "brains:\n")
+        for k,v in pairs(conf.brains) do
+            io.write(file, "  " .. k .. ": " .. v .. "\n")
+        end
+    end
+    io.close(file)
+end
+
+function update_config_file(home_dir, updates)
+    config_dir = build_config_dir(home_dir)
+    config_file = joinpath(config_dir, "config.yaml")
+    
+    current_conf = {}
+    f = io.open(config_file, "r")
+    if f != nil then
+        io.close(f)
+        current_conf = utils.read_yaml(config_file) or {}
+    end
+    
+    -- Merge updates
+    if updates.brains != nil then
+        if current_conf.brains == nil then current_conf.brains = {} end
+        for k,v in pairs(updates.brains) do
+            current_conf.brains[k] = v
+        end
+        updates.brains = nil -- handled
+    end
+
+    for k,v in pairs(updates) do
+        current_conf[k] = v
+    end
+    
+    save_config(config_file, current_conf)
+end
+
 function remove_trailing_slash(path)
     -- if path is just "/" return as-is
     if path == "/" then
@@ -86,12 +129,17 @@ function init_bx(args)
 	end
 
     -- store info in ~/.config/brain-ex/config.yaml filr
-    config_dir = build_config_dir(home_dir)
-    config_file = joinpath(config_dir, "config.yaml")
-    file = io.open(config_file, "w")
-    io.write(file, "brain: " .. brain_path .. "\n")
-    io.write(file, "editor: " .. default_editor)
-    io.close(file)
+    -- store info in ~/.config/brain-ex/config.yaml
+    updates = {
+        editor = default_editor
+    }
+    if brain_name == "brain" then
+        updates.brain = brain_path
+    else
+        updates.brains = {}
+        updates.brains[brain_name] = brain_path
+    end
+    update_config_file(home_dir, updates)
     return "success"
 end
 
@@ -141,14 +189,19 @@ function init_bx_with_vault(args)
     end
 	
     -- store info in ~/.config/brain-ex/config.yaml
-    config_dir = build_config_dir(home_dir)
-    config_file = joinpath(config_dir, "config.yaml")
-    file = io.open(config_file, "w")
-    io.write(file, "vault: " .. vault_path .. "\n")
-    io.write(file, "brain: " .. brain_path .. "\n")
-    io.write(file, "editor: " .. default_editor .. "\n")
-    io.write(file, "git: " .. tostring(enable_git) .. "\n")
-    io.close(file)
+    -- store info in ~/.config/brain-ex/config.yaml
+    updates = {
+        vault = vault_path,
+        editor = default_editor,
+        git = enable_git
+    }
+    if brain_name == args["vault"] or brain_name == "brain" then
+        updates.brain = brain_path
+    else
+        updates.brains = {}
+        updates.brains[brain_name] = brain_path
+    end
+    update_config_file(home_dir, updates)
 
     -- import existing notes if any
     vault_to_sql(vault_path, brain_path)

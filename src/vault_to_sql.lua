@@ -27,7 +27,7 @@ end
 
 function get_last_update_time(file_path)
     attr = lfs.attributes(file_path)
-    if attr then
+    if attr != nil then
         return os.date("%Y-%m-%d %H:%M:%S", attr.modification)
     else
         error("Could not get attributes for file: " .. file_path)
@@ -38,7 +38,7 @@ function filter_markdown_files(dir_content)
     markdown_files = {}
 
     for _, entry in pairs(dir_content) do
-        if string.match(entry, "%.md$") then
+        if string.match(entry, "%.md$") != nil then
             table.insert(markdown_files, entry)
         end
     end
@@ -52,7 +52,7 @@ function filter_directories(dir_path, dir_content)
     for _, entry in pairs(dir_content) do
         entry_path = dir_path .. '/' .. entry
         attr = lfs.attributes(entry_path)
-        if attr and attr.mode == "directory" then
+        if attr != nil and attr.mode == "directory" then
             if string.sub(entry, 1, 1) != '.' then
                 table.insert(directories, entry)
             end
@@ -93,7 +93,7 @@ function read_vault(vault_path)
             vault_content["root"] = {}
             for _, note in pairs(vault_files["root"]) do
                 note_content = read_note(vault_path, note)
-                if note_content then
+                if note_content != nil then
                     table.insert(vault_content["root"], note_content)
                 end
             end
@@ -127,7 +127,7 @@ function remove_link(input_line, link)
     end
     link_pattern = "%[%[" .. link .. "%]%]"
     output_line = replace(input_line, link_pattern, "")
-    if match(output_line, "^%s*$") then
+    if match(output_line, "^%s*$") != nil then
     	output_line = ""
     end
     return output_line

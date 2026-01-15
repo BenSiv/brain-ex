@@ -55,7 +55,7 @@ sed -i '/luaL_openlibs(L);/a \
   lua_getglobal(L, "package"); \
   lua_getfield(L, -1, "preload"); \
   lua_pushcfunction(L, luaopen_sqlite3); \
-  lua_setfield(L, -2, "lsqlite3"); \
+  lua_setfield(L, -2, "sqlite3"); \
   lua_pushcfunction(L, luaopen_lfs); \
   lua_setfield(L, -2, "lfs"); \
   lua_pushcfunction(L, luaopen_yaml); \

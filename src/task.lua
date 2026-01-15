@@ -71,7 +71,7 @@ function add_task(brain_file, args)
     subject = args["subject"]
     content = args["content"] or ""
     time_input_str = args["due_to"] or ""
-    due_to = normalize_datetime(time_input_str)
+    due_to = dates.normalize_datetime(time_input_str)
 
     if content == "" then
         print("Must provide task content")
@@ -81,12 +81,16 @@ function add_task(brain_file, args)
 	if due_to == nil then
 		current_time = os.time()
 		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
-    elseif not is_valid_timestamp(due_to) then
+    elseif dates.is_valid_timestamp(due_to) == false then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
         return
     end
 
-    overdue = check_overdue(due_to) and 1 or 0
+    overdue_bool = check_overdue(due_to)
+    esc_overdue = 0
+    if overdue_bool == true then
+        esc_overdue = 1
+    end
     id = generate_id("tasks")
     
     esc_subject = "NULL"
@@ -98,7 +102,7 @@ function add_task(brain_file, args)
     insert_statement = string.format("""
     INSERT INTO tasks (id, subject, content, due_to, overdue, done)
     VALUES ('%s', %s, '%s', '%s', '%s', NULL);
-    """, id, esc_subject, esc_content, due_to, overdue)
+    """, id, esc_subject, esc_content, due_to, esc_overdue)
     -- write note info
     success = local_update(brain_file, insert_statement)
 	if success == nil then
@@ -121,7 +125,7 @@ function list_tasks(brain_file, args)
 
     subject = args["subject"] or ""
     time_input_str = args["due_to"] or ""
-    due_to = normalize_datetime(time_input_str)
+    due_to = dates.normalize_datetime(time_input_str)
 
     query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
     if subject != "" then
@@ -165,24 +169,28 @@ end
 function delay_due(brain_file, args)
     task_id = args["id"] or ""
     time_input_str = args["due_to"] or ""
-    due_to = normalize_datetime(time_input_str)
+    due_to = dates.normalize_datetime(time_input_str)
 
     if due_to == nil then
         -- current_due_to = local_query(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
    		-- due_to = os.date("%Y-%m-%d %H:%M:%S", current_due_to + 86400) -- one day later
    		current_time = os.time()
         due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
-    elseif not is_valid_timestamp(due_to) then
+    elseif dates.is_valid_timestamp(due_to) == false then
         print("Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it")
         return
     end
 
-    overdue = check_overdue(due_to) and 1 or 0
+    overdue_bool = check_overdue(due_to)
+    esc_overdue = 0
+    if overdue_bool == true then
+        esc_overdue = 1
+    end
     update_statement = nil
     if task_id == "*" then
-        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE done IS NULL;", due_to, overdue)
+        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE done IS NULL;", due_to, esc_overdue)
     else
-        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, overdue, task_id)
+        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, esc_overdue, task_id)
     end
     status = local_update(brain_file, update_statement)
     if status == nil then

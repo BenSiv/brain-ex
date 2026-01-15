@@ -13,7 +13,7 @@ end
 
 function sqlite_query(brain_file, query)
     results = local_query(brain_file, query)
-    if not results then
+    if results == nil then
         return nil
     end
     view(results)
@@ -29,8 +29,8 @@ function do_sql(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
 
-    if args then
-        if args["query"] then
+    if args != nil then
+        if args["query"] != nil then
             sqlite_query(brain_file, args["query"])
         else
             sqlite_shell(brain_file)
