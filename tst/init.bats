@@ -67,3 +67,8 @@ teardown() {
     [ -f "$CONFIG" ]
     grep -q "git: true" "$CONFIG"
 }
+@test "init with vault containing root file" {
+    echo "Root file content" > tmp_vault/root_file.md
+    run brex init --vault tmp_vault --name tmp_vault_repro
+    [ "$status" -eq 0 ]
+}

@@ -189,7 +189,10 @@ function vault_to_sql(vault_path, brain_file)
 
     for subject, notes in pairs(vault_content) do
         -- Treat "root" as empty subject
-        actual_subject = (subject == "root") and "" or subject
+        actual_subject = subject
+        if subject == "root" then
+            actual_subject = ""
+        end
 
         for _, note in pairs(notes) do
             -- Extract cleaned content and parsed links
