@@ -118,7 +118,7 @@ function list_tasks(brain_file, args)
     tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("No pending tasks")
-        return
+        return "success"
     end
     
     update_overdue(brain_file)
