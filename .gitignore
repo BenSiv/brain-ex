@@ -1,6 +1,9 @@
-bld
-debug_vault
-*.db
-*.logbin/
+# Build outputs
+bin/
 obj/
 out/
+
+# Debug
+debug_vault/
+*.db
+*.log
