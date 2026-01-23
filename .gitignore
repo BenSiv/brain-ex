@@ -1,4 +1,6 @@
 bld
 debug_vault
 *.db
-*.log
+*.logbin/
+obj/
+out/
