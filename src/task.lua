@@ -21,12 +21,28 @@ function check_overdue(due_to)
     if due_to == nil or due_to == "" then
         return false
     end
-    current_time = os.time()
-    year, month, day, hour, min, sec = string.match(due_to, "(%d%d%d%d)%-(%d%d)%-(%d%d) (%d%d):(%d%d):(%d%d)")
-    if year == nil then
+    normalized = dates.normalize_datetime(due_to)
+    if normalized == nil then
         return false
     end
+    if dates.is_valid_timestamp != nil and dates.is_valid_timestamp(normalized) == false then
+        return false
+    end
+    -- Use fixed-width slicing to avoid pattern issues in luam
+    year = tonumber(string.sub(normalized, 1, 4))
+    month = tonumber(string.sub(normalized, 6, 7))
+    day = tonumber(string.sub(normalized, 9, 10))
+    hour = tonumber(string.sub(normalized, 12, 13))
+    min = tonumber(string.sub(normalized, 15, 16))
+    sec = tonumber(string.sub(normalized, 18, 19))
+    if year == nil or month == nil or day == nil or hour == nil or min == nil or sec == nil then
+        return false
+    end
+    current_time = os.time()
     task_time = os.time({year=year, month=month, day=day, hour=hour, min=min, sec=sec})
+    if task_time == nil then
+        return false
+    end
     return current_time > task_time
 end
 
@@ -39,12 +55,18 @@ function update_overdue(brain_file)
     update_statement = ""
     if unfinished != nil then
         for _, task in pairs(unfinished) do
-            overdue = check_overdue(task.due_to)
+            task_id = task.id or task[1]
+            task_due = task.due_to or task[2]
+            overdue = check_overdue(task_due)
             if overdue then
-                update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task.id .. ";"
+                if task_id != nil then
+                    update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task_id .. ";"
+                else
+                    update_statement = nil
+                end
                 success = local_update(brain_file, update_statement)
                 if success == nil then
-                    return nil, "Failed to update overdue status for task ID: " .. task.id
+                    return nil, "Failed to update overdue status for task ID: " .. tostring(task_id)
                 end
             end
         end
