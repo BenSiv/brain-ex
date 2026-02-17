@@ -37,6 +37,18 @@ function load_config()
     return cached_config
 end
 
+function get_path_label(path)
+    if path == nil or path == "" then
+        return nil
+    end
+    normalized = path
+    if path != "/" then
+        normalized = string.gsub(path, "/*$", "")
+    end
+    label = string.match(normalized, "([^/]+)$")
+    return label or normalized
+end
+
 function save_config_file(path, conf)
     file = io.open(path, "w")
     if file == nil then
@@ -129,6 +141,15 @@ function config.get_named_brains()
             end
         end
     end
+
+    -- Backward compatibility: infer a label for legacy configs that only have brain+vault.
+    if next(named) == nil and cfg["vault"] != nil and cfg["brain"] != nil then
+        inferred = get_path_label(cfg["vault"])
+        if inferred != nil and inferred != "" then
+            named[inferred] = cfg["brain"]
+        end
+    end
+
     return named
 end
 
@@ -140,6 +161,20 @@ function config.set_default_brain(name)
 
     if name == nil or name == "" then
         return nil, "Must provide brain name"
+    end
+
+    if cfg["brains"] == nil or cfg["brains"][name] == nil then
+        -- Backward compatibility: allow selecting inferred legacy label once, then persist it.
+        inferred = nil
+        if cfg["vault"] != nil and cfg["brain"] != nil then
+            inferred = get_path_label(cfg["vault"])
+        end
+        if inferred != nil and inferred == name then
+            if cfg["brains"] == nil then
+                cfg["brains"] = {}
+            end
+            cfg["brains"][name] = cfg["brain"]
+        end
     end
 
     if cfg["brains"] == nil or cfg["brains"][name] == nil then

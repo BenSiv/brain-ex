@@ -1,7 +1,15 @@
 
+CONFIG="$HOME/.config/brain-ex/config.yaml"
+
+setup() {
+    rm -rf tmp_vault_tsv
+    rm -f tmp_vault_tsv.db
+}
 
 teardown() {
     rm -rf tmp_vault_tsv
+    rm -f tmp_vault_tsv.db
+    rm -f "$CONFIG"
 }
 
 @test "backup tsv export has correct headers and includes comment" {

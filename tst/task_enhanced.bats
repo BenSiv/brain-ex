@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+CONFIG="$HOME/.config/brain-ex/config.yaml"
+
 setup() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
@@ -10,6 +12,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
+    rm -f "$CONFIG"
 }
 
 @test "task with overdue date sets overdue flag" {

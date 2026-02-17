@@ -13,11 +13,15 @@ resolve_brex() {
 
 setup() {
     resolve_brex
-    rm -f brain.db work.db personal.db
+    rm -rf tmp_notes
+    rm -rf nested
+    rm -f brain.db work.db personal.db tmp_notes.db work_notes.db
 }
 
 teardown() {
-    rm -f brain.db work.db personal.db
+    rm -rf tmp_notes
+    rm -rf nested
+    rm -f brain.db work.db personal.db tmp_notes.db work_notes.db
     rm -f "$CONFIG"
 }
 
@@ -94,6 +98,66 @@ teardown() {
 
     [ "$DEFAULT_COUNT" -eq 0 ]
     [ "$WORK_COUNT" -eq 1 ]
+}
+
+@test "init with matching vault and name appears in brain list" {
+    mkdir -p tmp_notes
+
+    run $BREX init --vault tmp_notes --name tmp_notes
+    [ "$status" -eq 0 ]
+
+    run $BREX brain list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "tmp_notes" ]]
+}
+
+@test "init with vault and no name uses vault folder as label" {
+    mkdir -p tmp_notes
+
+    run $BREX init --vault tmp_notes
+    [ "$status" -eq 0 ]
+
+    run $BREX brain list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Default brain: tmp_notes" ]]
+    [[ "$output" =~ "tmp_notes ->" ]]
+}
+
+@test "init with vault and custom name uses provided name as label" {
+    mkdir -p tmp_notes
+
+    run $BREX init --vault tmp_notes --name work_notes
+    [ "$status" -eq 0 ]
+
+    run $BREX brain list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "work_notes ->" ]]
+    [[ ! "$output" =~ "tmp_notes ->" ]]
+}
+
+@test "init with vault path ending slash uses basename as label" {
+    mkdir -p nested/tmp_notes
+
+    run $BREX init --vault nested/tmp_notes/
+    [ "$status" -eq 0 ]
+
+    run $BREX brain list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "tmp_notes ->" ]]
+}
+
+@test "brain list infers label for legacy config without brains map" {
+    mkdir -p "$(dirname "$CONFIG")"
+    cat > "$CONFIG" <<'EOF'
+brain: /tmp/legacy.db
+vault: /tmp/legacy-vault
+editor: nano
+EOF
+
+    run $BREX brain list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "legacy-vault -> /tmp/legacy.db" ]]
+    [[ ! "$output" =~ "(none)" ]]
 }
 
 @test "error on invalid brain name" {

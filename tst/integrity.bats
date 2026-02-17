@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 
+CONFIG="$HOME/.config/brain-ex/config.yaml"
 BREX="brex"
 
 resolve_brex() {
@@ -22,6 +23,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault_integrity
     rm -f tmp_integrity.db
+    rm -f "$CONFIG"
 }
 
 @test "database integrity: basic insert and select" {

@@ -110,6 +110,16 @@ function remove_trailing_slash(path)
     return (string.gsub(path, "/*$", ""))
 end
 
+function get_path_label(path)
+    normalized = remove_trailing_slash(path or "")
+    if normalized == "" then
+        return ""
+    end
+    -- Use the last path component as the label (e.g. /a/b/vault -> vault)
+    label = string.match(normalized, "([^/]+)$")
+    return label or normalized
+end
+
 function init_bx(args)
     brain_name = args["name"] or "brain"
     brain_name = remove_trailing_slash(brain_name)
@@ -143,9 +153,10 @@ function init_bx(args)
 end
 
 function init_bx_with_vault(args)
-    vault_dir = args["vault"]
+    vault_dir = remove_trailing_slash(args["vault"])
     current_dir = lfs.currentdir()
-    brain_name = args["name"] or args["vault"]
+    vault_name = get_path_label(vault_dir)
+    brain_name = args["name"] or vault_name
     brain_name = remove_trailing_slash(brain_name)
     brain_path = joinpath(current_dir, brain_name .. ".db")
     vault_path = joinpath(current_dir, vault_dir)
@@ -193,12 +204,11 @@ function init_bx_with_vault(args)
         editor = default_editor,
         git = enable_git
     }
-    if brain_name == args["vault"] or brain_name == "brain" then
+    if brain_name == vault_name or brain_name == "brain" then
         updates.brain = brain_path
-    else
-        updates.brains = {}
-        updates.brains[brain_name] = brain_path
     end
+    updates.brains = {}
+    updates.brains[brain_name] = brain_path
     update_config_file(home_dir, updates)
 
     -- import existing notes if any

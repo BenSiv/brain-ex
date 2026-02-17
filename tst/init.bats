@@ -1,63 +1,74 @@
 #!/usr/bin/env bats
 
 CONFIG="$HOME/.config/brain-ex/config.yaml"
+BREX="brex"
+
+resolve_brex() {
+    if [ -x "./bin/brex" ]; then
+        BREX="./bin/brex"
+    else
+        BREX="brex"
+    fi
+}
 
 setup() {
+    resolve_brex
     rm -rf tmp_vault
-    rm -f brain.db tmp_vault.db my_brain.db
+    rm -f brain.db tmp_vault.db my_brain.db tmp_vault_repro.db
     mkdir -p tmp_vault
 }
 
 teardown() {
     rm -rf tmp_vault
-    rm -f brain.db tmp_vault.db my_brain.db
+    rm -f brain.db tmp_vault.db my_brain.db tmp_vault_repro.db
     rm -f "$CONFIG"
 }
 
 @test "default init creates brain.db and config file" {
-    run brex init
+    run $BREX init
     [ "$status" -eq 0 ]
     [ -f "brain.db" ]
     [ -f "$CONFIG" ]
 
-    grep -q "brain: .*brain.db" "$CONFIG"
+    grep -q "^brain: .*brain.db$" "$CONFIG"
     grep -q "editor: nano" "$CONFIG"
 }
 
 @test "init with vault and editor creates vault db and sets config" {
-    run brex init --vault tmp_vault --editor micro
+    run $BREX init --vault tmp_vault --editor micro
     [ "$status" -eq 0 ]
     [ -f "tmp_vault.db" ]
     [ -f "$CONFIG" ]
 
-    grep -q "vault: .*tmp_vault" "$CONFIG"
-    grep -q "brain: .*tmp_vault.db" "$CONFIG"
+    grep -q "^vault: .*tmp_vault$" "$CONFIG"
+    grep -q "^brain: .*tmp_vault.db$" "$CONFIG"
+    grep -q "^  tmp_vault: .*tmp_vault.db$" "$CONFIG"
     grep -q "editor: micro" "$CONFIG"
 }
 
 @test "init with custom name creates specified db and config" {
-    run brex init --name "my_brain"
+    run $BREX init --name "my_brain"
     [ "$status" -eq 0 ]
     [ -f "my_brain.db" ]
     [ -f "$CONFIG" ]
 
-    grep -q "brain: .*my_brain.db" "$CONFIG"
+    grep -q "^  my_brain: .*my_brain.db$" "$CONFIG"
     grep -q "editor: nano" "$CONFIG"
 }
 
 @test "init with vault and custom name updates config correctly" {
-    run brex init --vault tmp_vault --name "my_brain" --editor micro
+    run $BREX init --vault tmp_vault --name "my_brain" --editor micro
     [ "$status" -eq 0 ]
     [ -f "my_brain.db" ]
     [ -f "$CONFIG" ]
 
-    grep -q "vault: .*tmp_vault" "$CONFIG"
-    grep -q "brain: .*my_brain.db" "$CONFIG"
+    grep -q "^vault: .*tmp_vault$" "$CONFIG"
+    grep -q "^  my_brain: .*my_brain.db$" "$CONFIG"
     grep -q "editor: micro" "$CONFIG"
 }
 
 @test "init with git enabled" {
-    run brex init --vault tmp_vault --git
+    run $BREX init --vault tmp_vault --git
     [ "$status" -eq 0 ]
 
     # A git repo should be created
@@ -69,6 +80,6 @@ teardown() {
 }
 @test "init with vault containing root file" {
     echo "Root file content" > tmp_vault/root_file.md
-    run brex init --vault tmp_vault --name tmp_vault_repro
+    run $BREX init --vault tmp_vault --name tmp_vault_repro
     [ "$status" -eq 0 ]
 }
