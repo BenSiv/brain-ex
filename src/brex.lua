@@ -32,12 +32,16 @@ do_update = update.do_update
 sql = require("sql")
 do_sql = sql.do_sql
 
+brain = require("brain")
+do_brain = brain.do_brain
+
 git = require("git")
 auto_update = git.auto_update
 
 function main()
     command_funcs = {
         ["init"] = do_init,
+        ["brain"] = do_brain,
         ["note"] = do_note,
         ["task"] = do_task,
         ["update"] = do_update,
@@ -64,8 +68,8 @@ function main()
         command = arg[2]
         args_start = 3
         
-        if command == "init" then
-             print("Error: 'init' command does not accept a positional brain name. Use 'brex init --name <name>' instead.")
+        if command == "init" or command == "brain" then
+             print("Error: '" .. command .. "' command does not accept a positional brain name.")
              os.exit(1)
         end
     end
@@ -108,6 +112,14 @@ function main()
              table.insert(cmd_args, "--name")
              table.insert(cmd_args, target_brain)
         end
+        status = func(cmd_args)
+        if status != "success" then
+            os.exit(1)
+        end
+        return
+    end
+
+    if command == "brain" then
         status = func(cmd_args)
         if status != "success" then
             os.exit(1)

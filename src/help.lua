@@ -7,6 +7,7 @@ function get_help_string(command)
 Usage: brex [brain] <command> [subcommand] [arguments]
 
 brex init
+brex brain < list | use >
 brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
@@ -14,6 +15,7 @@ brex [brain] sql
 
 defaults:
 init -> sqlite database only
+brain -> list configured brains
 note -> log note add/edit
 task -> add new task
 update -> rebuild from vault
@@ -35,8 +37,23 @@ brex <command> -h or --help for more info
     brex init
     brex init --name "my_brain"
     brex init --vault "my_vault"
-    brex init --name "my_brain" --vault "my_vault" --editor "vim"
-    brex init --name "my_brain" --vault "my_vault" --editor "vim" --git
+	    brex init --name "my_brain" --vault "my_vault" --editor "vim"
+	    brex init --name "my_brain" --vault "my_vault" --editor "vim" --git
+	        """,
+        ["brex brain"] = """
+Description:
+Manage configured brains.
+
+Subcommands:
+list                 Show configured brains and current default.
+use --name <name>    Set default brain to one of the configured named brains.
+
+Options:
+-n --name <name> Brain name to use as default (for `use`).
+
+Examples:
+brex brain list
+brex brain use --name "work"
         """,
         ["brex note"] = """
 Description:

@@ -1,9 +1,17 @@
 #!/usr/bin/env bats
 
-# Define path to local binary
-BREX="./bld/brex"
+BREX="brex"
+
+resolve_brex() {
+    if [ -x "./bin/brex" ]; then
+        BREX="./bin/brex"
+    else
+        BREX="brex"
+    fi
+}
 
 setup() {
+    resolve_brex
     rm -rf tmp_vault_integrity
     rm -f tmp_integrity.db
     mkdir -p tmp_vault_integrity

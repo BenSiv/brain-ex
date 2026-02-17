@@ -37,6 +37,33 @@ function load_config()
     return cached_config
 end
 
+function save_config_file(path, conf)
+    file = io.open(path, "w")
+    if file == nil then
+        return nil, "Failed to write config file: " .. path
+    end
+
+    if conf.brain != nil then io.write(file, "brain: " .. conf.brain .. "\n") end
+    if conf.editor != nil then io.write(file, "editor: " .. conf.editor .. "\n") end
+    if conf.vault != nil then io.write(file, "vault: " .. conf.vault .. "\n") end
+    if conf.git != nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+
+    if conf.brains != nil then
+        io.write(file, "brains:\n")
+        brain_names = {}
+        for k, _ in pairs(conf.brains) do
+            table.insert(brain_names, k)
+        end
+        table.sort(brain_names)
+        for _, k in ipairs(brain_names) do
+            io.write(file, "  " .. k .. ": " .. conf.brains[k] .. "\n")
+        end
+    end
+
+    io.close(file)
+    return true
+end
+
 function config.get_brain_path(name)
     cfg = load_config()
     if cfg == nil then return nil end
@@ -82,6 +109,54 @@ end
 function config.reload()
     cached_config = nil
     return load_config()
+end
+
+function config.get_config()
+    return load_config()
+end
+
+function config.get_named_brains()
+    cfg = load_config()
+    if cfg == nil then
+        return nil
+    end
+
+    named = {}
+    if cfg["brains"] != nil then
+        for name, path in pairs(cfg["brains"]) do
+            if name != "default" then
+                named[name] = path
+            end
+        end
+    end
+    return named
+end
+
+function config.set_default_brain(name)
+    cfg = load_config()
+    if cfg == nil then
+        return nil, "Config was not loaded"
+    end
+
+    if name == nil or name == "" then
+        return nil, "Must provide brain name"
+    end
+
+    if cfg["brains"] == nil or cfg["brains"][name] == nil then
+        return nil, "Brain '" .. name .. "' not configured."
+    end
+
+    selected_path = cfg["brains"][name]
+    cfg["brain"] = selected_path
+    cfg["brains"]["default"] = selected_path
+
+    status, err = save_config_file(get_config_path(), cfg)
+    if status == nil then
+        return nil, err
+    end
+
+    cached_config = cfg
+    return true
 end
 
 -- Export the module
