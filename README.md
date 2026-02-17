@@ -25,11 +25,9 @@ brex < command > -h or --help for more info
 It is possible to initilize with Obsidian vault or without it.
 
 ## TODOs
-- fix update from file after manual edit
-- edit with non existent title should create and open it in default editor
-- if subject is passed but not title raise an error to the user (instead of writing to the daily note)
-- parse NULL as empty string for view
-- add update flag to append new content to existing note on add subcommand
+- align README help/examples with current CLI features (`brex [brain] ...`, `init --name`, `init --git`, `note add --update`)
+- add end-to-end tests for full `brex update` behavior (without `--file`)
+- add CLI support to list configured brains and switch default brain
 
 ## Directory Structure
 
