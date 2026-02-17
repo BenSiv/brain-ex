@@ -40,3 +40,9 @@ because:
 
 - `git` is used by `brex init --git`
 - `nano` is the default editor if no custom editor is configured
+
+### Installed Command
+
+The package installs:
+
+- `/usr/bin/brex`

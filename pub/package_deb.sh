@@ -44,7 +44,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 PKG_ROOT="$TMP_DIR/${PKG_NAME}_${VERSION}_${ARCH}"
 DEBIAN_DIR="$PKG_ROOT/DEBIAN"
 DOC_DIR="$PKG_ROOT/usr/share/doc/$PKG_NAME"
-BIN_DST="$PKG_ROOT/usr/local/bin"
+BIN_DST="$PKG_ROOT/usr/bin"
 
 mkdir -p "$DEBIAN_DIR" "$DOC_DIR" "$BIN_DST" "$OUT_DIR"
 install -m 0755 "$BIN_PATH" "$BIN_DST/brex"
