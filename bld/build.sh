@@ -1,54 +1,95 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+VERBOSE=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
+        -h|--help)
+            cat <<'EOF'
+Usage: ./bld/build.sh [options]
+
+Options:
+  -v, --verbose   Print full build command output
+  -h, --help      Show this help
+EOF
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Use --help for usage." >&2
+            exit 1
+            ;;
+    esac
+done
+
+run_cmd() {
+    if [[ "$VERBOSE" -eq 1 ]]; then
+        "$@"
+    else
+        "$@" >>"$BUILD_LOG" 2>&1
+    fi
+}
+
+on_error() {
+    if [[ "$VERBOSE" -eq 0 ]]; then
+        echo "Build failed. Re-run with --verbose for full output." >&2
+        echo "Last build log lines:" >&2
+        tail -n 40 "$BUILD_LOG" >&2 || true
+    fi
+}
+
+# Create temp dir
+TMPDIR=$(mktemp -d)
+BUILD_LOG=$(mktemp)
+trap on_error ERR
+trap 'rm -rf "$TMPDIR" "$BUILD_LOG"' EXIT
+
 # Determine absolute paths
-ROOT=$(pwd)
 LUAM_DIR=$(cd ../luam && pwd)
 LUAM_BIN="$LUAM_DIR/bin/luam"
 STATIC_TOOL="$LUAM_DIR/lib/static/init.lua"
 LUAM_LIB="$LUAM_DIR/obj/liblua.a"
-LUA_INIT="$LUAM_DIR/src/lualib.lua"
 
-# Create temp dir
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
-
-echo "Preparing source files..."
+echo "Preparing build"
 # Copy brain-ex files
-cp src/brex.lua "$TMPDIR"/
-cp src/*.lua "$TMPDIR"/
+run_cmd cp src/brex.lua "$TMPDIR"/
+run_cmd cp src/*.lua "$TMPDIR"/
 
 # Copy luam standard libraries (replaces bundled lua-utils)
-cp "$LUAM_DIR/lib/"*.lua "$TMPDIR"/
+run_cmd cp "$LUAM_DIR/lib/"*.lua "$TMPDIR"/
 # Copy relocated modules
-cp "$LUAM_DIR/lib/socket/init.lua" "$TMPDIR/socket.lua"
-cp "$LUAM_DIR/lib/mime/init.lua" "$TMPDIR/mime.lua"
-cp "$LUAM_DIR/lib/ltn12/init.lua" "$TMPDIR/ltn12.lua"
-cp "$LUAM_DIR/lib/ssl/init.lua" "$TMPDIR/ssl.lua"
+run_cmd cp "$LUAM_DIR/lib/socket/init.lua" "$TMPDIR/socket.lua"
+run_cmd cp "$LUAM_DIR/lib/mime/init.lua" "$TMPDIR/mime.lua"
+run_cmd cp "$LUAM_DIR/lib/ltn12/init.lua" "$TMPDIR/ltn12.lua"
+run_cmd cp "$LUAM_DIR/lib/ssl/init.lua" "$TMPDIR/ssl.lua"
 
 # Remove static.lua (tool) to prevent it from being compiled into the binary source list inadvertently
-rm "$TMPDIR"/static.lua 2>/dev/null || true
+run_cmd rm -f "$TMPDIR"/static.lua
 
 # Copy dkjson alias (renamed from json)
-cp "$LUAM_DIR/lib/dkjson/init.lua" "$TMPDIR/dkjson.lua"
+run_cmd cp "$LUAM_DIR/lib/dkjson/init.lua" "$TMPDIR/dkjson.lua"
 
 # Build
-pushd "$TMPDIR" > /dev/null
+pushd "$TMPDIR" >/dev/null
 
 # Construct file list
 # brex.lua must be first (main entry point)
 # Exclude brex.lua from wildcard to avoid dupe (though shell expansion handles non-overlapping well, here we manually order)
 FILES="brex.lua $(ls *.lua | grep -v '^brex.lua$')"
 
-echo "Generating C source..."
-CC="" "$LUAM_BIN" "$STATIC_TOOL" \
+echo "Generating C source"
+run_cmd env CC="" "$LUAM_BIN" "$STATIC_TOOL" \
     $FILES \
     "$LUAM_LIB" \
     -I "$LUAM_DIR/src" \
     -lm -ldl -lreadline -lpthread
 
 # Inject lsqlite3, lfs, and yaml preload
-sed -i '/luaL_openlibs(L);/a \
+run_cmd sed -i '/luaL_openlibs(L);/a \
   int luaopen_sqlite3(lua_State *L); \
   int luaopen_lfs(lua_State *L); \
   int luaopen_yaml(lua_State *L); \
@@ -63,29 +104,31 @@ sed -i '/luaL_openlibs(L);/a \
   lua_pop(L, 2);' brex.static.c
 
 # Compile lsqlite3
-cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/sqlite/lsqlite3.c" -o lsqlite3.o
+run_cmd cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/sqlite/lsqlite3.c" -o lsqlite3.o
 
 # Compile lfs
-cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/lfs/src/lfs.c" -o lfs.o
+run_cmd cc -c -O2 -I"$LUAM_DIR/src" "$LUAM_DIR/lib/lfs/src/lfs.c" -o lfs.o
 
 # Compile yaml (all source files)
 YAML_SRC="$LUAM_DIR/lib/yaml"
-cc -c -O2 -I"$LUAM_DIR/src" -I"$YAML_SRC" \
+run_cmd cc -c -O2 -I"$LUAM_DIR/src" -I"$YAML_SRC" \
     "$YAML_SRC/lyaml.c" "$YAML_SRC/api.c" "$YAML_SRC/b64.c" \
     "$YAML_SRC/dumper.c" "$YAML_SRC/emitter.c" "$YAML_SRC/loader.c" \
     "$YAML_SRC/parser.c" "$YAML_SRC/reader.c" "$YAML_SRC/scanner.c" "$YAML_SRC/writer.c"
 
 # Compile binary
-cc -Os brex.static.c lsqlite3.o lfs.o lyaml.o api.o b64.o dumper.o emitter.o loader.o parser.o reader.o scanner.o writer.o "$LUAM_LIB" \
+run_cmd cc -Os brex.static.c lsqlite3.o lfs.o lyaml.o api.o b64.o dumper.o emitter.o loader.o parser.o reader.o scanner.o writer.o "$LUAM_LIB" \
     -I "$LUAM_DIR/src" \
     -lm -ldl -lreadline -lpthread -lsqlite3 \
     -Wl,--export-dynamic \
     -o brex
 
-popd > /dev/null
+popd >/dev/null
 
 # bin/ holds only final binaries
-mkdir -p bin
-mv "$TMPDIR"/brex bin/
+run_cmd mkdir -p bin
+run_cmd mv "$TMPDIR"/brex bin/
 echo "Build complete. Binary in bin/brex"
-ls -lh bin/brex
+if [[ "$VERBOSE" -eq 1 ]]; then
+    ls -lh bin/brex
+fi

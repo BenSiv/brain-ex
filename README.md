@@ -37,7 +37,6 @@ It is possible to initilize with Obsidian vault or without it.
 - support positional shorthand for switching default brain (`brex brain use <name>`)
 - support incremental vault sync in `brex update` (without full database rebuild)
 - add `brex brain remove --name <name>` for cleaning obsolete brain entries
-- add publications like .deb in pub dir
 
 ## Directory Structure
 
@@ -45,6 +44,7 @@ It is possible to initilize with Obsidian vault or without it.
 |-----------|---------|
 | `bld/` | Build scripts |
 | `bin/` | Binary output (gitignored) |
+| `pub/` | Publication artifacts (e.g. `.deb`, `.rpm`, release archives) |
 | `src/` | Source code |
 | `tst/` | Tests |
 | `doc/` | Documentation |

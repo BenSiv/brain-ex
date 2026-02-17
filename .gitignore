@@ -3,6 +3,12 @@ bin/
 obj/
 out/
 
+# Publication outputs
+pub/*.deb
+pub/*.rpm
+pub/*.tar.gz
+pub/*.zip
+
 # Debug
 debug_vault/
 *.db
