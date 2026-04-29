@@ -29,8 +29,8 @@ function do_sql(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
 
-    if args != nil then
-        if args["query"] != nil then
+    if args  !=  nil then
+        if args["query"]  !=  nil then
             sqlite_query(brain_file, args["query"])
         else
             sqlite_shell(brain_file)
@@ -41,7 +41,7 @@ end
 
 sql.do_sql = do_sql
 
-if string.match(arg[0], "sql.lua$") != nil then
+if string.match(arg[0], "sql.lua$")  !=  nil then
     do_sql(get_brain_path(), arg)
 else
     -- Export the module

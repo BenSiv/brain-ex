@@ -25,7 +25,7 @@ function check_overdue(due_to)
     if normalized == nil then
         return false
     end
-    if dates.is_valid_timestamp != nil and dates.is_valid_timestamp(normalized) == false then
+    if dates.is_valid_timestamp  !=  nil and dates.is_valid_timestamp(normalized) == false then
         return false
     end
     -- Use fixed-width slicing to avoid pattern issues in luam
@@ -53,13 +53,13 @@ function update_overdue(brain_file)
 
     overdue = false
     update_statement = ""
-    if unfinished != nil then
+    if unfinished  !=  nil then
         for _, task in pairs(unfinished) do
             task_id = task.id or task[1]
             task_due = task.due_to or task[2]
             overdue = check_overdue(task_due)
             if overdue then
-                if task_id != nil then
+                if task_id  !=  nil then
                     update_statement = "UPDATE tasks SET overdue = 1 WHERE id = " .. task_id .. ";"
                 else
                     update_statement = nil
@@ -76,7 +76,7 @@ end
 
 function backup_tasks(brain_file)
     vault_path = get_vault_path()
-    if vault_path != nil then
+    if vault_path  !=  nil then
         backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
     end
@@ -113,7 +113,7 @@ function add_task(brain_file, args)
     id = generate_id("tasks")
     
     esc_subject = "NULL"
-    if subject != nil then
+    if subject  !=  nil then
         esc_subject = "'" .. escape_sql(subject) .. "'"
     end
     esc_content = escape_sql(content)
@@ -146,18 +146,18 @@ function list_tasks(brain_file, args)
     due_to = dates.normalize_datetime(time_input_str)
 
     query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
-    if subject != "" then
+    if subject  !=  "" then
         query = query .. string.format("AND subject = '%s'", escape_sql(subject))
     end
 
-    if due_to != nil then
+    if due_to  !=  nil then
         query = query .. string.format("AND due_to > '%s'", due_to)
     end
     
     query = query .. " ORDER BY due_to, subject;"
 
     result = local_query(brain_file, query)
-    if result != nil and length(result) > 0 then
+    if result  !=  nil and length(result) > 0 then
         view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
     else
         print("No pending tasks")
@@ -220,13 +220,13 @@ function last_done(brain_file, args)
     num = args["number"] or 5
 
     query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
-    if subject != "" then
+    if subject  !=  "" then
         query = query .. string.format("AND subject='%s'", escape_sql(subject))
     end
     
     query = query .. " ORDER BY done DESC "
 
-    if num != "" then
+    if num  !=  "" then
         query = query .. string.format("LIMIT %s", num)
     end
 
@@ -241,7 +241,7 @@ end
 
 function do_task(brain_file, cmd_args)
     -- print("Debug: cmd_args[1] IN: " .. tostring(cmd_args[1]))
-    if cmd_args[1] != nil and string.sub(cmd_args[1], 1, 1) != "-" then
+    if cmd_args[1]  !=  nil and string.sub(cmd_args[1], 1, 1)  !=  "-" then
         table.insert(cmd_args, 1, "-d")
     end
     -- print("Debug: cmd_args[1] OUT: " .. tostring(cmd_args[1]))
@@ -259,7 +259,7 @@ function do_task(brain_file, cmd_args)
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
     status, err = nil, nil
-    if args != nil then
+    if args  !=  nil then
         if args["do"] == "add" then
             status, err = add_task(brain_file, args)
         elseif args["do"] == "list" then
@@ -278,7 +278,7 @@ function do_task(brain_file, cmd_args)
             return "success" -- Help printed
         end
     end
-    if status != true then
+    if status  !=  true then
         print(err or "Task command failed")
         return "error"
     end
@@ -287,7 +287,7 @@ end
 
 task.do_task = do_task
 
-if string.match(arg[0], "task.lua$") != nil then
+if string.match(arg[0], "task.lua$")  !=  nil then
     do_task(get_brain_path(), arg)
 else
     -- Export the module

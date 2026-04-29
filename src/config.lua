@@ -23,7 +23,7 @@ function get_config_path()
 end
 
 function load_config()
-    if cached_config != nil then
+    if cached_config  !=  nil then
         return cached_config
     end
     
@@ -42,7 +42,7 @@ function get_path_label(path)
         return nil
     end
     normalized = path
-    if path != "/" then
+    if path  !=  "/" then
         normalized = string.gsub(path, "/*$", "")
     end
     label = string.match(normalized, "([^/]+)$")
@@ -55,12 +55,12 @@ function save_config_file(path, conf)
         return nil, "Failed to write config file: " .. path
     end
 
-    if conf.brain != nil then io.write(file, "brain: " .. conf.brain .. "\n") end
-    if conf.editor != nil then io.write(file, "editor: " .. conf.editor .. "\n") end
-    if conf.vault != nil then io.write(file, "vault: " .. conf.vault .. "\n") end
-    if conf.git != nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+    if conf.brain  !=  nil then io.write(file, "brain: " .. conf.brain .. "\n") end
+    if conf.editor  !=  nil then io.write(file, "editor: " .. conf.editor .. "\n") end
+    if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end
+    if conf.git  !=  nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
 
-    if conf.brains != nil then
+    if conf.brains  !=  nil then
         io.write(file, "brains:\n")
         brain_names = {}
         for k, _ in pairs(conf.brains) do
@@ -80,8 +80,8 @@ function config.get_brain_path(name)
     cfg = load_config()
     if cfg == nil then return nil end
 
-    if name != nil then
-        if cfg["brains"] != nil and cfg["brains"][name] != nil then
+    if name  !=  nil then
+        if cfg["brains"]  !=  nil and cfg["brains"][name]  !=  nil then
             return cfg["brains"][name]
         end
         -- Fallback: if name is not found in "brains" list, checking if it is the "default" one
@@ -91,7 +91,7 @@ function config.get_brain_path(name)
     end
 
     -- No name provided, try "default" in brains or legacy "brain"
-    if cfg["brains"] != nil and cfg["brains"]["default"] != nil then
+    if cfg["brains"]  !=  nil and cfg["brains"]["default"]  !=  nil then
         return cfg["brains"]["default"]
     end
     
@@ -111,7 +111,7 @@ end
 function config.is_git()
     cfg = load_config()
     val = cfg and cfg["git"]
-    if val != nil and (val == true or val == "true") then
+    if val  !=  nil and (val == true or val == "true") then
         return true
     else
         return false
@@ -134,18 +134,18 @@ function config.get_named_brains()
     end
 
     named = {}
-    if cfg["brains"] != nil then
+    if cfg["brains"]  !=  nil then
         for name, path in pairs(cfg["brains"]) do
-            if name != "default" then
+            if name  !=  "default" then
                 named[name] = path
             end
         end
     end
 
     -- Backward compatibility: infer a label for legacy configs that only have brain+vault.
-    if next(named) == nil and cfg["vault"] != nil and cfg["brain"] != nil then
+    if next(named) == nil and cfg["vault"]  !=  nil and cfg["brain"]  !=  nil then
         inferred = get_path_label(cfg["vault"])
-        if inferred != nil and inferred != "" then
+        if inferred  !=  nil and inferred  !=  "" then
             named[inferred] = cfg["brain"]
         end
     end
@@ -166,10 +166,10 @@ function config.set_default_brain(name)
     if cfg["brains"] == nil or cfg["brains"][name] == nil then
         -- Backward compatibility: allow selecting inferred legacy label once, then persist it.
         inferred = nil
-        if cfg["vault"] != nil and cfg["brain"] != nil then
+        if cfg["vault"]  !=  nil and cfg["brain"]  !=  nil then
             inferred = get_path_label(cfg["vault"])
         end
-        if inferred != nil and inferred == name then
+        if inferred  !=  nil and inferred == name then
             if cfg["brains"] == nil then
                 cfg["brains"] = {}
             end

@@ -60,12 +60,12 @@ end
 
 function save_config(path, conf)
     file = io.open(path, "w")
-    if conf.brain != nil then io.write(file, "brain: " .. conf.brain .. "\n") end
-    if conf.editor != nil then io.write(file, "editor: " .. conf.editor .. "\n") end
-    if conf.vault != nil then io.write(file, "vault: " .. conf.vault .. "\n") end
-    if conf.git != nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+    if conf.brain  !=  nil then io.write(file, "brain: " .. conf.brain .. "\n") end
+    if conf.editor  !=  nil then io.write(file, "editor: " .. conf.editor .. "\n") end
+    if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end
+    if conf.git  !=  nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
     
-    if conf.brains != nil then
+    if conf.brains  !=  nil then
         io.write(file, "brains:\n")
         for k,v in pairs(conf.brains) do
             io.write(file, "  " .. k .. ": " .. v .. "\n")
@@ -80,13 +80,13 @@ function update_config_file(home_dir, updates)
     
     current_conf = {}
     f = io.open(config_file, "r")
-    if f != nil then
+    if f  !=  nil then
         io.close(f)
         current_conf = utils.read_yaml(config_file) or {}
     end
     
     -- Merge updates
-    if updates.brains != nil then
+    if updates.brains  !=  nil then
         if current_conf.brains == nil then current_conf.brains = {} end
         for k,v in pairs(updates.brains) do
             current_conf.brains[k] = v
@@ -175,7 +175,7 @@ function init_bx_with_vault(args)
 	end
 
     -- optional: import existing tasks if available
-	if file_exists(task_file) != nil and file_exists(task_file) then
+	if file_exists(task_file)  !=  nil and file_exists(task_file) then
     	import_delimited(brain_path, task_file, "tasks", "\t")    
 	end
 
@@ -185,7 +185,7 @@ function init_bx_with_vault(args)
     end
 
     -- if --git flag is used, initialize a Git repo if not present
-    if enable_git != nil and enable_git then
+    if enable_git  !=  nil and enable_git then
         git_dir = joinpath(vault_path, ".git")
         mode = lfs.attributes(git_dir, "mode")
         if mode == nil then
@@ -229,8 +229,8 @@ function do_init(cmd_args)
     args = parse_args(cmd_args, expected_args, help_string)
 
     status, err = nil, nil
-    if args != nil then
-        if args["vault"] != nil then
+    if args  !=  nil then
+        if args["vault"]  !=  nil then
             status, err = init_bx_with_vault(args)
         else
             status, err = init_bx(args)
@@ -249,7 +249,7 @@ end
 init.sql_init = sql_init
 init.do_init = do_init
 
-if string.match(arg[0], "init.lua$") != nil then
+if string.match(arg[0], "init.lua$")  !=  nil then
     do_init(arg)
 else
     -- Export the module

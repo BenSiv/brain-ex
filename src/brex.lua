@@ -38,6 +38,9 @@ do_brain = brain.do_brain
 git = require("git")
 auto_update = git.auto_update
 
+agent = require("agent")
+do_agent = agent.do_agent
+
 function main()
     command_funcs = {
         ["init"] = do_init,
@@ -45,7 +48,8 @@ function main()
         ["note"] = do_note,
         ["task"] = do_task,
         ["update"] = do_update,
-        ["sql"] = do_sql
+        ["sql"] = do_sql,
+        ["agent"] = do_agent
     }
 
     arg[-1] = "lua" -- for the executable
@@ -74,7 +78,7 @@ function main()
         end
     end
 
-    if command != nil and not starts_with(command, "-") then
+    if command  !=  nil and not starts_with(command, "-") then
         arg[0] = "brex " .. command
     else
         arg[0] = "brex"
@@ -108,12 +112,12 @@ function main()
     
     status = nil
     if command == "init" then
-        if target_brain != nil then
+        if target_brain  !=  nil then
              table.insert(cmd_args, "--name")
              table.insert(cmd_args, target_brain)
         end
         status = func(cmd_args)
-        if status != "success" then
+        if status  !=  "success" then
             os.exit(1)
         end
         return
@@ -121,20 +125,20 @@ function main()
 
     if command == "brain" then
         status = func(cmd_args)
-        if status != "success" then
+        if status  !=  "success" then
             os.exit(1)
         end
         return
     end
     
     brain_file = get_brain_path(target_brain)
-    if brain_file != nil then
+    if brain_file  !=  nil then
         status = func(brain_file, cmd_args)
-        if status != "success" then
+        if status  !=  "success" then
             os.exit(1)
         end
     else
-        if target_brain != nil then
+        if target_brain  !=  nil then
             print("Error: Brain '" .. target_brain .. "' not configured.")
         else
             print("Error: Default brain not configured.")
