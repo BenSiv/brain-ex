@@ -12,6 +12,7 @@ brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
 brex [brain] sql
+brex [brain] agent < view | tasks | run >
 
 defaults:
 init -> sqlite database only
