@@ -212,21 +212,34 @@ brex update
 brex update --file "/path/to/vault/subject/note.md"
     	""",
     	["brex sql"] = """
- Description:
- Opens an interactive sqlite3 shell or runs a query on the database.
+    	Description:
+    	Opens an interactive sqlite3 shell or runs a query on the database.
 
- Optional:
- -q --query <query> SQL query to run on the database.
+    	Optional:
+    	-q --query <query> SQL query to run on the database.
 
- Examples:
- brex sql
- brex sql --query "SELECT * FROM tasks;"
-	    """
-    }
+    	Examples:
+    	brex sql
+    	brex sql --query "SELECT * FROM tasks;"
+    	""",
+    	["brex agent"] = """
+    	Description:
+    	Manage and interact with the Brain-Ex AI agent.
 
-    return help_strings[command]
-end
+    	Subcommands:
+    	view             Displays the agent log file in a pager.
+    	tasks            List all tasks assigned to the agent.
+    	run <prompt>     Send a prompt to the agent for processing.
 
+    	Examples:
+    	brex agent view
+    	brex agent tasks
+    	brex agent run "remind me to check the database"
+    	"""
+    	}
+
+    	return help_strings[command]
+    	end
 help.get_help_string = get_help_string
 
 return help
