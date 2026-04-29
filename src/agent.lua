@@ -44,8 +44,15 @@ function do_agent(brain_file, cmd_args)
     ensure_owner_column(brain_file)
     
     subcommand = cmd_args[1]
+    
+    -- Default behavior:
+    -- If no subcommand, show view
+    -- If the first arg looks like a prompt (and isn't a known subcommand), assume 'run'
     if subcommand == nil or subcommand == "" then
         subcommand = "view"
+    elseif subcommand != "view" and subcommand != "tasks" and subcommand != "run" and subcommand != "-h" and subcommand != "--help" then
+        subcommand = "run"
+        table.insert(cmd_args, 1, subcommand) -- Re-insert as the first arg for parsing consistency
     end
     
     if subcommand == "-h" or subcommand == "--help" then
