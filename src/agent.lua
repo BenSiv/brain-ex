@@ -29,6 +29,12 @@ end
 
 -- Ensure 'owner' column exists in tasks table
 function ensure_owner_column(brain_file)
+    -- Check if table exists first
+    check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
+    if local_query(brain_file, check_table) == nil or #local_query(brain_file, check_table) == 0 then
+        return
+    end
+
     if not column_exists(brain_file, "tasks", "owner") then
         local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
     end
