@@ -116,6 +116,25 @@ Since the database is SQLite, I can query it directly — perfect for quick data
 
 ---
 
+## Section 7 — Agent Interaction
+
+`brex` now features an integrated AI agent, allowing you to manage your knowledge and tasks through simple natural language commands.
+
+```bash
+# View the agent log file
+brex agent view
+
+# List tasks assigned to the agent
+brex agent tasks
+
+# Ask the agent to perform an action
+brex agent run "Remind me to refactor the authentication module"
+```
+
+The agent automatically tracks tasks and manages your knowledge base, making it easy to offload management tasks while you stay in your flow.
+
+---
+
 ## Closing
 
 That’s **brain-ex**, your notes and tasks, right where you live as a programmer:  

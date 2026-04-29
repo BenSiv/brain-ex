@@ -1,7 +1,15 @@
 #!/usr/bin/env bats
 
-@test "agent command exists" {
-    ./bin/brex mybrain agent --help
+@test "agent command defaults to view" {
+    ./bin/brex mybrain agent
+}
+
+@test "agent view works" {
+    ./bin/brex mybrain agent view
+}
+
+@test "agent help flag works" {
+    ./bin/brex mybrain agent -h
 }
 
 @test "agent run works" {
