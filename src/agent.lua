@@ -43,7 +43,7 @@ end
 function do_agent(brain_file, cmd_args)
     ensure_owner_column(brain_file)
     
-    subcommand = cmd_args[1]
+    subcommand = cmd_args[1] or "view"
     
     if subcommand == "view" then
         -- Implementation: open agent.log in pager
