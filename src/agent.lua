@@ -43,7 +43,16 @@ end
 function do_agent(brain_file, cmd_args)
     ensure_owner_column(brain_file)
     
-    subcommand = cmd_args[1] or "view"
+    subcommand = cmd_args[1]
+    if subcommand == nil or subcommand == "" then
+        subcommand = "view"
+    end
+    
+    if subcommand == "-h" or subcommand == "--help" then
+        help = require("help")
+        print(help.get_help_string("brex agent"))
+        return "success"
+    end
     
     if subcommand == "view" then
         -- Implementation: open agent.log in pager
