@@ -57,7 +57,7 @@ LUAM_LIB="$LUAM_DIR/obj/liblua.a"
 echo "Preparing build"
 # Copy brain-ex files
 run_cmd cp src/brex.lua "$TMPDIR"/
-run_cmd cp src/*.lua "$TMPDIR"/
+run_cmd cp -R src/* "$TMPDIR"/
 
 # Copy luam standard libraries (replaces bundled lua-utils)
 run_cmd cp "$LUAM_DIR/lib/"*.lua "$TMPDIR"/
@@ -79,7 +79,7 @@ pushd "$TMPDIR" >/dev/null
 # Construct file list
 # brex.lua must be first (main entry point)
 # Exclude brex.lua from wildcard to avoid dupe (though shell expansion handles non-overlapping well, here we manually order)
-FILES="brex.lua $(ls *.lua | grep -v '^brex.lua$')"
+FILES="brex.lua $(/usr/bin/find . -type f -name '*.lua' | grep -v '\./brex\.lua$' | sed 's|^\./||')"
 
 echo "Generating C source"
 run_cmd env CC="" "$LUAM_BIN" "$STATIC_TOOL" \

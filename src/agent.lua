@@ -80,9 +80,16 @@ function do_agent(brain_file, cmd_args)
             print("No agent tasks.")
         end
         return "success"
+    elseif subcommand == "process_tasks" then
+        return agent_engine.process_tasks(brain_file)
     elseif subcommand == "run" then
+        subagent = "worker"
         prompt = cmd_args[2]
-        return agent_engine.handle_prompt(prompt)
+        if cmd_args[3] != nil then
+            subagent = cmd_args[2]
+            prompt = cmd_args[3]
+        end
+        return agent_engine.run_agent(subagent, prompt, brain_file)
     else
         print("Unknown agent command: " .. (subcommand or ""))
         return "error"

@@ -15,3 +15,7 @@
 @test "agent run works" {
     ./bin/brex mybrain agent run "hello"
 }
+
+@test "agent process_tasks works" {
+    ./bin/brex mybrain agent process_tasks
+}
