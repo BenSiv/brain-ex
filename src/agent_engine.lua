@@ -18,17 +18,18 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     
     status, provider = pcall(require, "agent_providers." .. provider_name)
     if status == false or provider == nil then
-        print("Error: Could not load provider '" .. provider_name .. "'")
+        print("Error: Could not load provider '" .. provider_name .. "': " .. tostring(provider))
         return "error"
     end
     
     system_prompt = ""
     if subagent != nil and subagent != "" then
-        status, agent_prompts = pcall(require, "agent_prompts")
-        if status != false and agent_prompts != nil then
-            system_prompt = agent_prompts[subagent]
+        p_status, loaded_prompts = pcall(require, "agent_prompts")
+        if p_status != false and type(loaded_prompts) == "table" then
+            system_prompt = loaded_prompts[subagent]
         end
-        if system_prompt == nil then
+        
+        if system_prompt == nil or system_prompt == "" then
             print("Warning: subagent '" .. subagent .. "' not found. Running without system prompt.")
             system_prompt = ""
         end
@@ -42,6 +43,11 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
         return "error"
     end
     
+    if result == nil then
+        print("Error: Agent returned no result.")
+        return "error"
+    end
+
     print("Agent reply:\n" .. result)
     
     tool_name = string.match(result, "<tool>%s*(.-)%s*</tool>")

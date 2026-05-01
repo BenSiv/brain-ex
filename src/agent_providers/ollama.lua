@@ -4,7 +4,7 @@ provider = {}
 provider.name = "ollama"
 
 -- Escape shell characters in string
-function string.shell_escape(s)
+function shell_escape(s)
     return "'" .. string.gsub(s, "'", "'\\''") .. "'"
 end
 
@@ -20,13 +20,17 @@ function provider.generate(model, system_prompt, prompt)
     tmpfile = os.tmpname()
     utils.write(tmpfile, full_prompt)
     
-    command = "cat " .. string.shell_escape(tmpfile) .. " | ollama run " .. string.shell_escape(model)
+    command = "cat " .. shell_escape(tmpfile) .. " | ollama run " .. shell_escape(model) .. " 2>&1"
     result, success = utils.exec_command(command)
     os.remove(tmpfile)
     
     if success == false then
-        if result != nil then print(result) end
-        return nil, "Failed to execute ollama."
+        -- Even if it failed, we might have some partial output in result
+        error_msg = "Failed to execute ollama."
+        if result != nil and result != "" then
+            error_msg = error_msg .. " Output: " .. result
+        end
+        return result, error_msg -- Return result anyway in case it's useful
     end
     
     return result, nil
