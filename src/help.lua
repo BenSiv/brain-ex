@@ -13,7 +13,7 @@ brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
 brex [brain] sql
 brex [brain] agent < view | tasks | run >
-brex [brain] knowledge < search | sync >
+brex [brain] knowledge < search | sync | browse | process | queue | promote >
 
 defaults:
 init -> sqlite database only
@@ -22,7 +22,7 @@ note -> log note add/edit
 task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell
-knowledge -> search notes using vector similarity
+knowledge -> search, process, and promote note knowledge
 
 brex <command> -h or --help for more info
         """,
@@ -241,15 +241,22 @@ brex update --file "/path/to/vault/subject/note.md"
         """,
         ["brex knowledge"] = """
         Description:
-        Search and manage knowledge using vector similarity search (sqlite-vss).
+        Search, review, and promote notes through the knowledge pool.
 
         Subcommands:
-        search <query>   Search notes using vector similarity.
-        sync             Synchronize all notes to the vector search table.
+        search <query> [--limit N]  Retrieve notes with tier and heat ranking.
+        sync                       Synchronize notes into the knowledge pool.
+        browse [--limit N]         List indexed knowledge and provenance.
+        show <id>                  Show one knowledge item.
+        history [id]               Show retrieval history.
+        process                    Review duplicates and promotion readiness.
+        queue                      Show duplicate, stale, and ready items.
+        promote <id> [--tier N]    Materialize an item into the vault knowledge tree.
 
         Examples:
-        brex knowledge search "database optimization"
-        brex knowledge sync
+        brex knowledge search "database optimization" --limit 5
+        brex knowledge process
+        brex knowledge promote 3 --tier 2
         """
         }
 

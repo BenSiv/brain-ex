@@ -7,6 +7,7 @@ config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
 database = require("database")
+knowledge_pool = require("knowledge_pool")
 local_update = database.local_update
 local_query = database.local_query
 vault_to_sql = require("vault_to_sql").vault_to_sql
@@ -22,6 +23,7 @@ function update_from_vault(brain_file)
 
         -- create database and tables
         status = local_update(brain_file, sql_init)
+        knowledge_pool.ensure_table(brain_file)
         if status == nil then
             return nil, "Failed to update database"
         end
@@ -30,6 +32,7 @@ function update_from_vault(brain_file)
         if status == nil then
             return nil, "Failed to update from vault"
         end
+        knowledge_pool.sync_notes(brain_file)
     end
 
     if file_exists(task_file) then
@@ -123,10 +126,11 @@ function update_note_from_file(brain_file, note_path)
         end
 		success = local_update(brain_file, insert_links)
 		if success == nil then
-			return nil, "Failed to update note links from file: " .. note_path
-		end
+            return nil, "Failed to update note links from file: " .. note_path
+        end
     end
 
+    knowledge_pool.sync_notes(brain_file)
 
     print("Updated note: " .. note_path)
 	return true

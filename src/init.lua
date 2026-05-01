@@ -216,6 +216,7 @@ function init_bx_with_vault(args)
 
     -- import existing notes if any
     vault_to_sql(vault_path, brain_path)
+    knowledge_pool.sync_notes(brain_path)
     return true
 end
 
