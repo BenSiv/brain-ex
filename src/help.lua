@@ -13,6 +13,7 @@ brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
 brex [brain] sql
 brex [brain] agent < view | tasks | run >
+brex [brain] knowledge < search | sync >
 
 defaults:
 init -> sqlite database only
@@ -21,6 +22,7 @@ note -> log note add/edit
 task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell
+knowledge -> search notes using vector similarity
 
 brex <command> -h or --help for more info
         """,
@@ -236,8 +238,20 @@ brex update --file "/path/to/vault/subject/note.md"
     	brex agent view
     	brex agent tasks
     	brex agent run "remind me to check the database"
-    	"""
-    	}
+        """,
+        ["brex knowledge"] = """
+        Description:
+        Search and manage knowledge using vector similarity search (sqlite-vss).
+
+        Subcommands:
+        search <query>   Search notes using vector similarity.
+        sync             Synchronize all notes to the vector search table.
+
+        Examples:
+        brex knowledge search "database optimization"
+        brex knowledge sync
+        """
+        }
 
     	return help_strings[command]
     	end

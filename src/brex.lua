@@ -42,6 +42,9 @@ agent = require("agent")
 do_agent = agent.do_agent
 
 function main()
+    knowledge = require("knowledge")
+    do_knowledge = knowledge.do_knowledge
+
     command_funcs = {
         ["init"] = do_init,
         ["brain"] = do_brain,
@@ -49,7 +52,8 @@ function main()
         ["task"] = do_task,
         ["update"] = do_update,
         ["sql"] = do_sql,
-        ["agent"] = do_agent
+        ["agent"] = do_agent,
+        ["knowledge"] = do_knowledge
     }
 
     arg[-1] = "lua" -- for the executable

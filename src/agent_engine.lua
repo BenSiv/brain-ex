@@ -7,10 +7,7 @@ database = require("database")
 bridge = require("agent_tools.bridge")
 
 function agent_engine.get_provider_config()
-    cfg = config.get_config()
-    provider_name = (cfg and cfg["agent_provider"]) or "ollama"
-    model_name = (cfg and cfg["agent_model"]) or "qwen3.5:0.8b"
-    return provider_name, model_name
+    return config.get_agent_config()
 end
 
 function agent_engine.run_agent(subagent, prompt, brain_file)

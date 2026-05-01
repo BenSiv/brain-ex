@@ -59,6 +59,11 @@ function save_config_file(path, conf)
     if conf.editor  !=  nil then io.write(file, "editor: " .. conf.editor .. "\n") end
     if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end
     if conf.git  !=  nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+    if conf.agent_provider != nil then io.write(file, "agent_provider: " .. conf.agent_provider .. "\n") end
+    if conf.agent_model != nil then io.write(file, "agent_model: " .. conf.agent_model .. "\n") end
+    if conf.embedding_provider != nil then io.write(file, "embedding_provider: " .. conf.embedding_provider .. "\n") end
+    if conf.embedding_model != nil then io.write(file, "embedding_model: " .. conf.embedding_model .. "\n") end
+    if conf.embedding_command != nil then io.write(file, "embedding_command: " .. conf.embedding_command .. "\n") end
 
     if conf.brains  !=  nil then
         io.write(file, "brains:\n")
@@ -116,6 +121,25 @@ function config.is_git()
     else
         return false
     end
+end
+
+function config.get_agent_config()
+    cfg = load_config()
+    provider_name = (cfg and cfg["agent_provider"]) or "ollama"
+    model_name = (cfg and cfg["agent_model"]) or "qwen3.5:0.8b"
+    return provider_name, model_name
+end
+
+function config.get_embedding_config()
+    cfg = load_config()
+    provider_name = (cfg and cfg["embedding_provider"]) or (cfg and cfg["agent_provider"]) or "ollama"
+    model_name = (cfg and cfg["embedding_model"]) or "nomic-embed-text"
+    return provider_name, model_name
+end
+
+function config.get_embedding_command()
+    cfg = load_config()
+    return cfg and cfg["embedding_command"]
 end
 
 function config.reload()
