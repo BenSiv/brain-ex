@@ -13,6 +13,7 @@ resolve_brex() {
 
 setup() {
     resolve_brex
+    mkdir -p "$HOME"
     rm -rf tmp_vault
     rm -f brain.db tmp_vault.db my_brain.db tmp_vault_repro.db
     mkdir -p tmp_vault

@@ -3,6 +3,8 @@
 CONFIG="$HOME/.config/brain-ex/config.yaml"
 
 setup() {
+    mkdir -p "$HOME"
+    export PATH="$PWD/bin:$PATH"
     rm -rf tmp_vault
     rm -f tmp_vault.db
     mkdir tmp_vault
@@ -133,4 +135,15 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Late task" ]]
     [[ ! "$output" =~ "Early task" ]]
+}
+
+@test "tasks tsv edits are synchronized before the next task command" {
+    printf "id\ttime\tcontent\tsubject\tdue_to\toverdue\tdone\tcomment\n701\t2026-05-01 10:00:00\tFrom TSV\tops\t2026-05-03 10:00:00\t0\t\t\n" > tmp_vault/tasks.tsv
+
+    run brex task list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "From TSV" ]]
+
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=701 AND content='From TSV';")
+    [ "$COUNT" -eq 1 ]
 }

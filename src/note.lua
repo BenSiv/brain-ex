@@ -86,7 +86,33 @@ function connect_notes(brain_file, source_title, source_subject, links)
     return true
 end
 
-function write_note(vault_dir, subject, title, content, links)
+function get_note_paths(vault_dir, subject, title)
+    note_dir = vault_dir
+    if subject != nil and subject != "" then
+        note_dir = vault_dir .. "/" .. subject
+    end
+    note_path = note_dir .. "/" .. title .. ".md"
+    return note_dir, note_path
+end
+
+function note_exists(brain_file, subject, title)
+    esc_subject = escape_sql(subject or "")
+    esc_title = escape_sql(title or "")
+    query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
+    result = local_query(brain_file, query)
+    if result == nil or result[1] == nil then
+        return false
+    end
+    count_val = result[1].count or result[1][1] or 0
+    return tonumber(count_val) > 0
+end
+
+function sync_note_from_vault(brain_file, vault_dir, subject, title)
+    _, note_path = get_note_paths(vault_dir, subject, title)
+    return update.update_note_from_file(brain_file, note_path)
+end
+
+function write_note(vault_dir, subject, title, content, links, mode)
     obsidian_links = {}
     for _, link in pairs(links) do
         -- each link is a table {title=..., subject=...}
@@ -99,16 +125,18 @@ function write_note(vault_dir, subject, title, content, links)
         table.insert(obsidian_links, "[[" .. link_path .. "]]")
     end
 
-    note_dir = vault_dir .. "/" .. subject
-    note_path = note_dir .. "/" .. title .. ".md"
+    note_dir, note_path = get_note_paths(vault_dir, subject, title)
+    mode = mode or "a"
 
     -- Ensure the directory exists
-    mkdir_status = lfs.mkdir(note_dir)
-    if mkdir_status != true and lfs.attributes(note_dir, "mode") == nil then
-        return nil, "Could not create directory: " .. note_dir
+    if lfs.attributes(note_dir, "mode") == nil then
+        mkdir_status = lfs.mkdir(note_dir)
+        if mkdir_status != true and lfs.attributes(note_dir, "mode") == nil then
+            return nil, "Could not create directory: " .. note_dir
+        end
     end
 
-    note_file = io.open(note_path, "a")
+    note_file = io.open(note_path, mode)
     if note_file == nil then
         return nil, "Error: Could not open file: " .. note_path
     end
@@ -137,14 +165,33 @@ function take_note(brain_file, args)
     end
 
     if args["update"] == true then
-        status, err = append_content(brain_file, subject, title, content)
-        if status == nil then
-             return nil, err
+        if vault_path != nil then
+            status, err = write_note(vault_path, subject, title, content, links, "a")
+            if status == nil then
+                return nil, err
+            end
+            return sync_note_from_vault(brain_file, vault_path, subject, title)
+        else
+            status, err = append_content(brain_file, subject, title, content)
+            if status == nil then
+                 return nil, err
+            end
         end
     else
-        status, err = insert_note(brain_file, subject, title, content)
-        if status == nil then
-            return nil, err
+        if vault_path != nil then
+            if note_exists(brain_file, subject, title) then
+                return nil, "Failed to update database"
+            end
+            status, err = write_note(vault_path, subject, title, content, links, "w")
+            if status == nil then
+                return nil, err
+            end
+            return sync_note_from_vault(brain_file, vault_path, subject, title)
+        else
+            status, err = insert_note(brain_file, subject, title, content)
+            if status == nil then
+                return nil, err
+            end
         end
     end
     
@@ -154,14 +201,6 @@ function take_note(brain_file, args)
             return nil, err
         end
     end
-
-    if vault_path != nil then
-        status, err = write_note(vault_path, subject, title, content, links)
-        if status == nil then
-            return nil, err
-        end
-    end
-
     return true
 end
 
@@ -179,14 +218,16 @@ function edit_note(brain_file, args)
         return nil, "Must provide title of note to edit"
 	end
 	
-    note_path = vault_path .. "/" .. subject .. "/" .. title .. ".md"
+    _, note_path = get_note_paths(vault_path, subject, title)
     
     -- Create the file if it doesn't exist
     if lfs.attributes(note_path) == nil then
-        note_dir = vault_path .. "/" .. subject
-        mkdir_status = lfs.mkdir(note_dir)
-        if mkdir_status != true and lfs.attributes(note_dir, "mode") == nil then
-            return nil, "Could not create directory: " .. note_dir
+        note_dir, _ = get_note_paths(vault_path, subject, title)
+        if lfs.attributes(note_dir, "mode") == nil then
+            mkdir_status = lfs.mkdir(note_dir)
+            if mkdir_status != true and lfs.attributes(note_dir, "mode") == nil then
+                return nil, "Could not create directory: " .. note_dir
+            end
         end
         -- Create an empty file
         file = io.open(note_path, "w")
@@ -258,7 +299,12 @@ function log_note(brain_file, args)
 
     -- Insert or append content
     if isempty(content) == false then
-        if note_exists then
+        if vault_path != nil then
+            status, err = write_note(vault_path, subject, title, content, links, "a")
+            if status == nil then
+                return nil, err
+            end
+        elseif note_exists then
             status, err = append_content(brain_file, subject, title, content)
             if status == nil then
                 return nil, err
@@ -271,7 +317,7 @@ function log_note(brain_file, args)
         end
     end
 
-    if isempty(links) == false then
+    if isempty(links) == false and vault_path == nil then
         status, err = connect_notes(brain_file, title, subject, links)
         if status == nil then
             return nil, err
@@ -279,10 +325,11 @@ function log_note(brain_file, args)
     end
 
     if vault_path != nil then
-        status, err = write_note(vault_path, subject, title, content, links)
+        status, err = write_note(vault_path, subject, title, content, links, "a")
         if status == nil then
             return nil, err
         end
+        return sync_note_from_vault(brain_file, vault_path, subject, title)
     end
 
     return true
@@ -299,16 +346,9 @@ function do_note_connect(brain_file, args)
     end
 
     -- Connect in the database
-    status, err = connect_notes(brain_file, title, subject, links)
-    if status == nil then
-        return nil, err
-    end
-
-    -- Also append links to the note file
     vault_path = get_vault_path()
     if vault_path != nil then
-        note_dir = vault_path .. "/" .. subject
-        note_path = note_dir .. "/" .. title .. ".md"
+        note_dir, note_path = get_note_paths(vault_path, subject, title)
 
         -- Ensure directory exists
         if lfs.attributes(note_dir, "mode") == nil then
@@ -330,6 +370,13 @@ function do_note_connect(brain_file, args)
         else
             print("Failed to open note file: " .. note_path)
         end
+
+        return sync_note_from_vault(brain_file, vault_path, subject, title)
+    end
+
+    status, err = connect_notes(brain_file, title, subject, links)
+    if status == nil then
+        return nil, err
     end
 
     return true
@@ -379,6 +426,11 @@ function do_note(brain_file, cmd_args)
 end
 
 note.do_note = do_note
+note.take_note = take_note
+note.log_note = log_note
+note.edit_note = edit_note
+note.last_notes = last_notes
+note.do_note_connect = do_note_connect
 
 if string.match(arg[0], "note.lua$") != nil then
     do_note(get_brain_path(), arg)

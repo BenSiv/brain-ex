@@ -16,6 +16,7 @@ bx_utils = require("bx_utils")
 generate_id = bx_utils.generate_id
 dataframes = require("dataframes")
 view = dataframes.view
+sync = require("sync")
 
 function check_overdue(due_to)
     if due_to == nil or due_to == "" then
@@ -83,6 +84,14 @@ function backup_tasks(brain_file)
     return true
 end
 
+function persist_tasks(brain_file)
+    status, err = backup_tasks(brain_file)
+    if status == nil then
+        return nil, err
+    end
+    return sync.refresh(brain_file)
+end
+
 function escape_sql(str)
     return string.gsub(str, "'", "''")
 end
@@ -110,7 +119,7 @@ function add_task(brain_file, args)
     if overdue_bool == true then
         esc_overdue = 1
     end
-    id = generate_id("tasks")
+    id = generate_id("tasks", nil, nil, brain_file)
     
     esc_subject = "NULL"
     if subject  !=  nil then
@@ -128,8 +137,7 @@ function add_task(brain_file, args)
 		return nil, "Failed to add task"
 	end
 
-    backup_tasks(brain_file)
-    return true
+    return persist_tasks(brain_file)
 end
 
 function list_tasks(brain_file, args)
@@ -178,8 +186,7 @@ function mark_done(brain_file, args)
     if status == nil then
         return nil, "Failed to mark task as done"
     end
-    backup_tasks(brain_file)
-    return true
+    return persist_tasks(brain_file)
 end
 
 function delay_due(brain_file, args)
@@ -211,8 +218,7 @@ function delay_due(brain_file, args)
     if status == nil then
         return nil, "Failed to delay task due date"
     end
-    backup_tasks(brain_file)
-    return true
+    return persist_tasks(brain_file)
 end
 
 function last_done(brain_file, args)
@@ -286,6 +292,11 @@ function do_task(brain_file, cmd_args)
 end
 
 task.do_task = do_task
+task.add_task = add_task
+task.list_tasks = list_tasks
+task.mark_done = mark_done
+task.delay_due = delay_due
+task.last_done = last_done
 
 if string.match(arg[0], "task.lua$")  !=  nil then
     do_task(get_brain_path(), arg)

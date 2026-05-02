@@ -38,7 +38,8 @@ CREATE TABLE tasks (
     due_to TIMESTAMP,
     overdue INTEGER,
     done TIMESTAMP DEFAULT NULL,
-    comment TEXT DEFAULT NULL
+    comment TEXT DEFAULT NULL,
+    owner TEXT DEFAULT NULL
 );
 """
 
@@ -61,6 +62,9 @@ end
 
 function save_config(path, conf)
     file = io.open(path, "w")
+    if file == nil then
+        return nil
+    end
     if conf.brain  !=  nil then io.write(file, "brain: " .. conf.brain .. "\n") end
     if conf.editor  !=  nil then io.write(file, "editor: " .. conf.editor .. "\n") end
     if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end

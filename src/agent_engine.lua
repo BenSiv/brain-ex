@@ -33,25 +33,36 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     end
 
     print("Running " .. subagent .. " via " .. provider_name .. " (" .. model_name .. ")...")
-    result, err = provider.generate(model_name, system_prompt, prompt)
-    
-    if err != nil then
-        print("Error: " .. err)
-        return "error"
-    end
-    
-    if result == nil then
-        print("Error: Agent returned no result.")
-        return "error"
-    end
 
-    print("Agent reply:\n" .. result)
-    
-    tool_name = string.match(result, "<tool>%s*(.-)%s*</tool>")
-    method_name = string.match(result, "<method>%s*(.-)%s*</method>")
-    args_str = string.match(result, "<args>%s*(.-)%s*</args>")
-    
-    if tool_name != nil and method_name != nil then
+    current_prompt = prompt
+    for _ = 1, 2 do
+        result, err = provider.generate(model_name, system_prompt, current_prompt)
+
+        if err != nil then
+            print("Error: " .. err)
+            return "error"
+        end
+
+        if result == nil then
+            print("Error: Agent returned no result.")
+            return "error"
+        end
+
+        done_message = string.match(result, "<done>%s*(.-)%s*</done>")
+        if done_message != nil then
+            print("Agent reply:\n" .. done_message)
+            return "success"
+        end
+
+        tool_name = string.match(result, "<tool>%s*(.-)%s*</tool>")
+        method_name = string.match(result, "<method>%s*(.-)%s*</method>")
+        args_str = string.match(result, "<args>%s*(.-)%s*</args>")
+
+        if tool_name == nil or method_name == nil then
+            print("Agent reply:\n" .. result)
+            return "success"
+        end
+
         print("Agent requested tool: " .. tool_name .. "." .. method_name)
         args = {}
         if args_str != nil then
@@ -62,8 +73,19 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
                 end
             end
         end
-        bridge.dispatch(brain_file, tool_name, method_name, args)
+
+        tool_result, tool_err = bridge.dispatch(brain_file, tool_name, method_name, args)
+        tool_summary = tostring(tool_result)
+        if tool_err != nil then
+            tool_summary = "ERROR: " .. tostring(tool_err)
+        elseif tool_result == true then
+            tool_summary = "ok"
+        end
+
+        current_prompt = prompt .. "\n\nTool call result for " .. tool_name .. "." .. method_name .. ":\n" .. tool_summary
     end
+
+    print("Agent reply:\nUnable to complete tool-assisted run in one follow-up.")
 
     return "success"
 end

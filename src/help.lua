@@ -12,7 +12,7 @@ brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
 brex [brain] sql
-brex [brain] agent < view | tasks | run >
+brex [brain] agent < view | tasks | ask | note | task | run >
 brex [brain] knowledge < search | sync | browse | process | queue | promote >
 
 defaults:
@@ -232,11 +232,17 @@ brex update --file "/path/to/vault/subject/note.md"
     	Subcommands:
     	view             Displays the agent log file in a pager.
     	tasks            List all tasks assigned to the agent.
-    	run <prompt>     Send a prompt to the agent for processing.
+    	ask <prompt>     Ask the general brain assistant.
+    	note <prompt>    Run the note-focused assistant.
+    	task <prompt>    Run the task-focused assistant.
+    	run <prompt>     Legacy alias for a direct agent run.
 
     	Examples:
     	brex agent view
     	brex agent tasks
+    	brex agent ask "what did I write about retries?"
+    	brex agent note "capture meeting notes for backend"
+    	brex agent task "create follow-ups from yesterday"
     	brex agent run "remind me to check the database"
         """,
         ["brex knowledge"] = """

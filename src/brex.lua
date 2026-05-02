@@ -40,6 +40,7 @@ auto_update = git.auto_update
 
 agent = require("agent")
 do_agent = agent.do_agent
+sync = require("sync")
 
 function main()
     knowledge = require("knowledge")
@@ -137,6 +138,13 @@ function main()
     
     brain_file = get_brain_path(target_brain)
     if brain_file  !=  nil then
+        if command != "update" then
+            sync_status, sync_err = sync.refresh(brain_file)
+            if sync_status == nil then
+                print(sync_err or "Failed to synchronize brain from vault.")
+                os.exit(1)
+            end
+        end
         status = func(brain_file, cmd_args)
         if status  !=  "success" then
             os.exit(1)

@@ -5,8 +5,8 @@ sqlite = require("sqlite3")
 config = require("config")
 get_brain_path = config.get_brain_path
 
-function is_id_unique(table_name, target_id)
-    brain_file = get_brain_path()
+function is_id_unique(table_name, target_id, brain_file)
+    brain_file = brain_file or get_brain_path()
     query = string.format("SELECT COUNT(*) FROM %s WHERE id = '%s';", table_name, target_id)
     db = sqlite.open(brain_file)
     is_unique = nil
@@ -26,7 +26,7 @@ function is_id_unique(table_name, target_id)
     return is_unique
 end
 
-function generate_id(table_name, desired_length, seed)
+function generate_id(table_name, desired_length, seed, brain_file)
     desired_length = desired_length or 10
     seed = seed or os.time()
     math.randomseed(seed)
@@ -35,7 +35,7 @@ function generate_id(table_name, desired_length, seed)
     id_unique = false
     while not id_unique do
         id = string.format("%0" .. desired_length .. "d", math.random(10 ^ (desired_length - 1)))
-        id_unique = is_id_unique(table_name, id)
+        id_unique = is_id_unique(table_name, id, brain_file)
     end
 
     return id

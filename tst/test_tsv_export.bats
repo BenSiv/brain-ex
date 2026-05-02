@@ -2,6 +2,8 @@
 CONFIG="$HOME/.config/brain-ex/config.yaml"
 
 setup() {
+    mkdir -p "$HOME"
+    export PATH="$PWD/bin:$PATH"
     rm -rf tmp_vault_tsv
     rm -f tmp_vault_tsv.db
 }

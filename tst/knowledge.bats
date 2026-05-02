@@ -15,6 +15,7 @@ resolve_brex() {
 
 setup() {
     resolve_brex
+    mkdir -p "$HOME"
     rm -rf tmp_vault
     rm -f knowledge_brain.db
     mkdir -p tmp_vault

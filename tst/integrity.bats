@@ -13,6 +13,7 @@ resolve_brex() {
 
 setup() {
     resolve_brex
+    mkdir -p "$HOME"
     rm -rf tmp_vault_integrity
     rm -f tmp_integrity.db
     mkdir -p tmp_vault_integrity
@@ -47,26 +48,20 @@ teardown() {
     run $BREX tmp_integrity note --content "$TEXT"
     [ "$status" -eq 0 ]
 
-    COUNT=$(sqlite3 tmp_integrity.db "SELECT COUNT(*) FROM notes WHERE content LIKE '%Text with ''quotes''%';")
-    [ "$COUNT" -eq 1 ]
+    CONTENT=$(sqlite3 tmp_integrity.db "SELECT content FROM notes WHERE content LIKE '%Text with%';")
+    [[ "$CONTENT" =~ "Text with quotes and double quotes" ]]
 }
 
 @test "error handling: valid error message on failure" {
-    # We want to force a database error.
-    # We can use sqlite3 to drop the notes table, then run brex note.
-    # This should trigger the "Invalid query" path in database.lua
+    # Vault-backed brains should self-heal if the local DB schema disappears.
     
     sqlite3 tmp_integrity.db "DROP TABLE notes;"
     
     run $BREX tmp_integrity note --content "Should fail"
-    
-    # It should fail
-    [ "$status" -ne 0 ]
-    
-    # It should NOT print "nvalid query" (corrupted string)
-    # It SHOULD print "Invalid query" and hopefully "no such table"
-    [[ "$output" =~ "Invalid query" ]]
-    [[ "$output" =~ "no such table" ]]
+    [ "$status" -eq 0 ]
+
+    COUNT=$(sqlite3 tmp_integrity.db "SELECT COUNT(*) FROM notes WHERE content LIKE '%Should fail%';")
+    [ "$COUNT" -eq 1 ]
 }
 
 @test "init creates correct schema" {

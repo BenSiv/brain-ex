@@ -13,10 +13,15 @@ resolve_brex() {
 
 setup() {
     resolve_brex
+    mkdir -p "$HOME"
     rm -rf tmp_vault
     rm -f mybrain.db
     mkdir -p tmp_vault
     $BREX init --name mybrain --vault tmp_vault --editor touch
+    {
+        echo 'agent_provider: mock'
+        echo 'agent_model: test-model'
+    } >> "$CONFIG"
 }
 
 teardown() {
@@ -44,21 +49,35 @@ teardown() {
     run $BREX mybrain agent -h
     [ "$status" -eq 0 ]
     [[ "$output" == *"Manage and interact with the Brain-Ex AI agent"* ]]
+    [[ "$output" == *"ask <prompt>"* ]]
+    [[ "$output" == *"note <prompt>"* ]]
+    [[ "$output" == *"task <prompt>"* ]]
 }
 
-@test "agent run works" {
-    # This might fail if ollama is not running, but let's see. 
-    # Maybe we should mock the provider for tests.
-    # For now, just fix the environment issue.
-    # To avoid actual LLM calls, we could mock the provider in the future.
-    # If it fails here, I'll know why.
-    skip "Skipping agent run test as it requires a running LLM provider"
-    run $BREX mybrain agent run "hello"
+@test "agent ask works" {
+    export BREX_MOCK_RESPONSE="<done>hello from ask</done>"
+    run $BREX mybrain agent ask "hello"
     [ "$status" -eq 0 ]
+    [[ "$output" == *"hello from ask"* ]]
 }
 
-@test "agent process_tasks works" {
-    skip "Skipping agent process_tasks test as it requires a running LLM provider"
-    run $BREX mybrain agent process_tasks
+@test "agent note can write through the vault sync path" {
+    export BREX_MOCK_RESPONSE_1=$'<tool>note</tool>\n<method>add</method>\n<args>subject=work\ntitle=agent-note\ncontent=Created by agent</args>'
+    export BREX_MOCK_RESPONSE_2="<done>note saved</done>"
+    run $BREX mybrain agent note "capture this"
     [ "$status" -eq 0 ]
+    [ -f "tmp_vault/work/agent-note.md" ]
+    grep -q "Created by agent" tmp_vault/work/agent-note.md
+    COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM notes WHERE title='agent-note' AND subject='work';")
+    [ "$COUNT" -eq 1 ]
+}
+
+@test "agent task can write through the tasks sync path" {
+    export BREX_MOCK_RESPONSE_1=$'<tool>task</tool>\n<method>add</method>\n<args>subject=ops\ncontent=Agent task\ndue_to=2026-05-02</args>'
+    export BREX_MOCK_RESPONSE_2="<done>task saved</done>"
+    run $BREX mybrain agent task "create a task"
+    [ "$status" -eq 0 ]
+    grep -q "Agent task" tmp_vault/tasks.tsv
+    COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM tasks WHERE content='Agent task' AND subject='ops';")
+    [ "$COUNT" -eq 1 ]
 }

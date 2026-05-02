@@ -3,6 +3,8 @@
 CONFIG="$HOME/.config/brain-ex/config.yaml"
 
 setup() {
+    mkdir -p "$HOME"
+    export PATH="$PWD/bin:$PATH"
     rm -rf tmp_vault
     rm -f tmp_vault.db
     mkdir -p tmp_vault
@@ -189,4 +191,18 @@ teardown() {
     run brex note last --subject "nonexistent"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "No notes" ]]
+}
+
+@test "vault edits are synchronized before the next note command" {
+    run brex note add --title "sync-test" --content "Original" --subject "work"
+    [ "$status" -eq 0 ]
+
+    printf "Edited from vault\n[[todo]]\n" > tmp_vault/work/sync-test.md
+
+    run brex note last --subject "work" --number 1
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Edited from vault" ]]
+
+    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='sync-test' AND subject='work';")
+    [[ "$CONTENT" =~ "Edited from vault" ]]
 }

@@ -47,11 +47,11 @@ function do_agent(brain_file, cmd_args)
     
     -- Default behavior:
     -- If no subcommand, show view
-    -- If the first arg looks like a prompt (and isn't a known subcommand), assume 'run'
+    -- If the first arg looks like a prompt (and isn't a known subcommand), assume 'ask'
     if subcommand == nil or subcommand == "" then
         subcommand = "view"
-    elseif subcommand != "view" and subcommand != "tasks" and subcommand != "run" and subcommand != "-h" and subcommand != "--help" then
-        subcommand = "run"
+    elseif subcommand != "view" and subcommand != "tasks" and subcommand != "run" and subcommand != "ask" and subcommand != "note" and subcommand != "task" and subcommand != "process_tasks" and subcommand != "-h" and subcommand != "--help" then
+        subcommand = "ask"
         table.insert(cmd_args, 1, subcommand) -- Re-insert as the first arg for parsing consistency
     end
     
@@ -82,6 +82,13 @@ function do_agent(brain_file, cmd_args)
         return "success"
     elseif subcommand == "process_tasks" then
         return agent_engine.process_tasks(brain_file)
+    elseif subcommand == "ask" or subcommand == "note" or subcommand == "task" then
+        prompt = cmd_args[2]
+        if prompt == nil or prompt == "" then
+            print("Agent prompt is required.")
+            return "error"
+        end
+        return agent_engine.run_agent(subcommand, prompt, brain_file)
     elseif subcommand == "run" then
         subagent = "worker"
         prompt = cmd_args[2]

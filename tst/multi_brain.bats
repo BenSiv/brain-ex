@@ -13,6 +13,7 @@ resolve_brex() {
 
 setup() {
     resolve_brex
+    mkdir -p "$HOME"
     rm -rf tmp_notes
     rm -rf nested
     rm -f brain.db work.db personal.db tmp_notes.db work_notes.db

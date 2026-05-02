@@ -14,14 +14,25 @@ vault_to_sql = require("vault_to_sql").vault_to_sql
 process_content = require("vault_to_sql").process_content
 sql_init = require("init").sql_init
 
+function escape_sql(str)
+    return string.gsub(str or "", "'", "''")
+end
+
 function update_from_vault(brain_file)
     vault_path = get_vault_path()
     task_file = joinpath(vault_path, "tasks.tsv")
+    reset_sql = """
+    DROP TABLE IF EXISTS connections;
+    DROP TABLE IF EXISTS notes;
+    DROP TABLE IF EXISTS tasks;
+    """
 
     if brain_file != nil and vault_path != nil then
-        os.remove(brain_file)
+        status = local_update(brain_file, reset_sql)
+        if status == nil then
+            return nil, "Failed to reset database"
+        end
 
-        -- create database and tables
         status = local_update(brain_file, sql_init)
         knowledge_pool.ensure_table(brain_file)
         if status == nil then
@@ -122,8 +133,16 @@ function update_note_from_file(brain_file, note_path)
     if #links > 0 then
         insert_links = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
         for i, link in ipairs(links) do
-            insert_links = insert_links .. string.format("('%s', '%s', '%s', '%s')%s", title, subject, link.title, link.subject or "", i < #links and "," or ";")
+            statement_value = string.format(
+                "('%s', '%s', '%s', '%s'), ",
+                escape_sql(title),
+                escape_sql(subject),
+                escape_sql(link.title),
+                escape_sql(link.subject or "")
+            )
+            insert_links = insert_links .. statement_value
         end
+        insert_links = string.sub(insert_links, 1, -3) .. ";"
 		success = local_update(brain_file, insert_links)
 		if success == nil then
             return nil, "Failed to update note links from file: " .. note_path
@@ -161,6 +180,7 @@ function do_update(brain_file, cmd_args)
 end
 
 update.update_note_from_file = update_note_from_file
+update.update_from_vault = update_from_vault
 update.do_update = do_update
 
 if string.match(arg[0], "update.lua$") != nil then

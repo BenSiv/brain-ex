@@ -3,6 +3,8 @@
 CONFIG="$HOME/.config/brain-ex/config.yaml"
 
 setup() {
+    mkdir -p "$HOME"
+    export PATH="$PWD/bin:$PATH"
     rm -rf tmp_vault
     rm -f tmp_vault.db
     mkdir tmp_vault
