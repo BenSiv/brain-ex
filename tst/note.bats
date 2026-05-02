@@ -188,6 +188,20 @@ teardown() {
     [ "$COUNT" -eq 1 ]
 }
 
+@test "note default behavior does not duplicate vault content" {
+    run brex note --content "Single write regression check"
+    [ "$status" -eq 0 ]
+
+    NOTEFILE=$(ls -t tmp_vault/log/*.md | head -n1)
+    FILE_MATCHES=$(grep -o "Single write regression check" "$NOTEFILE" | wc -l)
+    [ "$FILE_MATCHES" -eq 1 ]
+
+    BASENAME=$(basename "$NOTEFILE" .md)
+    DB_CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='$BASENAME' AND subject='log';")
+    DB_MATCHES=$(printf "%s" "$DB_CONTENT" | grep -o "Single write regression check" | wc -l)
+    [ "$DB_MATCHES" -eq 1 ]
+}
+
 @test "note last on empty subject shows no notes message" {
     run brex note last --subject "nonexistent"
     [ "$status" -eq 0 ]

@@ -297,14 +297,22 @@ function log_note(brain_file, args)
     count_val = result[1].count or result[1][1]
     note_exists = tonumber(count_val) > 0
 
+    if vault_path != nil then
+        write_mode = "w"
+        if note_exists then
+            write_mode = "a"
+        end
+
+        status, err = write_note(vault_path, subject, title, content, links, write_mode)
+        if status == nil then
+            return nil, err
+        end
+        return sync_note_from_vault(brain_file, vault_path, subject, title)
+    end
+
     -- Insert or append content
     if isempty(content) == false then
-        if vault_path != nil then
-            status, err = write_note(vault_path, subject, title, content, links, "a")
-            if status == nil then
-                return nil, err
-            end
-        elseif note_exists then
+        if note_exists then
             status, err = append_content(brain_file, subject, title, content)
             if status == nil then
                 return nil, err
@@ -322,14 +330,6 @@ function log_note(brain_file, args)
         if status == nil then
             return nil, err
         end
-    end
-
-    if vault_path != nil then
-        status, err = write_note(vault_path, subject, title, content, links, "a")
-        if status == nil then
-            return nil, err
-        end
-        return sync_note_from_vault(brain_file, vault_path, subject, title)
     end
 
     return true
