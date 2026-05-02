@@ -75,7 +75,12 @@ function do_agent(brain_file, cmd_args)
     elseif subcommand == "process_tasks" then
         return agent_engine.process_tasks(brain_file)
     elseif subcommand == "ask" or subcommand == "note" or subcommand == "task" then
-        prompt = cmd_args[2]
+        prompt_parts = {}
+        for i = 2, #cmd_args do
+            table.insert(prompt_parts, cmd_args[i])
+        end
+        prompt = table.concat(prompt_parts, " ")
+
         if prompt == nil or prompt == "" then
             print("Agent prompt is required.")
             return "error"

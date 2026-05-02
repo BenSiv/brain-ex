@@ -63,6 +63,24 @@ teardown() {
     [[ "$output" == *"hello from ask"* ]]
 }
 
+@test "agent defaults to ask when prompt is provided without subcommand" {
+    export BREX_MOCK_RESPONSE="<done>hello from default ask</done>"
+    run $BREX mybrain agent "hello world"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"hello from default ask"* ]]
+}
+
+@test "agent joins multiple words as a single prompt" {
+    export BREX_MOCK_RESPONSE="<done>joined prompt works</done>"
+    run $BREX mybrain agent ask hello multiple words
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"joined prompt works"* ]]
+    # Also test the default path
+    run $BREX mybrain agent hello multiple words
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"joined prompt works"* ]]
+}
+
 @test "agent note can write through the vault sync path" {
     export BREX_MOCK_RESPONSE_1=$'<tool>note</tool>\n<method>add</method>\n<args>subject=work\ntitle=agent-note\ncontent=Created by agent</args>'
     export BREX_MOCK_RESPONSE_2="<done>note saved</done>"

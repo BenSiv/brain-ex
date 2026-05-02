@@ -11,7 +11,7 @@ brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
 brex [brain] sql
-brex [brain] agent < view | tasks | run >
+brex [brain] agent < view | ask | note | task >
 brex [brain] knowledge < search | sync | browse | process | queue | promote >
 
 defaults:
@@ -21,6 +21,7 @@ note -> log note add/edit
 task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell
+agent -> view log, or ask prompt
 knowledge -> search, process, and promote note knowledge
 
 brex <command> -h or --help for more info

@@ -231,6 +231,8 @@ brex update --file "/path/to/vault/subject/note.md"
     	["brex agent"] = """
     	Description:
     	Manage and interact with the Brain-Ex AI agent.
+    	Defaults to 'view' if no arguments are provided.
+    	Defaults to 'ask' if a prompt is provided without a subcommand.
 
     	Subcommands:
     	view             Displays the agent log file in a pager.
@@ -239,8 +241,8 @@ brex update --file "/path/to/vault/subject/note.md"
     	task <prompt>    Run the task-focused assistant.
 
     	Examples:
-    	brex agent view
-    	brex agent ask "what did I write about retries?"
+    	brex agent
+    	brex agent "what did I write about retries?"
     	brex agent note "capture meeting notes for backend"
     	brex agent task "create follow-ups from yesterday"
     	brex task list --owner "agent"
