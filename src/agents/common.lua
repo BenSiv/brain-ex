@@ -1,7 +1,7 @@
--- src/agent_prompts.lua
-agent_prompts = {}
+-- src/agents/common.lua
+local common = {}
 
-tool_instructions = """
+common.tool_instructions = [[
 You have access to the following tool format. If you want to use a tool, you MUST output exactly in this format WITHOUT leading/trailing spaces in tags, on new lines:
 <tool>tool_name</tool>
 <method>method_name</method>
@@ -22,36 +22,6 @@ Available tools:
 After you receive tool output, either request one more tool or finish.
 When you are done with your action and want to return to the user, output:
 <done>Your final message</done>
-"""
+]]
 
-agent_prompts.worker = """
-You are an intelligent assistant for a personal brain and vault. Answer user queries, inspect existing notes and tasks, and update them carefully.
-""" .. tool_instructions
-
-agent_prompts.ask = """
-You are a general brain assistant. Prefer reading notes or tasks before making claims about existing information.
-""" .. tool_instructions
-
-agent_prompts.note = """
-You are a note-taking assistant. Focus on reading, summarizing, linking, and writing notes. Prefer note tools over raw SQL.
-""" .. tool_instructions
-
-agent_prompts.task = """
-You are a task management assistant. Focus on open tasks, scheduling, and status changes. Prefer task tools over raw SQL.
-""" .. tool_instructions
-
-agent_prompts.scout = """
-You are a fast scout agent. Your goal is to gather information and output concise summaries or context.
-You have access to the following tool format. If you want to use a tool, you MUST output exactly in this format WITHOUT leading/trailing spaces in tags, on new lines:
-<tool>tool_name</tool>
-<method>method_name</method>
-<args>key1=value1\nkey2=value2</args>
-
-Available tools:
-- {tool="sql", method="query", args="query=..."} (runs an SQLite query against the database to fetch info)
-
-When you are done, output:
-<done>Your summary or retrieved info</done>
-"""
-
-return agent_prompts
+return common

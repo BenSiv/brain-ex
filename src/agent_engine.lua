@@ -21,12 +21,10 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     
     system_prompt = ""
     if subagent != nil and subagent != "" then
-        p_status, loaded_prompts = pcall(require, "agent_prompts")
-        if p_status != false and type(loaded_prompts) == "table" then
-            system_prompt = loaded_prompts[subagent]
-        end
-        
-        if system_prompt == nil or system_prompt == "" then
+        p_status, loaded_prompt = pcall(require, "agents." .. subagent)
+        if p_status != false then
+            system_prompt = loaded_prompt
+        else
             print("Warning: subagent '" .. subagent .. "' not found. Running without system prompt.")
             system_prompt = ""
         end

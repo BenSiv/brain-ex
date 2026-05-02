@@ -20,8 +20,8 @@ The agent can be invoked for different purposes using specialized subcommands.
 - `brex agent process_tasks` - Gathers background tasks (`owner="agent"`) and executes them.
 
 ### Sub-agents
-Specialized templates are defined in `src/agent_prompts.lua`.
-- `ask`: General assistant (uses `worker.md` style prompt)
+Specialized templates are defined in `src/agents/<name>.lua`.
+- `ask`: General assistant
 - `note`: Note capture specialist
 - `task`: Task management specialist
 - `worker`: Used for background task processing
