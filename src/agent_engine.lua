@@ -14,6 +14,11 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     provider_name, model_name = agent_engine.get_provider_config()
     
     status, provider = pcall(require, "agent_providers." .. provider_name)
+    if status == false then
+        -- Fallback for flattened compiled binary
+        status, provider = pcall(require, provider_name)
+    end
+
     if status == false or provider == nil then
         print("Error: Could not load provider '" .. provider_name .. "': " .. tostring(provider))
         return "error"
@@ -22,6 +27,11 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     system_prompt = ""
     if subagent != nil and subagent != "" then
         p_status, loaded_prompt = pcall(require, "agents." .. subagent)
+        if p_status == false then
+            -- Fallback for flattened compiled binary
+            p_status, loaded_prompt = pcall(require, subagent)
+        end
+
         if p_status != false then
             system_prompt = loaded_prompt
         else
