@@ -22,6 +22,7 @@ note -> log note add/edit
 task -> add new task
 update -> rebuild from vault
 sql -> sqlite shell
+agent -> view log, or ask prompt
 knowledge -> search, process, and promote note knowledge
 
 brex <command> -h or --help for more info
