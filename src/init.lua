@@ -14,7 +14,7 @@ get_help_string = require("help").get_help_string
 sql_init = """
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE notes (
+CREATE TABLE IF NOT EXISTS notes (
     time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
     subject TEXT,
     title TEXT,
@@ -22,7 +22,7 @@ CREATE TABLE notes (
     PRIMARY KEY (title, subject)
 );
 
-CREATE TABLE connections (
+CREATE TABLE IF NOT EXISTS connections (
     source_title TEXT NOT NULL,
     source_subject TEXT,
     target_title TEXT NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE connections (
     PRIMARY KEY (source_title, source_subject, target_title, target_subject)
 );
 
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY,
     time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
     content TEXT,

@@ -9,8 +9,6 @@ generate_id = bx_utils.generate_id
 
 -- Constants for agent-tagged tasks
 AGENT_TAG = "agent"
-dataframes = require("dataframes")
-view = dataframes.view
 agent_engine = require("agent_engine")
 
 -- Utility to check if a column exists in a table
