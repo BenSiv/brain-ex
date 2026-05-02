@@ -18,6 +18,31 @@ dataframes = require("dataframes")
 view = dataframes.view
 sync = require("sync")
 
+function column_exists(brain_file, table_name, column_name)
+    query = "PRAGMA table_info(" .. table_name .. ");"
+    columns = local_query(brain_file, query)
+    if columns == nil then
+        return false
+    end
+    for _, col in pairs(columns) do
+        if col["name"] == column_name or col[2] == column_name then
+            return true
+        end
+    end
+    return false
+end
+
+function ensure_owner_column(brain_file)
+    check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
+    if local_query(brain_file, check_table) == nil or #local_query(brain_file, check_table) == 0 then
+        return
+    end
+
+    if not column_exists(brain_file, "tasks", "owner") then
+        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
+    end
+end
+
 function check_overdue(due_to)
     if due_to == nil or due_to == "" then
         return false
@@ -97,8 +122,10 @@ function escape_sql(str)
 end
 
 function add_task(brain_file, args)
+    ensure_owner_column(brain_file)
     -- get note info
     subject = args["subject"]
+    owner = args["owner"]
     content = args["content"] or ""
     time_input_str = args["due_to"] or ""
     due_to = dates.normalize_datetime(time_input_str)
@@ -125,12 +152,16 @@ function add_task(brain_file, args)
     if subject  !=  nil then
         esc_subject = "'" .. escape_sql(subject) .. "'"
     end
+    esc_owner = "NULL"
+    if owner  !=  nil and owner  !=  "" then
+        esc_owner = "'" .. escape_sql(owner) .. "'"
+    end
     esc_content = escape_sql(content)
     
     insert_statement = string.format("""
-    INSERT INTO tasks (id, subject, content, due_to, overdue, done)
-    VALUES ('%s', %s, '%s', '%s', '%s', NULL);
-    """, id, esc_subject, esc_content, due_to, esc_overdue)
+    INSERT INTO tasks (id, subject, content, due_to, overdue, done, owner)
+    VALUES ('%s', %s, '%s', '%s', '%s', NULL, %s);
+    """, id, esc_subject, esc_content, due_to, esc_overdue, esc_owner)
     -- write note info
     success = local_update(brain_file, insert_statement)
 	if success == nil then
@@ -141,6 +172,7 @@ function add_task(brain_file, args)
 end
 
 function list_tasks(brain_file, args)
+    ensure_owner_column(brain_file)
     tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("No pending tasks")
@@ -150,12 +182,17 @@ function list_tasks(brain_file, args)
     update_overdue(brain_file)
 
     subject = args["subject"] or ""
+    owner = args["owner"] or ""
     time_input_str = args["due_to"] or ""
     due_to = dates.normalize_datetime(time_input_str)
 
     query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
     if subject  !=  "" then
         query = query .. string.format("AND subject = '%s'", escape_sql(subject))
+    end
+
+    if owner  !=  "" then
+        query = query .. string.format("AND owner = '%s' ", escape_sql(owner))
     end
 
     if due_to  !=  nil then
@@ -246,6 +283,7 @@ function last_done(brain_file, args)
 end
 
 function do_task(brain_file, cmd_args)
+    ensure_owner_column(brain_file)
     -- print("Debug: cmd_args[1] IN: " .. tostring(cmd_args[1]))
     if cmd_args[1]  !=  nil and string.sub(cmd_args[1], 1, 1)  !=  "-" then
         table.insert(cmd_args, 1, "-d")
@@ -259,6 +297,7 @@ function do_task(brain_file, cmd_args)
         -m --comment arg string false
         -c --content arg string false
         -n --number arg number false
+        -o --owner arg string false
     """
 
     help_string = help.get_help_string(arg[0])

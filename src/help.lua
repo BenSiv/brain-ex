@@ -12,7 +12,7 @@ brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | last >
 brex [brain] update < file >
 brex [brain] sql
-brex [brain] agent < view | tasks | ask | note | task | run >
+brex [brain] agent < view | ask | note | task >
 brex [brain] knowledge < search | sync | browse | process | queue | promote >
 
 defaults:
@@ -141,6 +141,7 @@ Required:
 Optional:
 -s --subject <subject> Task's subject, defaults to NULL.
 -t --due_to <due_to> Task's due date in the format yyyy-mm-dd, defaults to 24 hours from now.
+-o --owner <owner> Task owner, such as "agent".
 
 Examples:
 brex task add --content "This is a new task"
@@ -168,11 +169,13 @@ Lists all tasks that are not done yet.
 Optional: 
 -s --subject <subject> Filter tasks by subject.
 -t --due_to <due_to> Filter tasks by due date in the format yyyy-mm-dd.
+-o --owner <owner>   Filter tasks by owner, for example "agent".
 
 Example:
 brex task list
 brex task list --subject "work"
 brex task list --due_to "2024-12-31"
+brex task list --owner "agent"
         """,
         ["brex task done"] = """
 Description:
@@ -231,19 +234,16 @@ brex update --file "/path/to/vault/subject/note.md"
 
     	Subcommands:
     	view             Displays the agent log file in a pager.
-    	tasks            List all tasks assigned to the agent.
     	ask <prompt>     Ask the general brain assistant.
     	note <prompt>    Run the note-focused assistant.
     	task <prompt>    Run the task-focused assistant.
-    	run <prompt>     Legacy alias for a direct agent run.
 
     	Examples:
     	brex agent view
-    	brex agent tasks
     	brex agent ask "what did I write about retries?"
     	brex agent note "capture meeting notes for backend"
     	brex agent task "create follow-ups from yesterday"
-    	brex agent run "remind me to check the database"
+    	brex task list --owner "agent"
         """,
         ["brex knowledge"] = """
         Description:

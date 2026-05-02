@@ -52,6 +52,8 @@ teardown() {
     [[ "$output" == *"ask <prompt>"* ]]
     [[ "$output" == *"note <prompt>"* ]]
     [[ "$output" == *"task <prompt>"* ]]
+    [[ "$output" != *"agent tasks"* ]]
+    [[ "$output" != *"agent run"* ]]
 }
 
 @test "agent ask works" {
@@ -78,6 +80,18 @@ teardown() {
     run $BREX mybrain agent task "create a task"
     [ "$status" -eq 0 ]
     grep -q "Agent task" tmp_vault/tasks.tsv
-    COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM tasks WHERE content='Agent task' AND subject='ops';")
+    COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM tasks WHERE content='Agent task' AND subject='ops' AND owner='agent';")
     [ "$COUNT" -eq 1 ]
+}
+
+@test "agent tasks subcommand is rejected with task list guidance" {
+    run $BREX mybrain agent tasks
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"brex task list --owner agent"* ]]
+}
+
+@test "agent run subcommand is rejected with explicit alternatives" {
+    run $BREX mybrain agent run "hello"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"brex agent ask"* ]]
 }

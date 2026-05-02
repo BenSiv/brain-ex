@@ -147,3 +147,13 @@ teardown() {
     COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=701 AND content='From TSV';")
     [ "$COUNT" -eq 1 ]
 }
+
+@test "task list with --owner filters agent tasks" {
+    brex task add --content "Agent owned task" --subject "ops" --due_to "2026-05-03" --owner "agent"
+    brex task add --content "User task" --subject "ops" --due_to "2026-05-03" --owner "user"
+
+    run brex task list --owner agent
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Agent owned task" ]]
+    [[ ! "$output" =~ "User task" ]]
+}

@@ -31,6 +31,9 @@ end
 function bridge.dispatch(brain_file, tool_name, method, args)
     if tool_name == "task" then
         if method == "add" then
+            if args["owner"] == nil or args["owner"] == "" then
+                args["owner"] = "agent"
+            end
             return task.add_task(brain_file, args)
         elseif method == "done" then
             return task.mark_done(brain_file, args)
