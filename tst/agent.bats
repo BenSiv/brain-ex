@@ -1,17 +1,18 @@
 #!/usr/bin/env bats
 
-CONFIG="$HOME/.config/brain-ex/config.yaml"
+load test_helper.bash
 BREX="brex"
 
 resolve_brex() {
-    if [ -x "./bin/brex" ]; then
-        BREX="./bin/brex"
+    if [ -x "$PROJECT_ROOT/bin/brex" ]; then
+        BREX="$PROJECT_ROOT/bin/brex"
     else
         BREX="brex"
     fi
 }
 
 setup() {
+    setup_test_env
     resolve_brex
     mkdir -p "$HOME"
     rm -rf tmp_vault
@@ -27,7 +28,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault
     rm -f mybrain.db
-    rm -f "$CONFIG"
+    cleanup_test_env
 }
 
 @test "agent command defaults to view" {
@@ -75,10 +76,12 @@ teardown() {
     run $BREX mybrain agent ask hello multiple words
     [ "$status" -eq 0 ]
     [[ "$output" == *"joined prompt works"* ]]
+    [[ "$output" != *"Warning: subagent"* ]]
     # Also test the default path
     run $BREX mybrain agent hello multiple words
     [ "$status" -eq 0 ]
     [[ "$output" == *"joined prompt works"* ]]
+    [[ "$output" != *"Warning: subagent"* ]]
 }
 
 @test "agent note can write through the vault sync path" {

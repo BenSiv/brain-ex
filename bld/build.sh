@@ -78,9 +78,9 @@ pushd "$TMPDIR" >/dev/null
 
 # Construct file list
 # brex.lua must be first (main entry point)
-# Exclude brex.lua from wildcard to avoid dupe (though shell expansion handles non-overlapping well, here we manually order)
-FILES="brex.lua $(/usr/bin/find . -type f -name '*.lua' | grep -v '\./brex\.lua$' | sed 's|^\./||')"
+FILES="brex.lua $(find . -type f -name '*.lua' | grep -v '^\./brex\.lua$' | sed 's|^\./||' | tr '\n' ' ')"
 
+echo "Files to bundle: $FILES"
 echo "Generating C source"
 run_cmd env CC="" "$LUAM_BIN" "$STATIC_TOOL" \
     $FILES \

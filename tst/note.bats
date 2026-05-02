@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 
-CONFIG="$HOME/.config/brain-ex/config.yaml"
+load test_helper.bash
 
 setup() {
+    setup_test_env
     mkdir -p "$HOME"
     export PATH="$PWD/bin:$PATH"
     rm -rf tmp_vault
@@ -14,7 +15,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
-    rm -f "$CONFIG"
+    cleanup_test_env
 }
 
 @test "write content to log note" {

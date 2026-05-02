@@ -47,7 +47,15 @@ function do_agent(brain_file, cmd_args)
 
     if subcommand == nil or subcommand == "" then
         subcommand = "view"
-    elseif subcommand != "view" and subcommand != "ask" and subcommand != "note" and subcommand != "task" and subcommand != "process_tasks" and subcommand != "-h" and subcommand != "--help" then
+    elseif not (
+        subcommand == "view" or
+        subcommand == "ask" or
+        subcommand == "note" or
+        subcommand == "task" or
+        subcommand == "process_tasks" or
+        subcommand == "-h" or
+        subcommand == "--help"
+    ) then
         if subcommand == "tasks" then
             print("Use 'brex task list --owner agent' to view agent-created tasks.")
             return "error"

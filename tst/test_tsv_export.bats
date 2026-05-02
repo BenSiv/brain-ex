@@ -1,7 +1,9 @@
+#!/usr/bin/env bats
 
-CONFIG="$HOME/.config/brain-ex/config.yaml"
+load test_helper.bash
 
 setup() {
+    setup_test_env
     mkdir -p "$HOME"
     export PATH="$PWD/bin:$PATH"
     rm -rf tmp_vault_tsv
@@ -11,7 +13,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault_tsv
     rm -f tmp_vault_tsv.db
-    rm -f "$CONFIG"
+    cleanup_test_env
 }
 
 @test "backup tsv export has correct headers and includes comment" {

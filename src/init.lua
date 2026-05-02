@@ -44,19 +44,18 @@ CREATE TABLE tasks (
 """
 
 function build_config_dir(home_dir)
-	config_dir = joinpath(home_dir, ".config")
-	status = create_dir_if_not_exists(config_dir)
-	if status == nil then
-		return
-	end
+    config_root = joinpath(home_dir, ".config")
+    status = create_dir_if_not_exists(config_root)
+    if status == nil then
+        return
+    end
 
-	bx_config_dir = joinpath(home_dir, ".config", "brain-ex")
-	status = create_dir_if_not_exists(bx_config_dir)
+    bx_config_dir = joinpath(config_root, "brain-ex")
+    status = create_dir_if_not_exists(bx_config_dir)
+    if status == nil then
+        return
+    end
 
-	if status == nil then
-		return
-	end
-	
     return bx_config_dir
 end
 

@@ -1,17 +1,18 @@
 #!/usr/bin/env bats
 
-CONFIG="$HOME/.config/brain-ex/config.yaml"
+load test_helper.bash
 BREX="brex"
 
 resolve_brex() {
-    if [ -x "./bin/brex" ]; then
-        BREX="./bin/brex"
+    if [ -x "$PROJECT_ROOT/bin/brex" ]; then
+        BREX="$PROJECT_ROOT/bin/brex"
     else
         BREX="brex"
     fi
 }
 
 setup() {
+    setup_test_env
     resolve_brex
     mkdir -p "$HOME"
     rm -rf tmp_vault
@@ -23,7 +24,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
-    rm -f "$CONFIG"
+    cleanup_test_env
 }
 
 @test "update with --file flag updates existing note" {

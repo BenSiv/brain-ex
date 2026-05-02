@@ -15,7 +15,6 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     
     status, provider = pcall(require, "agent_providers." .. provider_name)
     if status == false then
-        -- Fallback for flattened compiled binary
         status, provider = pcall(require, provider_name)
     end
 
@@ -25,17 +24,32 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     end
     
     system_prompt = ""
-    if subagent != nil and subagent != "" then
+    if not (subagent == nil or subagent == "") then
         p_status, loaded_prompt = pcall(require, "agents." .. subagent)
+        
         if p_status == false then
-            -- Fallback for flattened compiled binary
-            p_status, loaded_prompt = pcall(require, subagent)
+            -- If subagent is 'worker', it might be at the root if legacy or compiled weirdly
+            -- but generally we expect agents.<name>
+            p_status_fallback, loaded_prompt_fallback = pcall(require, subagent)
+            if p_status_fallback then
+                p_status = true
+                loaded_prompt = loaded_prompt_fallback
+            end
         end
 
-        if p_status != false then
+        if p_status == true then
             system_prompt = loaded_prompt
         else
-            print("Warning: subagent '" .. subagent .. "' not found. Running without system prompt.")
+            -- Check if it's a "module not found" or an internal error in the module
+            missing_module = false
+            if type(loaded_prompt) == "string" then
+                missing_module = string.match(loaded_prompt, "module '.*' not found") != nil
+            end
+            if missing_module then
+                print("Warning: subagent '" .. subagent .. "' not found.")
+            else
+                print("Error loading subagent '" .. subagent .. "': " .. tostring(loaded_prompt))
+            end
             system_prompt = ""
         end
     end
