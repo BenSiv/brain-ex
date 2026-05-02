@@ -7,6 +7,8 @@ database = require("database")
 local_query = database.local_query
 config = require("config")
 get_brain_path = config.get_brain_path
+dataframes = require("dataframes")
+view = dataframes.view
 function sqlite_shell(brain_file)
     os.execute("sqlite3 -column -header " .. brain_file)
 end
@@ -16,7 +18,10 @@ function sqlite_query(brain_file, query)
     if results == nil then
         return nil
     end
-    view(results)
+    if arg[0] != nil and string.match(arg[0], "sql") != nil then
+        view(results)
+    end
+    return results
 end
 
 function do_sql(brain_file, cmd_args)
@@ -40,6 +45,7 @@ function do_sql(brain_file, cmd_args)
 end
 
 sql.do_sql = do_sql
+sql.sqlite_query = sqlite_query
 
 if string.match(arg[0], "sql.lua$")  !=  nil then
     do_sql(get_brain_path(), arg)

@@ -73,6 +73,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
         end
 
         tool_result, tool_err = bridge.dispatch(brain_file, tool_name, method_name, args)
+
         tool_summary = tostring(tool_result)
         if tool_err != nil then
             tool_summary = "ERROR: " .. tostring(tool_err)

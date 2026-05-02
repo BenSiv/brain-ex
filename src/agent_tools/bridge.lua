@@ -65,7 +65,20 @@ function bridge.dispatch(brain_file, tool_name, method, args)
         end
     elseif tool_name == "sql" then
         if method == "query" then
-            return sql.sqlite_query(brain_file, args["query"])
+            rows = sql.sqlite_query(brain_file, args["query"])
+            if rows == nil then return "Error: Query failed" end
+            if #rows == 0 then return "(empty)" end
+            
+            -- Dynamically determine columns from first row if possible
+            columns = {}
+            for k, _ in pairs(rows[1]) do
+                if type(k) == "string" then
+                    table.insert(columns, k)
+                end
+            end
+            table.sort(columns)
+            
+            return normalize_rows(rows, columns)
         end
     end
     return nil, "Tool not found"

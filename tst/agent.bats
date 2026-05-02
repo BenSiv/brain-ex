@@ -102,6 +102,45 @@ teardown() {
     [ "$COUNT" -eq 1 ]
 }
 
+@test "agent can retrieve note data using note.read" {
+    # Pre-create a note
+    mkdir -p tmp_vault/research
+    echo "Existing research content" > tmp_vault/research/study.md
+    $BREX mybrain update --file tmp_vault/research/study.md
+
+    export BREX_MOCK_RESPONSE_1=$'<tool>note</tool>\n<method>read</method>\n<args>subject=research\ntitle=study</args>'
+    export BREX_MOCK_RESPONSE_2="<done>I found the note</done>"
+    
+    run $BREX mybrain agent ask "What is in the study note?"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Agent requested tool: note.read"* ]]
+    [[ "$output" == *"I found the note"* ]]
+}
+
+@test "agent can retrieve tasks using task.list" {
+    $BREX mybrain task add --content "Test task 1" --subject "test"
+    
+    export BREX_MOCK_RESPONSE_1=$'<tool>task</tool>\n<method>list</method>\n<args></args>'
+    export BREX_MOCK_RESPONSE_2="<done>I see your tasks</done>"
+    
+    run $BREX mybrain agent ask "What tasks do I have?"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Agent requested tool: task.list"* ]]
+    [[ "$output" == *"I see your tasks"* ]]
+}
+
+@test "agent can execute raw sql queries" {
+    $BREX mybrain note --content "SQL test note"
+    
+    export BREX_MOCK_RESPONSE_1=$'<tool>sql</tool>\n<method>query</method>\n<args>query=SELECT content FROM notes WHERE content LIKE \'%SQL test%\';</args>'
+    export BREX_MOCK_RESPONSE_2="<done>I checked the database</done>"
+    
+    run $BREX mybrain agent ask "Find notes about SQL test"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Agent requested tool: sql.query"* ]]
+    [[ "$output" == *"I checked the database"* ]]
+}
+
 @test "agent tasks subcommand is rejected with task list guidance" {
     run $BREX mybrain agent tasks
     [ "$status" -ne 0 ]
