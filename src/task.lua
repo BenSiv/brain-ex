@@ -127,18 +127,20 @@ function add_task(brain_file, args)
     subject = args["subject"]
     owner = args["owner"]
     content = args["content"] or ""
-    time_input_str = args["due_to"] or ""
-    due_to = dates.normalize_datetime(time_input_str)
+    
+    due_to = nil
+    if args["due_to"] != nil then
+        due_to = dates.normalize_datetime(args["due_to"])
+        if due_to == nil then
+            return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
+        end
+    else
+        current_time = os.time()
+        due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
+    end
 
     if content == "" then
         return nil, "Must provide task content"
-    end
-
-	if due_to == nil then
-		current_time = os.time()
-		due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
-    elseif dates.is_valid_timestamp(due_to) == false then
-        return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
     end
 
     overdue_bool = check_overdue(due_to)
@@ -183,8 +185,14 @@ function list_tasks(brain_file, args)
 
     subject = args["subject"] or ""
     owner = args["owner"] or ""
-    time_input_str = args["due_to"] or ""
-    due_to = dates.normalize_datetime(time_input_str)
+    
+    due_to = nil
+    if args["due_to"] != nil then
+        due_to = dates.normalize_datetime(args["due_to"])
+        if due_to == nil then
+            return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
+        end
+    end
 
     query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
     if subject  !=  "" then
@@ -228,16 +236,16 @@ end
 
 function delay_due(brain_file, args)
     task_id = args["id"] or ""
-    time_input_str = args["due_to"] or ""
-    due_to = dates.normalize_datetime(time_input_str)
-
-    if due_to == nil then
-        -- current_due_to = local_query(brain_file, "SELECT due_to FROM tasks WHERE id = '" .. task_id .. "'")
-   		-- due_to = os.date("%Y-%m-%d %H:%M:%S", current_due_to + 86400) -- one day later
+    
+    due_to = nil
+    if args["due_to"] != nil then
+        due_to = dates.normalize_datetime(args["due_to"])
+        if due_to == nil then
+            return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
+        end
+    else
    		current_time = os.time()
         due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
-    elseif dates.is_valid_timestamp(due_to) == false then
-        return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
     end
 
     overdue_bool = check_overdue(due_to)

@@ -158,3 +158,24 @@ teardown() {
     [[ "$output" =~ "Agent owned task" ]]
     [[ ! "$output" =~ "User task" ]]
 }
+
+@test "task add with invalid due_to returns error" {
+    run brex task add --content "Invalid task" --due_to "Friday"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Due To must conform to time-stamp format" ]]
+}
+
+@test "task list with invalid due_to returns error" {
+    brex task add --content "Valid task"
+    run brex task list --due_to "Friday"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Due To must conform to time-stamp format" ]]
+}
+
+@test "task delay with invalid due_to returns error" {
+    brex task add --content "Task to delay"
+    TASK_ID=$(sqlite3 tmp_vault.db "select id from tasks limit 1;")
+    run brex task delay --id "$TASK_ID" --due_to "Friday"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Due To must conform to time-stamp format" ]]
+}

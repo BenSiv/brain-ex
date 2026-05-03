@@ -1,142 +1,112 @@
-# brain-ex Demo
+# Brain-Ex Demo: Feature Coverage
 
 ## Opening
 
-Hi everyone, today I’m going to show you **brain-ex**, a minimalist, fast, and intuitive note-taking and task management app, designed for people who live in the terminal.  
-You can think of it as a brain extension that works as a stand-alone CLI tool, or as an Obsidian vault companion, so you can capture notes and manage tasks without leaving your workflow.
+Hi everyone, today I’m going to show you **brain-ex**, a minimalist, fast, and intuitive note-taking and task management app.  
+It's designed to be your terminal's brain extension, supporting multiple contexts, a deep knowledge pool, and integrated AI assistance.
 
 ---
 
-## Intro Concept
+## Section 1 — Multi-Brain Setup
 
-The philosophy is simple:  
-1. Don’t force a UI switch when you’re deep in coding.  
-2. Make capturing ideas and tasks as frictionless as possible.  
-3. Keep the data in plain text or SQLite, so you own it.
+In Brain-Ex, you can manage separate "brains" for different parts of your life.
+
+```bash
+# Setup a work brain
+brex init --vault work_vault --name work
+
+# Setup a personal brain
+brex init --vault personal_vault --name personal
+```
+
+You can list all your brains and switch between them easily.
+
+```bash
+brex brain list
+brex brain use --name personal
+```
 
 ---
 
-## Section 1 — Initialization
+## Section 2 — Enhanced Note Taking
+
+Beyond simple notes, Brain-Ex supports quick logging and relationships.
 
 ```bash
-brex init
+# Quick log (automatically timestamped)
+brex note --content "Bought groceries for the week"
+
+# Note with subject and links
+brex note add --title "Travel Plans" --content "Thinking about Japan in Autumn" --subject "travel" --links "bucket-list,vacation"
 ```
 
-To start, I’ll run `brex init`.  
-This creates a local SQLite database for notes and tasks.  
-I can also connect it to an **Obsidian vault** so my CLI notes sync directly with my markdown files.
+You can also connect existing notes to build your second brain.
 
 ```bash
-brex init --vault ~/Documents/my_vault --editor micro
+brex note connect --links "finances"
 ```
-
-Here I’m pointing it to my vault and telling it to open notes in micro by default.
 
 ---
 
-## Section 2 — Notes
+## Section 3 — Advanced Task Management
 
-Let’s add today’s note. This is perfect for journaling your work progress or writing quick reminders.
-
-```bash
-brex note --content "Refactored authentication flow"
-```
-
-This automatically tags it with today’s date and the default subject `daily`.
+Manage tasks across brains and even delegate them to the AI agent.
 
 ```bash
-brex note add --title "API rate limit fix" \
---content "Patched endpoint to throttle requests" \
---subject "backend" \
---links "rate-limit,bugfix"
+# Add a task to the 'work' brain without switching context
+brex work task add --content "Finalize Q2 report" --subject "reporting" --due_to "2026-05-15"
+
+# Delegate a task to the agent
+brex task add --content "Organize digital photos" --owner "agent"
 ```
 
-Notes can have titles, subjects, and links to other notes — creating a web of related ideas.
+Listing tasks supports filtering by owner or subject.
+
+```bash
+brex task list --owner "agent"
+```
+
+And you can review your accomplishments.
+
+```bash
+brex task last --number 3
+```
 
 ---
 
-## Section 3 — Editing and Browsing Notes
+## Section 4 — Knowledge Pool & RAG
+
+Brain-Ex includes a "Knowledge Pool" system that indexes your notes for semantic search and refinement.
 
 ```bash
-brex note edit --title "API rate limit fix"
+# Sync your notes into the searchable pool
+brex knowledge sync
+
+# Perform a semantic search
+brex knowledge search "Japan"
+
+# Browse and process knowledge items
+brex knowledge browse
+brex knowledge process
 ```
-
-If I want to expand a note, I just edit it in my favorite editor.
-
-```bash
-brex note last --subject backend --number 3
-```
-
-Here are the last three backend notes — super fast to retrieve.
 
 ---
 
-## Section 4 — Tasks
+## Section 5 — AI Agent Interaction
+
+The integrated agent can help you query your knowledge and manage your tasks.
 
 ```bash
-brex task add --content "Deploy new rate limiting patch" \
---subject "backend" \
---due_to "2025-08-15"
+# Ask the general assistant
+brex agent "What are my upcoming travel plans?"
+
+# Use a specialized task agent
+brex agent task "Remind me to call the bank tomorrow"
 ```
-
-Tasks can have subjects and due dates. I can also list all open tasks…
-
-```bash
-brex task list
-```
-
-…mark them done…
-
-```bash
-brex task done --id 1 --comment "Deployed successfully"
-```
-
-…or delay them in bulk if needed.
-
----
-
-## Section 5 — Updating from Vault
-
-```bash
-brex update
-```
-
-If I’ve made changes in Obsidian, `brex update` will rebuild the database from the vault.  
-I can also update a single note file without touching the rest.
-
----
-
-## Section 6 — SQL Mode
-
-```bash
-brex sql --query "SELECT title, subject FROM notes"
-```
-
-Since the database is SQLite, I can query it directly — perfect for quick data analysis.
-
----
-
-## Section 7 — Agent Interaction
-
-`brex` now features an integrated AI agent, allowing you to manage your knowledge and tasks through simple natural language commands.
-
-```bash
-# View the agent log file
-brex agent view
-
-# List tasks assigned to the agent
-brex agent tasks
-
-# Ask the agent to perform an action
-brex agent run "Remind me to refactor the authentication module"
-```
-
-The agent automatically tracks tasks and manages your knowledge base, making it easy to offload management tasks while you stay in your flow.
 
 ---
 
 ## Closing
 
-That’s **brain-ex**, your notes and tasks, right where you live as a programmer:  
-in the terminal, minimal, and always ready.
-Whether you use Obsidian or not, brain-ex is built to fit into your flow without stealing your focus.
+That’s **brain-ex**. It keeps your data in plain Markdown and SQLite, giving you both the speed of the terminal and the power of a modern knowledge management system.
+Minimal, fast, and built for your flow.
