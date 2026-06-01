@@ -48,25 +48,39 @@ brex note connect --links "finances"
 
 ---
 
-## Section 3 — Advanced Task Management
+## Section 3 — Advanced Task Management & Eisenhower Prioritization
 
-Manage tasks across brains and even delegate them to the AI agent.
+Manage tasks across brains, delegate them to the AI agent, and leverage our new **Eisenhower prioritization system**! Task creation now supports optional deadlines, importance ratings (1-5), and manual urgency ratings (1-5). 
 
-```bash
-# Add a task to the 'work' brain without switching context
-brex work task add --content "Finalize Q2 report" --subject "reporting" --due_to "2026-05-15"
-
-# Delegate a task to the agent
-brex task add --content "Organize digital photos" --owner "agent"
-```
-
-Listing tasks supports filtering by owner or subject.
+Tasks are dynamically grouped into priority quadrants with visual badges and sorted by priority score ($Importance \times Active\_Urgency$), with overdue tasks getting an automatic active urgency boost to 5.
 
 ```bash
-brex task list --owner "agent"
+# Add an urgent, high-importance task with a hard deadline
+# (Deadlines within 24 hours or overdue are automatically boosted to Active Urgency 5)
+brex task add --content "Urgent security patch" --importance 5 --urgency 4 --due_to "2026-06-02"
+
+# Add a strategic task with high importance but no hard deadline (defaults to NULL/listed last)
+brex task add --content "Design architecture plan" --importance 4 --urgency 2
+
+# Add a tactical task with low importance but high manual urgency
+brex task add --content "Reply to team emails" --importance 2 --urgency 4
+
+# Delegate a backlog task to the agent
+brex task add --content "Organize digital photos" --importance 1 --urgency 1 --owner "agent"
 ```
 
-And you can review your accomplishments.
+Listing tasks dynamically orders them by priority score and highlights their priority quadrants:
+* `🔥 Q1 (Critical)`: High Importance ($\ge 4$), High Urgency ($\ge 4$)
+* `⭐ Q2 (Strategic)`: High Importance ($\ge 4$), Low Urgency ($< 4$)
+* `⚡ Q3 (Tactical)`: Low Importance ($< 4$), High Urgency ($\ge 4$)
+* `💤 Q4 (Backlog)`: Low Importance ($< 4$), Low Urgency ($< 4$)
+
+```bash
+# List all pending tasks ordered by priority score
+brex task list
+```
+
+You can review your accomplishments as well.
 
 ```bash
 brex task last --number 3

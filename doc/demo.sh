@@ -80,22 +80,20 @@ pe 'brex note add --title "Travel Plans" --content "Thinking about Japan in Autu
 comment "# Connect the last log note to another note"
 pe 'brex note connect --links "finances"'
 
-comment "# --- Advanced Task Management ---\n"
-comment "# Add a task for the 'work' brain without switching"
-pe 'brex work task add --content "Finalize Q2 report" --subject "reporting" --due_to "2026-05-15"'
+comment "# --- Advanced Task Management & Eisenhower Prioritization ---\n"
+comment "# Add an urgent, high-importance task with a hard deadline"
+pe 'brex task add --content "Urgent security patch" --importance 5 --urgency 4 --due_to "2026-06-02"'
 
-comment "# Show last notes in personal brain"
-pe 'brex note last --number 3'
+comment "# Add a strategic task with high importance but no hard deadline"
+pe 'brex task add --content "Design architecture plan" --importance 4 --urgency 2'
 
-pe "clear"
+comment "# Add a tactical task with low importance but high manual urgency"
+pe 'brex task add --content "Reply to team emails" --importance 2 --urgency 4'
 
-comment "# Add a task to personal brain and delegate to agent"
-pe 'brex task add --content "Organize digital photos" --owner "agent" --due_to "2026-06-01"'
+comment "# Add a backlog task and delegate to agent"
+pe 'brex task add --content "Organize digital photos" --importance 1 --urgency 1 --owner "agent"'
 
-comment "# List tasks owned by the agent"
-pe 'brex task list --owner "agent"'
-
-comment "# List all pending tasks"
+comment "# List all pending tasks (sorted by score with Eisenhower quadrant badges!)"
 pe 'brex task list'
 
 # Get an ID for marking done
