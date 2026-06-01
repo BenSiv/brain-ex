@@ -70,6 +70,7 @@ function save_config(path, conf)
     if conf.editor  !=  nil then io.write(file, "editor: " .. conf.editor .. "\n") end
     if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end
     if conf.git  !=  nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+    if conf.hide_due_to != nil then io.write(file, "hide_due_to: " .. tostring(conf.hide_due_to) .. "\n") end
     
     if conf.brains  !=  nil then
         io.write(file, "brains:\n")

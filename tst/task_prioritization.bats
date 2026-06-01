@@ -115,3 +115,20 @@ EOF
 )
     [ "$ORDERED_TASKS" = "$EXPECTED" ]
 }
+
+@test "prioritization: hide due_to column via config setting" {
+    # 1. By default, due_to is visible
+    brex tmp_vault task add --content "Default task"
+    run brex tmp_vault task list
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "due_to" ]]
+
+    # 2. Set hide_due_to: true in config
+    echo "hide_due_to: true" >> "$HOME/.config/brain-ex/config.yaml"
+
+    # 3. due_to should be hidden
+    run brex tmp_vault task list
+    [ "$status" -eq 0 ]
+    [[ ! "$output" =~ "due_to" ]]
+}
+

@@ -59,6 +59,7 @@ function save_config_file(path, conf)
     if conf.editor  !=  nil then io.write(file, "editor: " .. conf.editor .. "\n") end
     if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end
     if conf.git  !=  nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
+    if conf.hide_due_to != nil then io.write(file, "hide_due_to: " .. tostring(conf.hide_due_to) .. "\n") end
     if conf.agent_provider != nil then io.write(file, "agent_provider: " .. conf.agent_provider .. "\n") end
     if conf.agent_model != nil then io.write(file, "agent_model: " .. conf.agent_model .. "\n") end
     if conf.embedding_provider != nil then io.write(file, "embedding_provider: " .. conf.embedding_provider .. "\n") end

@@ -301,7 +301,17 @@ function list_tasks(brain_file, args)
             task_row.content = color_code .. tostring(task_row.content or "") .. reset_code
             task_row.due_to = color_code .. due_str .. reset_code
         end
-        view(result, {columns={"id", "priority", "subject", "content", "due_to"}, line_length=999})
+        cfg = config.get_config()
+        hide_due = false
+        if cfg  !=  nil and (cfg["hide_due_to"] == true or cfg["hide_due_to"] == "true") then
+            hide_due = true
+        end
+        
+        cols = {"id", "priority", "subject", "content"}
+        if not hide_due then
+            table.insert(cols, "due_to")
+        end
+        view(result, {columns=cols, line_length=999})
     else
         print("No pending tasks")
     end
