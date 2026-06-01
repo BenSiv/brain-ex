@@ -6,6 +6,7 @@
 DEMO_MAGIC_PATH="${DEMO_MAGIC_PATH:-~/demo-magic/demo-magic.sh}"
 
 # Parse arguments
+DEMO_MAGIC_ARGS=()
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -m|--demo-magic) DEMO_MAGIC_PATH="$2"; shift ;;
@@ -14,7 +15,13 @@ while [[ "$#" -gt 0 ]]; do
             echo "Options:"
             echo "  -m, --demo-magic PATH  Path to demo-magic.sh (default: $DEMO_MAGIC_PATH)"
             echo "  -h, --help             Show this help"
+            echo "  Other options (passed to demo-magic):"
+            echo "    -n                   No wait mode"
+            echo "    -w <seconds>         Auto-proceed after specified seconds"
             exit 0
+            ;;
+        *)
+            DEMO_MAGIC_ARGS+=("$1")
             ;;
     esac
     shift
@@ -22,7 +29,7 @@ done
 
 # Try to source demo-magic, fallback to simple echo if not found
 if [ -f "$DEMO_MAGIC_PATH" ]; then
-  source "$DEMO_MAGIC_PATH"
+  source "$DEMO_MAGIC_PATH" "${DEMO_MAGIC_ARGS[@]}"
 else
   echo "Warning: demo-magic.sh not found at $DEMO_MAGIC_PATH. Falling back to simple execution."
   function pe() { echo "> $1"; eval "$1"; }
