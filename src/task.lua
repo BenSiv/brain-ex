@@ -366,6 +366,50 @@ function delay_due(brain_file, args)
     return persist_tasks(brain_file)
 end
 
+function update_priority(brain_file, args)
+    task_id = args["id"] or ""
+    importance_str = args["importance"]
+    urgency_str = args["urgency"]
+
+    if task_id == "" then
+        return nil, "Must provide task id"
+    end
+
+    if importance_str == nil and urgency_str == nil then
+        return nil, "Must provide importance or urgency to update"
+    end
+
+    updates = {}
+    if importance_str != nil then
+        importance = tonumber(importance_str)
+        if importance == nil or importance < 1 or importance > 5 then
+            return nil, "Importance must be an integer between 1 and 5"
+        end
+        table.insert(updates, "importance=" .. importance)
+    end
+
+    if urgency_str != nil then
+        urgency = tonumber(urgency_str)
+        if urgency == nil or urgency < 1 or urgency > 5 then
+            return nil, "Urgency must be an integer between 1 and 5"
+        end
+        table.insert(updates, "urgency=" .. urgency)
+    end
+
+    update_statement = nil
+    if task_id == "*" then
+        update_statement = string.format("UPDATE tasks SET %s WHERE done IS NULL;", table.concat(updates, ", "))
+    else
+        update_statement = string.format("UPDATE tasks SET %s WHERE id='%s';", table.concat(updates, ", "), task_id)
+    end
+
+    status = local_update(brain_file, update_statement)
+    if status == nil then
+        return nil, "Failed to update task priority"
+    end
+    return persist_tasks(brain_file)
+end
+
 function last_done(brain_file, args)
     subject = args["subject"] or ""
     num = args["number"] or 5
@@ -423,13 +467,15 @@ function do_task(brain_file, cmd_args)
             status, err = mark_done(brain_file, args)
         elseif args["do"] == "delay" then
             status, err = delay_due(brain_file, args)
+        elseif args["do"] == "prioritize" or args["do"] == "rank" then
+            status, err = update_priority(brain_file, args)
         elseif args["do"] == "last" then
             status, err = last_done(brain_file, args)
         elseif args["do"] == nil then
             status, err = add_task(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
-            print("Available subcommands: add, list, done, delay, last")
+            print("Available subcommands: add, list, done, delay, prioritize, rank, last")
             return "success" -- Help printed
         end
     end
@@ -445,6 +491,7 @@ task.add_task = add_task
 task.list_tasks = list_tasks
 task.mark_done = mark_done
 task.delay_due = delay_due
+task.update_priority = update_priority
 task.last_done = last_done
 
 if string.match(arg[0], "task.lua$")  !=  nil then

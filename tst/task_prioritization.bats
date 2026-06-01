@@ -4,6 +4,7 @@ setup() {
     export PATH="/home/bensiv/Projects/brain-ex/bin:$PATH"
     rm -rf tmp_vault
     rm -f tmp_vault.db
+    rm -f "$HOME/.config/brain-ex/config.yaml"
     cleanup_test_env
     brex init --vault tmp_vault --editor micro
 }
@@ -11,6 +12,7 @@ setup() {
 teardown() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
+    rm -f "$HOME/.config/brain-ex/config.yaml"
     cleanup_test_env
 }
 
@@ -131,4 +133,32 @@ EOF
     [ "$status" -eq 0 ]
     [[ ! "$output" =~ "due_to" ]]
 }
+
+@test "prioritization: update priority rankings" {
+    brex tmp_vault task add --content "Rank update task" --importance 1 --urgency 1
+    
+    # Extract task ID
+    TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM tasks WHERE content='Rank update task';")
+    [ -n "$TASK_ID" ]
+
+    # Update ranking
+    run brex tmp_vault task prioritize --id "$TASK_ID" --importance 5 --urgency 4
+    [ "$status" -eq 0 ]
+
+    # Verify update in database
+    IMP=$(sqlite3 tmp_vault.db "SELECT importance FROM tasks WHERE id='$TASK_ID';")
+    URG=$(sqlite3 tmp_vault.db "SELECT urgency FROM tasks WHERE id='$TASK_ID';")
+    [ "$IMP" -eq 5 ]
+    [ "$URG" -eq 4 ]
+
+    # Verify invalid bounds checks
+    run brex tmp_vault task prioritize --id "$TASK_ID" --importance 6
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Importance must be an integer between 1 and 5" ]]
+
+    run brex tmp_vault task prioritize --id "$TASK_ID" --urgency 0
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Urgency must be an integer between 1 and 5" ]]
+}
+
 
