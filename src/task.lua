@@ -273,16 +273,16 @@ function list_tasks(brain_file, args)
             urg = tonumber(task_row.active_urgency) or 1
             
             quadrant = 4
-            color_code = "\027[90m" -- Q4 Gray
+            color_code = "\027[90m" -- Q4 Gray (Neutral)
             if imp >= 4 and urg >= 4 then
                 quadrant = 1
-                color_code = "\027[1;31m" -- Q1 Red
+                color_code = "\027[1;31m" -- Q1 Red (Hot/Urgent & Important)
             elseif imp >= 4 and urg < 4 then
                 quadrant = 2
-                color_code = "\027[1;33m" -- Q2 Yellow/Gold
+                color_code = "\027[1;35m" -- Q2 Magenta (Warm/Important)
             elseif imp < 4 and urg >= 4 then
                 quadrant = 3
-                color_code = "\027[1;36m" -- Q3 Cyan
+                color_code = "\027[1;33m" -- Q3 Yellow (Warm/Urgent)
             end
             
             reset_code = "\027[0m"
