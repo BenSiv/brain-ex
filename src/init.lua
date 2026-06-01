@@ -39,7 +39,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     overdue INTEGER,
     done TIMESTAMP DEFAULT NULL,
     comment TEXT DEFAULT NULL,
-    owner TEXT DEFAULT NULL
+    owner TEXT DEFAULT NULL,
+    importance INTEGER DEFAULT 1,
+    urgency INTEGER DEFAULT 1
 );
 """
 

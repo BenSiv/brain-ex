@@ -52,13 +52,10 @@ teardown() {
 }
 
 @test "invalid timestamp format for task due_to" {
-    # Invalid timestamp should still be accepted
+    # Invalid timestamp should return an error
     run brex task add --content "Bad timestamp task" --due_to "invalid-date"
-    [ "$status" -eq 0 ]
-    
-    # Should still create the task
-    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE content='Bad timestamp task';")
-    [ "$COUNT" -eq 1 ]
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Due To must conform to time-stamp format" ]]
 }
 
 @test "missing config file shows helpful error" {

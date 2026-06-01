@@ -32,7 +32,7 @@ function column_exists(brain_file, table_name, column_name)
     return false
 end
 
-function ensure_owner_column(brain_file)
+function ensure_priority_columns(brain_file)
     check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
     if local_query(brain_file, check_table) == nil or #local_query(brain_file, check_table) == 0 then
         return
@@ -40,6 +40,12 @@ function ensure_owner_column(brain_file)
 
     if not column_exists(brain_file, "tasks", "owner") then
         local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
+    end
+    if not column_exists(brain_file, "tasks", "importance") then
+        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN importance INTEGER DEFAULT 1;")
+    end
+    if not column_exists(brain_file, "tasks", "urgency") then
+        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN urgency INTEGER DEFAULT 1;")
     end
 end
 
@@ -122,28 +128,38 @@ function escape_sql(str)
 end
 
 function add_task(brain_file, args)
-    ensure_owner_column(brain_file)
+    ensure_priority_columns(brain_file)
     -- get note info
     subject = args["subject"]
     owner = args["owner"]
     content = args["content"] or ""
     
+    importance = tonumber(args["importance"]) or 1
+    urgency = tonumber(args["urgency"]) or 1
+    
+    if importance < 1 or importance > 5 then
+        return nil, "Importance must be an integer between 1 and 5"
+    end
+    if urgency < 1 or urgency > 5 then
+        return nil, "Urgency must be an integer between 1 and 5"
+    end
+
     due_to = nil
     if args["due_to"] != nil then
         due_to = dates.normalize_datetime(args["due_to"])
         if due_to == nil then
             return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
         end
-    else
-        current_time = os.time()
-        due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     end
 
     if content == "" then
         return nil, "Must provide task content"
     end
 
-    overdue_bool = check_overdue(due_to)
+    overdue_bool = false
+    if due_to != nil then
+        overdue_bool = check_overdue(due_to)
+    end
     esc_overdue = 0
     if overdue_bool == true then
         esc_overdue = 1
@@ -160,10 +176,15 @@ function add_task(brain_file, args)
     end
     esc_content = escape_sql(content)
     
+    esc_due_to = "NULL"
+    if due_to != nil then
+        esc_due_to = "'" .. escape_sql(due_to) .. "'"
+    end
+    
     insert_statement = string.format("""
-    INSERT INTO tasks (id, subject, content, due_to, overdue, done, owner)
-    VALUES ('%s', %s, '%s', '%s', '%s', NULL, %s);
-    """, id, esc_subject, esc_content, due_to, esc_overdue, esc_owner)
+    INSERT INTO tasks (id, subject, content, due_to, overdue, done, owner, importance, urgency)
+    VALUES ('%s', %s, '%s', %s, '%s', NULL, %s, %d, %d);
+    """, id, esc_subject, esc_content, esc_due_to, esc_overdue, esc_owner, importance, urgency)
     -- write note info
     success = local_update(brain_file, insert_statement)
 	if success == nil then
@@ -174,7 +195,7 @@ function add_task(brain_file, args)
 end
 
 function list_tasks(brain_file, args)
-    ensure_owner_column(brain_file)
+    ensure_priority_columns(brain_file)
     tasks_empty = is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("No pending tasks")
@@ -194,24 +215,80 @@ function list_tasks(brain_file, args)
         end
     end
 
-    query = "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL "
+    query = """
+    SELECT
+        id,
+        subject,
+        content,
+        due_to,
+        overdue,
+        COALESCE(importance, 1) AS importance,
+        COALESCE(urgency, 1) AS manual_urgency,
+        COALESCE(
+            CASE
+                WHEN due_to IS NULL THEN COALESCE(urgency, 1)
+                ELSE CASE
+                    WHEN (julianday(due_to) - julianday('now', 'localtime')) <= 1 THEN 5
+                    WHEN (julianday(due_to) - julianday('now', 'localtime')) <= 2 THEN
+                        CASE WHEN COALESCE(urgency, 1) > 4 THEN COALESCE(urgency, 1) ELSE 4 END
+                    WHEN (julianday(due_to) - julianday('now', 'localtime')) <= 4 THEN
+                        CASE WHEN COALESCE(urgency, 1) > 3 THEN COALESCE(urgency, 1) ELSE 3 END
+                    WHEN (julianday(due_to) - julianday('now', 'localtime')) <= 7 THEN
+                        CASE WHEN COALESCE(urgency, 1) > 2 THEN COALESCE(urgency, 1) ELSE 2 END
+                    ELSE COALESCE(urgency, 1)
+                END
+            END,
+            1
+        ) AS active_urgency
+    FROM tasks
+    WHERE done IS NULL
+    """
+
     if subject  !=  "" then
-        query = query .. string.format("AND subject = '%s'", escape_sql(subject))
+        query = query .. string.format(" AND subject = '%s'", escape_sql(subject))
     end
 
     if owner  !=  "" then
-        query = query .. string.format("AND owner = '%s' ", escape_sql(owner))
+        query = query .. string.format(" AND owner = '%s' ", escape_sql(owner))
     end
 
     if due_to  !=  nil then
-        query = query .. string.format("AND due_to > '%s'", due_to)
+        query = query .. string.format(" AND due_to > '%s'", due_to)
     end
     
-    query = query .. " ORDER BY due_to, subject;"
+    query = query .. """
+     ORDER BY
+        (active_urgency * COALESCE(importance, 1)) DESC,
+        active_urgency DESC,
+        COALESCE(importance, 1) DESC,
+        CASE WHEN due_to IS NULL THEN 1 ELSE 0 END ASC,
+        due_to ASC,
+        subject ASC;
+    """
 
     result = local_query(brain_file, query)
     if result  !=  nil and length(result) > 0 then
-        view(result, {columns={"id", "subject", "content", "due_to", "overdue"}})
+        for _, task_row in ipairs(result) do
+            imp = tonumber(task_row.importance) or 1
+            urg = tonumber(task_row.active_urgency) or 1
+            
+            badge = ""
+            if imp >= 4 and urg >= 4 then
+                badge = "\027[1;31m[🔥 Q1 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+            elseif imp >= 4 and urg < 4 then
+                badge = "\027[1;33m[⭐ Q2 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+            elseif imp < 4 and urg >= 4 then
+                badge = "\027[1;36m[⚡ Q3 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+            else
+                badge = "\027[90m[💤 Q4 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+            end
+            task_row.priority = badge
+            
+            if task_row.overdue == 1 or task_row.overdue == "1" then
+                task_row.due_to = "\027[1;31m" .. tostring(task_row.due_to) .. " [OVERDUE]\027[0m"
+            end
+        end
+        view(result, {columns={"id", "priority", "subject", "content", "due_to"}, line_length=999})
     else
         print("No pending tasks")
     end
@@ -291,7 +368,7 @@ function last_done(brain_file, args)
 end
 
 function do_task(brain_file, cmd_args)
-    ensure_owner_column(brain_file)
+    ensure_priority_columns(brain_file)
     -- print("Debug: cmd_args[1] IN: " .. tostring(cmd_args[1]))
     if cmd_args[1]  !=  nil and string.sub(cmd_args[1], 1, 1)  !=  "-" then
         table.insert(cmd_args, 1, "-d")
@@ -306,6 +383,8 @@ function do_task(brain_file, cmd_args)
         -c --content arg string false
         -n --number arg number false
         -o --owner arg string false
+        -p --importance arg string false
+        -u --urgency arg string false
     """
 
     help_string = help.get_help_string(arg[0])

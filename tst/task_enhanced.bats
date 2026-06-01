@@ -71,13 +71,11 @@ teardown() {
     echo "$output" | grep -o "Task [ABC]" | head -n1 | grep "Task A"
 }
 
-@test "task add without due_to defaults to tomorrow" {
+@test "task add without due_to stores NULL in database" {
     run brex task add --content "No due date specified"
     [ "$status" -eq 0 ]
     
-    # Check that a due_to was set automatically
+    # Check that a due_to is stored as NULL
     DUE_TO=$(sqlite3 tmp_vault.db "SELECT due_to FROM tasks WHERE content='No due date specified';")
-    [ ! -z "$DUE_TO" ]
-    # Should not be NULL and should be a timestamp format
-    [[ "$DUE_TO" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]]
+    [ -z "$DUE_TO" ]
 }
