@@ -70,12 +70,10 @@ cleanup_test_env() {
     [ "$status" -eq 0 ]
 
     # Overdue task: Importance 4, Active Urgency 5 -> Q1 (Bold Red)
-    # [🔥 Q1 (I:4 U:5)]
-    [[ "$output" =~ "🔥 Q1" ]]
+    [[ "$output" =~ "Q1" ]]
 
     # Far future task: Importance 4, Active Urgency 3 -> Q2 (Bold Yellow/Gold)
-    # [⭐ Q2 (I:4 U:3)]
-    [[ "$output" =~ "⭐ Q2" ]]
+    [[ "$output" =~ "Q2" ]]
 }
 
 @test "prioritization: sorting order Q1 -> Q3 -> Q2 -> Q4 -> NULL deadlines" {

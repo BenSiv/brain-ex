@@ -272,21 +272,34 @@ function list_tasks(brain_file, args)
             imp = tonumber(task_row.importance) or 1
             urg = tonumber(task_row.active_urgency) or 1
             
-            badge = ""
+            quadrant = 4
+            color_code = "\027[90m" -- Q4 Gray
             if imp >= 4 and urg >= 4 then
-                badge = "\027[1;31m[🔥 Q1 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+                quadrant = 1
+                color_code = "\027[1;31m" -- Q1 Red
             elseif imp >= 4 and urg < 4 then
-                badge = "\027[1;33m[⭐ Q2 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+                quadrant = 2
+                color_code = "\027[1;33m" -- Q2 Yellow/Gold
             elseif imp < 4 and urg >= 4 then
-                badge = "\027[1;36m[⚡ Q3 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
-            else
-                badge = "\027[90m[💤 Q4 (I:" .. imp .. " U:" .. urg .. ")]\027[0m"
+                quadrant = 3
+                color_code = "\027[1;36m" -- Q3 Cyan
             end
-            task_row.priority = badge
             
+            reset_code = "\027[0m"
+            priority_text = "Q" .. quadrant .. " (I:" .. imp .. " U:" .. urg .. ")"
+            
+            -- If due_to is overdue, we want to show [OVERDUE] tag
+            due_str = tostring(task_row.due_to or "")
             if task_row.overdue == 1 or task_row.overdue == "1" then
-                task_row.due_to = "\027[1;31m" .. tostring(task_row.due_to) .. " [OVERDUE]\027[0m"
+                due_str = due_str .. " [OVERDUE]"
             end
+            
+            -- Apply the priority color to the entire row
+            task_row.id = color_code .. tostring(task_row.id) .. reset_code
+            task_row.priority = color_code .. priority_text .. reset_code
+            task_row.subject = color_code .. tostring(task_row.subject or "") .. reset_code
+            task_row.content = color_code .. tostring(task_row.content or "") .. reset_code
+            task_row.due_to = color_code .. due_str .. reset_code
         end
         view(result, {columns={"id", "priority", "subject", "content", "due_to"}, line_length=999})
     else
