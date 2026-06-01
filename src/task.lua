@@ -259,8 +259,8 @@ function list_tasks(brain_file, args)
     query = query .. """
      ORDER BY
         (active_urgency * COALESCE(importance, 1)) DESC,
-        active_urgency DESC,
         COALESCE(importance, 1) DESC,
+        active_urgency DESC,
         CASE WHEN due_to IS NULL THEN 1 ELSE 0 END ASC,
         due_to ASC,
         subject ASC;

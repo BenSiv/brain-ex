@@ -98,8 +98,8 @@ cleanup_test_env() {
 
     # Sorting order should be:
     # Q1 task (Score 25)
-    # Q3 task (Score 10, Active Urgency 5)
-    # Q2 task (Score 10, Active Urgency 2)
+    # Q2 task (Score 10, Importance 5)
+    # Q3 task (Score 10, Importance 2)
     # Q4 task (Score 1, Active Urgency 1, due first)
     # NULL deadline task (Score 1, Active Urgency 1, listed last)
 
@@ -107,8 +107,8 @@ cleanup_test_env() {
     ORDERED_TASKS=$(echo "$output" | grep -oE "Q[1-4] task|NULL deadline task")
     EXPECTED=$(cat <<EOF
 Q1 task
-Q3 task
 Q2 task
+Q3 task
 Q4 task
 NULL deadline task
 EOF
