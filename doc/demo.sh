@@ -3,6 +3,9 @@
 # Brain-Ex CLI Showcase Demo
 # Uses demo-magic: https://github.com/paxtonhare/demo-magic
 
+# Ensure we use the local compiled binary
+export PATH="$PWD/bin:$PATH"
+
 DEMO_MAGIC_PATH="${DEMO_MAGIC_PATH:-~/demo-magic/demo-magic.sh}"
 
 # Parse arguments
