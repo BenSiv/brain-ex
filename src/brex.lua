@@ -102,7 +102,7 @@ function main()
     end
     cmd_args[0] = arg[0]
     
-    if command == nil then
+    if command == nil or command == "-h" or command == "--help" then
         print(help_string)
         return
     end
