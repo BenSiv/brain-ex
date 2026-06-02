@@ -134,7 +134,27 @@ end
 function do_knowledge(brain_file, cmd_args)
     subcommand = cmd_args[1]
 
-    if subcommand == nil or subcommand == "" or subcommand == "-h" or subcommand == "--help" then
+    help_requested = false
+    help_sub = nil
+    for i, v in ipairs(cmd_args) do
+        if v == "-h" or v == "--help" then
+            help_requested = true
+            if i > 1 then help_sub = cmd_args[1] end
+            if i == 1 and cmd_args[2] != nil and string.sub(cmd_args[2], 1, 1) != "-" then
+                help_sub = cmd_args[2]
+            end
+            break
+        end
+    end
+
+    if help_requested then
+        help_mod = require("help")
+        print("Usage: " .. arg[0])
+        print(help_mod.get_help_string(arg[0]))
+        return "success"
+    end
+
+    if subcommand == nil or subcommand == "" then
         knowledge.print_usage()
         return "success"
     end

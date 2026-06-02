@@ -13,6 +13,7 @@ get_default_editor = config.get_default_editor
 lfs = require("lfs")
 parse_links_str = require("vault_to_sql").parse_links_str
 update = require("update")
+help = require("help")
 
 function escape_sql(str)
     return string.gsub(str, "'", "''")
@@ -383,8 +384,11 @@ function do_note_connect(brain_file, args)
 end
 
 function do_note(brain_file, cmd_args)
-    if cmd_args[1] != nil and string.sub(cmd_args[1], 1, 1) != "-" then
+    subcommand = cmd_args[1]
+    if subcommand != nil and string.sub(subcommand, 1, 1) != "-" then
         table.insert(cmd_args, 1, "-d")
+    else
+        subcommand = nil
     end
     arg_string = """
         -d --do arg string false
@@ -396,9 +400,12 @@ function do_note(brain_file, cmd_args)
         -u --update flag boolean false
     """
 
-    help_string = get_help_string(arg[0])
+    help_string = help.get_help_string(arg[0])
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
+    if args == nil then
+        return "success"
+    end
     
     status, err = nil, nil
     if args != nil then

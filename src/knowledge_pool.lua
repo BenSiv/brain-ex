@@ -301,8 +301,20 @@ end
 
 function knowledge_pool.sync_notes(brain_file)
     knowledge_pool.ensure_table(brain_file)
-    notes = local_query(brain_file, "SELECT time, subject, title, content FROM notes ORDER BY subject, title;")
-    if notes == nil then
+    
+    -- Optimized query to only select notes that need syncing
+    -- We compare the note's timestamp with the knowledge item's updated_at
+    -- or check if the knowledge item doesn't exist yet.
+    query = """
+        SELECT n.time, n.subject, n.title, n.content
+        FROM notes n
+        LEFT JOIN knowledge_items ki ON ki.source_type='note' AND ki.source_id = 
+            (CASE WHEN n.subject = '' THEN n.title ELSE n.subject || '/' || n.title END)
+        WHERE ki.id IS NULL OR n.time > ki.updated_at;
+    """
+    
+    notes = local_query(brain_file, query)
+    if notes == nil or #notes == 0 then
         return 0
     end
 
@@ -316,7 +328,9 @@ function knowledge_pool.sync_notes(brain_file)
         count = count + 1
     end
 
-    knowledge_pool.mark_duplicates(brain_file)
+    if count > 0 then
+        knowledge_pool.mark_duplicates(brain_file)
+    end
     return count
 end
 

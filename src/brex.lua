@@ -114,6 +114,14 @@ function main()
         return
     end
     
+    -- Update arg[0] and cmd_args[0] with subcommand if present
+    subcommand = cmd_args[1]
+    old_arg0 = arg[0]
+    if subcommand != nil and string.sub(subcommand, 1, 1) != "-" then
+        arg[0] = arg[0] .. " " .. subcommand
+        cmd_args[0] = arg[0]
+    end
+
     status = nil
     if command == "init" then
         if target_brain  !=  nil then
@@ -121,6 +129,7 @@ function main()
              table.insert(cmd_args, target_brain)
         end
         status = func(cmd_args)
+        arg[0] = old_arg0
         if status  !=  "success" then
             os.exit(1)
         end
@@ -129,15 +138,24 @@ function main()
 
     if command == "brain" then
         status = func(cmd_args)
+        arg[0] = old_arg0
         if status  !=  "success" then
             os.exit(1)
         end
         return
     end
     
+    is_help = false
+    for _, a in ipairs(cmd_args) do
+        if a == "--help" or a == "-h" then
+            is_help = true
+            break
+        end
+    end
+
     brain_file = get_brain_path(target_brain)
     if brain_file  !=  nil then
-        if command != "update" then
+        if command != "update" and not is_help then
             sync_status, sync_err = sync.refresh(brain_file)
             if sync_status == nil then
                 print(sync_err or "Failed to synchronize brain from vault.")
@@ -145,6 +163,7 @@ function main()
             end
         end
         status = func(brain_file, cmd_args)
+        arg[0] = old_arg0
         if status  !=  "success" then
             os.exit(1)
         end

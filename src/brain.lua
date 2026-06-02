@@ -66,8 +66,11 @@ function use_brain(args)
 end
 
 function do_brain(cmd_args)
-    if cmd_args[1] != nil and string.sub(cmd_args[1], 1, 1) != "-" then
+    subcommand = cmd_args[1]
+    if subcommand != nil and string.sub(subcommand, 1, 1) != "-" then
         table.insert(cmd_args, 1, "-d")
+    else
+        subcommand = nil
     end
 
     arg_string = """
@@ -78,10 +81,8 @@ function do_brain(cmd_args)
     help_string = help.get_help_string(arg[0])
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
-
     if args == nil then
-        print("Brain command failed")
-        return "error"
+        return "success"
     end
 
     if args["do"] == "list" or args["do"] == nil then

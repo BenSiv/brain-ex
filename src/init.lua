@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS notes (
     subject TEXT,
     title TEXT,
     content TEXT,
+    size INTEGER DEFAULT 0,
     PRIMARY KEY (title, subject)
 );
 
@@ -237,16 +238,15 @@ function do_init(cmd_args)
     help_string = get_help_string(arg[0])
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
+    if args == nil then
+        return "success"
+    end
 
     status, err = nil, nil
-    if args  !=  nil then
-        if args["vault"]  !=  nil then
-            status, err = init_bx_with_vault(args)
-        else
-            status, err = init_bx(args)
-        end
+    if args["vault"]  !=  nil then
+        status, err = init_bx_with_vault(args)
     else
-        return "error" -- parse_args prints help
+        status, err = init_bx(args)
     end
 
     if status == nil then

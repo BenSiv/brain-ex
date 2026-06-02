@@ -14,6 +14,7 @@ local_query = database.local_query
 vault_to_sql = require("vault_to_sql").vault_to_sql
 process_content = require("vault_to_sql").process_content
 sql_init = require("init").sql_init
+get_help_string = require("help").get_help_string
 
 function escape_sql(str)
     return string.gsub(str or "", "'", "''")
@@ -69,32 +70,35 @@ function with_db_lock(brain_file, callback)
     return status, callback_err
 end
 
-function update_from_vault(brain_file)
+function update_from_vault(brain_file, force)
     vault_path = get_vault_path()
     task_file = joinpath(vault_path, "tasks.tsv")
-    reset_sql = """
-    DROP TABLE IF EXISTS connections;
-    DROP TABLE IF EXISTS notes;
-    DROP TABLE IF EXISTS tasks;
-    """
 
     if brain_file != nil and vault_path != nil then
         return with_db_lock(brain_file, function()
-            status = local_update(brain_file, reset_sql)
-            if status == nil then
-                return nil, "Failed to reset database"
+            if force == true then
+                print("Force rebuild: dropping existing data...")
+                reset_sql = """
+                    DROP TABLE IF EXISTS connections;
+                    DROP TABLE IF EXISTS notes;
+                    DROP TABLE IF EXISTS tasks;
+                """
+                local_update(brain_file, reset_sql)
             end
 
+            -- Ensure tables exist
             status = local_update(brain_file, sql_init)
             knowledge_pool.ensure_table(brain_file)
             if status == nil then
-                return nil, "Failed to update database"
+                return nil, "Failed to ensure database tables"
             end
 
+            -- vault_to_sql now handles incremental updates
             status = vault_to_sql(vault_path, brain_file)
             if status == nil then
                 return nil, "Failed to update from vault"
             end
+            
             knowledge_pool.sync_notes(brain_file)
 
             if file_exists(task_file) then
@@ -215,18 +219,22 @@ end
 function do_update(brain_file, cmd_args)
     arg_string = """
         -f --file arg string false
+        -c --force flag boolean false
     """
 
 	help_string = get_help_string(arg[0])
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
+    if args == nil then
+        return "success"
+    end
 
 	status, err = true, nil
 	if args != nil then
 		if args["file"] != nil then
 			status, err = update_note_from_file(brain_file, args["file"])
 		else
-			status, err = update_from_vault(brain_file)
+			status, err = update_from_vault(brain_file, args["force"])
 		end
 	end
 	if status != true then

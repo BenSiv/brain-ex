@@ -25,10 +25,10 @@ function parse_links_str(links_str)
     return links
 end
 
-function get_last_update_time(file_path)
+function get_file_attributes(file_path)
     attr = lfs.attributes(file_path)
     if attr != nil then
-        return os.date("%Y-%m-%d %H:%M:%S", attr.modification)
+        return os.date("%Y-%m-%d %H:%M:%S", attr.modification), attr.size
     else
         error("Could not get attributes for file: " .. file_path)
     end
@@ -82,32 +82,6 @@ function read_note(vault_path, note)
     note_name = string.gsub(note, "%.md$", "")
     note_content = read(note_path)
     return {name = note_name, content = note_content}
-end
-
-function read_vault(vault_path)
-    vault_files = get_vault_files(vault_path)
-    vault_content = {}
-    note_content = nil
-    for _, subject in pairs(keys(vault_files)) do
-        if subject == "root" then
-            vault_content["root"] = {}
-            for _, note in pairs(vault_files["root"]) do
-                note_content = read_note(vault_path, note)
-                if note_content != nil then
-                    table.insert(vault_content["root"], note_content)
-                end
-            end
-        else
-            vault_content[subject] = {}
-            for _, note in pairs(vault_files[subject]) do
-                note_path = joinpath(vault_path, subject, note)
-                note_content = read_note(vault_path .. "/" .. subject, note)
-                table.insert(vault_content[subject], note_content)
-            end
-        end
-    end
-
-    return vault_content
 end
 
 function get_lines(markdown_text)
@@ -178,70 +152,134 @@ function process_content(content)
 end
 
 function vault_to_sql(vault_path, brain_file)
-    vault_content = read_vault(vault_path)
-    if vault_content == nil then
+    db = sqlite.open(brain_file)
+    
+    -- Ensure size column exists (for upgrade path)
+    sqlite.exec(db, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
+    
+    -- Load existing note metadata for incremental update
+    existing_notes = {}
+    for row in sqlite.rows(db, "SELECT subject, title, time, size FROM notes;") do
+        -- Handle both named and numeric column access
+        subject = row.subject or row[1] or ""
+        title = row.title or row[2] or ""
+        time = row.time or row[3] or ""
+        size = tonumber(row.size or row[4] or 0) or 0
+        key = subject .. "||" .. title
+        existing_notes[key] = {time = time, size = size}
+    end
+
+    vault_files = get_vault_files(vault_path)
+    if vault_files == nil then
         print("Failed to read vault")
+        sqlite.close(db)
         return nil
     end
 
-    db = sqlite.open(brain_file)
     sqlite.exec(db, "BEGIN TRANSACTION;")
+    
+    seen_notes = {}
+    updates_count = 0
+    inserts_count = 0
 
-    for subject, notes in pairs(vault_content) do
-        -- Treat "root" as empty subject
+    for subject, notes in pairs(vault_files) do
         actual_subject = subject
         if subject == "root" then
             actual_subject = ""
         end
 
-        for _, note in pairs(notes) do
-            -- Extract cleaned content and parsed links
-            content, links = process_content(note.content)
-
+        for _, note_file in pairs(notes) do
+            note_name = string.gsub(note_file, "%.md$", "")
+            note_key = actual_subject .. "||" .. note_name
+            seen_notes[note_key] = true
+            
             -- Resolve note file path
             note_path = nil
             if actual_subject != "" then
-                note_path = joinpath(vault_path, actual_subject, note.name .. ".md")
+                note_path = joinpath(vault_path, actual_subject, note_file)
             else
-                note_path = joinpath(vault_path, note.name .. ".md")
+                note_path = joinpath(vault_path, note_file)
             end
 
-            last_update_time = get_last_update_time(note_path)
+            last_update_time, file_size = get_file_attributes(note_path)
+            
+            existing = existing_notes[note_key]
+            
+            -- Absolute guarantee: update if time OR size differs
+            needs_update = (existing == nil) or (existing.time != last_update_time) or (existing.size != file_size)
 
-            -- Insert note into notes table
-            insert_note = string.format(
-                "INSERT INTO notes (time, subject, title, content) VALUES ('%s','%s','%s','%s');",
-                last_update_time,
-                actual_subject,
-                note.name,
-                content
-            )
-            sqlite.exec(db, insert_note)
+            if needs_update then
+                note_content = read(note_path)
+                content, links = process_content(note_content)
 
-            -- Insert connections if any
-            if length(links) > 0 then
-                insert_connections = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
-
-                for _, link in pairs(links) do
-                    statement_value = string.format(
-                        "('%s','%s','%s','%s'), ",
-                        note.name,
-                        subject,
-                        link.title,
-                        link.subject or ""
+                if existing != nil then
+                    -- Update existing note
+                    update_note = string.format(
+                        "UPDATE notes SET time='%s', size=%d, content='%s' WHERE subject='%s' AND title='%s';",
+                        last_update_time,
+                        file_size,
+                        content,
+                        actual_subject,
+                        note_name
                     )
-                    insert_connections = insert_connections .. statement_value
+                    sqlite.exec(db, update_note)
+                    -- Clear old connections
+                    sqlite.exec(db, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", note_name, actual_subject))
+                    updates_count = updates_count + 1
+                else
+                    -- Insert new note
+                    insert_note = string.format(
+                        "INSERT INTO notes (time, size, subject, title, content) VALUES ('%s', %d, '%s', '%s', '%s');",
+                        last_update_time,
+                        file_size,
+                        actual_subject,
+                        note_name,
+                        content
+                    )
+                    sqlite.exec(db, insert_note)
+                    inserts_count = inserts_count + 1
                 end
 
-                -- Trim trailing comma and finalize
-                insert_connections = string.sub(insert_connections, 1, -3) .. ";"
-                sqlite.exec(db, insert_connections)
+                -- Insert connections if any
+                if length(links) > 0 then
+                    insert_connections = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
+
+                    for _, link in pairs(links) do
+                        statement_value = string.format(
+                            "('%s','%s','%s','%s'), ",
+                            note_name,
+                            actual_subject,
+                            link.title,
+                            link.subject or ""
+                        )
+                        insert_connections = insert_connections .. statement_value
+                    end
+
+                    -- Trim trailing comma and finalize
+                    insert_connections = string.sub(insert_connections, 1, -3) .. ";"
+                    sqlite.exec(db, insert_connections)
+                end
             end
+        end
+    end
+
+    -- Delete notes that are no longer in the vault
+    deletes_count = 0
+    for note_key, _ in pairs(existing_notes) do
+        if seen_notes[note_key] == nil then
+            parts = split(note_key, "||")
+            subject = parts[1]
+            title = parts[2]
+            
+            sqlite.exec(db, string.format("DELETE FROM notes WHERE subject='%s' AND title='%s';", subject, title))
+            sqlite.exec(db, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", title, subject))
+            deletes_count = deletes_count + 1
         end
     end
 
     sqlite.exec(db, "COMMIT;")
     sqlite.close(db)
+    
     return "success"
 end
 

@@ -436,11 +436,14 @@ end
 
 function do_task(brain_file, cmd_args)
     ensure_priority_columns(brain_file)
-    -- print("Debug: cmd_args[1] IN: " .. tostring(cmd_args[1]))
-    if cmd_args[1]  !=  nil and string.sub(cmd_args[1], 1, 1)  !=  "-" then
+    
+    subcommand = cmd_args[1]
+    if subcommand  !=  nil and string.sub(subcommand, 1, 1)  !=  "-" then
         table.insert(cmd_args, 1, "-d")
+    else
+        subcommand = nil
     end
-    -- print("Debug: cmd_args[1] OUT: " .. tostring(cmd_args[1]))
+
     arg_string = """
         -d --do arg string false
         -s --subject arg string false
@@ -457,6 +460,10 @@ function do_task(brain_file, cmd_args)
     help_string = help.get_help_string(arg[0])
     expected_args = def_args(arg_string)
     args = parse_args(cmd_args, expected_args, help_string)
+    if args == nil then
+        return "success"
+    end
+
     status, err = nil, nil
     if args  !=  nil then
         if args["do"] == "add" then

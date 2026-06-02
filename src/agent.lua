@@ -41,6 +41,26 @@ end
 function do_agent(brain_file, cmd_args)
     ensure_owner_column(brain_file)
     
+    help_requested = false
+    help_sub = nil
+    for i, v in ipairs(cmd_args) do
+        if v == "-h" or v == "--help" then
+            help_requested = true
+            if i > 1 and string.sub(cmd_args[1], 1, 1) != "-" then help_sub = cmd_args[1] end
+            if i == 1 and cmd_args[2] != nil and string.sub(cmd_args[2], 1, 1) != "-" then
+                help_sub = cmd_args[2]
+            end
+            break
+        end
+    end
+
+    if help_requested then
+        help_mod = require("help")
+        print("Usage: " .. arg[0])
+        print(help_mod.get_help_string(arg[0]))
+        return "success"
+    end
+
     subcommand = cmd_args[1]
 
     if subcommand == nil or subcommand == "" then
@@ -50,9 +70,7 @@ function do_agent(brain_file, cmd_args)
         subcommand == "ask" or
         subcommand == "note" or
         subcommand == "task" or
-        subcommand == "process_tasks" or
-        subcommand == "-h" or
-        subcommand == "--help"
+        subcommand == "process_tasks"
     ) then
         if subcommand == "tasks" then
             print("Use 'brex task list --owner agent' to view agent-created tasks.")
@@ -63,12 +81,6 @@ function do_agent(brain_file, cmd_args)
         end
         subcommand = "ask"
         table.insert(cmd_args, 1, subcommand)
-    end
-    
-    if subcommand == "-h" or subcommand == "--help" then
-        help = require("help")
-        print(help.get_help_string("brex agent"))
-        return "success"
     end
     
     if subcommand == "view" then
