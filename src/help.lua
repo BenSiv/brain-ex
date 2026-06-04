@@ -222,10 +222,11 @@ Required:
 -i --id <id> ID of the task to delay, or * to delay all tasks.
 
 Optional:
--t --due_to <due_to> New due date. If not provided, defaults to 24 hours from now.
+-t --due_to <due_to> New due date. If not provided, defaults to 24 hours from now. Pass "indefinitely" to remove the due date.
 
 Example:
 brex task delay --id "85560914" --due_to "2024-12-31"
+brex task delay --id "85560914" --due_to "indefinitely"
 brex task delay --id "*"
         """,
         ["brex task prioritize"] = """

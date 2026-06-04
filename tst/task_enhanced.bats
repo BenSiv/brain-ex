@@ -79,3 +79,23 @@ teardown() {
     DUE_TO=$(sqlite3 tmp_vault.db "SELECT due_to FROM tasks WHERE content='No due date specified';")
     [ -z "$DUE_TO" ]
 }
+
+@test "task delay indefinitely clears due_to and overdue" {
+    brex task add --content "Indefinite task" --due_to "2020-01-01"
+    
+    # Check that it starts with due_to and is overdue
+    TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM tasks WHERE content='Indefinite task';")
+    OVERDUE=$(sqlite3 tmp_vault.db "SELECT overdue FROM tasks WHERE id='$TASK_ID';")
+    [ "$OVERDUE" -eq 1 ]
+    
+    # Run delay indefinitely
+    run brex task delay --id "$TASK_ID" --due_to indefinitely
+    [ "$status" -eq 0 ]
+    
+    # Check that due_to is cleared and overdue is 0
+    DUE_TO=$(sqlite3 tmp_vault.db "SELECT due_to FROM tasks WHERE id='$TASK_ID';")
+    [ -z "$DUE_TO" ]
+    OVERDUE=$(sqlite3 tmp_vault.db "SELECT overdue FROM tasks WHERE id='$TASK_ID';")
+    [ "$OVERDUE" -eq 0 ]
+}
+

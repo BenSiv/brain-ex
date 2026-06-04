@@ -350,26 +350,42 @@ function delay_due(brain_file, args)
     task_id = args["id"] or ""
     
     due_to = nil
+    is_indefinite = false
     if args["due_to"] != nil then
-        due_to = dates.normalize_datetime(args["due_to"])
-        if due_to == nil then
-            return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
+        if args["due_to"] == "indefinitely" then
+            is_indefinite = true
+        else
+            due_to = dates.normalize_datetime(args["due_to"])
+            if due_to == nil then
+                return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it, or 'indefinitely'"
+            end
         end
     else
-   		current_time = os.time()
+        current_time = os.time()
         due_to = os.date("%Y-%m-%d %H:%M:%S", current_time + 86400) -- tommorow
     end
 
-    overdue_bool = check_overdue(due_to)
+    overdue_bool = false
+    if is_indefinite == false then
+        overdue_bool = check_overdue(due_to)
+    end
     esc_overdue = 0
     if overdue_bool == true then
         esc_overdue = 1
     end
     update_statement = nil
     if task_id == "*" then
-        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE done IS NULL;", due_to, esc_overdue)
+        if is_indefinite then
+            update_statement = "UPDATE tasks SET due_to=NULL, overdue=0 WHERE done IS NULL;"
+        else
+            update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE done IS NULL;", due_to, esc_overdue)
+        end
     else
-        update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, esc_overdue, task_id)
+        if is_indefinite then
+            update_statement = string.format("UPDATE tasks SET due_to=NULL, overdue=0 WHERE id='%s';", task_id)
+        else
+            update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, esc_overdue, task_id)
+        end
     end
     status = local_update(brain_file, update_statement)
     if status == nil then
