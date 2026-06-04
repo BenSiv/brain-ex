@@ -39,8 +39,6 @@ function ensure_owner_column(brain_file)
 end
 
 function do_agent(brain_file, cmd_args)
-    ensure_owner_column(brain_file)
-    
     help_requested = false
     help_sub = nil
     for i, v in ipairs(cmd_args) do
@@ -55,11 +53,30 @@ function do_agent(brain_file, cmd_args)
     end
 
     if help_requested then
+        sub = cmd_args[1]
+        if sub != nil and string.sub(sub, 1, 1) != "-" then
+            valid_subs = {
+                ["view"] = true,
+                ["ask"] = true,
+                ["note"] = true,
+                ["task"] = true,
+                ["process_tasks"] = true,
+                ["tasks"] = true,
+                ["run"] = true
+            }
+            if valid_subs[sub] == nil then
+                print("Unknown subcommand: " .. sub)
+                print("Available subcommands: view, ask, note, task, process_tasks")
+                return "success"
+            end
+        end
         help_mod = require("help")
         print("Usage: " .. arg[0])
         print(help_mod.get_help_string(arg[0]))
         return "success"
     end
+
+    ensure_owner_column(brain_file)
 
     subcommand = cmd_args[1]
 

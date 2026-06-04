@@ -153,9 +153,19 @@ function main()
         end
     end
 
+    if is_help then
+        brain_file = ""
+        status = func(brain_file, cmd_args)
+        arg[0] = old_arg0
+        if status != "success" then
+            os.exit(1)
+        end
+        return
+    end
+
     brain_file = get_brain_path(target_brain)
     if brain_file  !=  nil then
-        if command != "update" and not is_help then
+        if command != "update" then
             sync_status, sync_err = sync.refresh(brain_file)
             if sync_status == nil then
                 print(sync_err or "Failed to synchronize brain from vault.")

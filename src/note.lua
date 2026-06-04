@@ -386,6 +386,17 @@ end
 function do_note(brain_file, cmd_args)
     subcommand = cmd_args[1]
     if subcommand != nil and string.sub(subcommand, 1, 1) != "-" then
+        valid_subs = {
+            ["add"] = true,
+            ["edit"] = true,
+            ["last"] = true,
+            ["connect"] = true
+        }
+        if valid_subs[subcommand] == nil then
+            print("Unknown subcommand: " .. subcommand)
+            print("Available subcommands: add, edit, last, connect")
+            return "success"
+        end
         table.insert(cmd_args, 1, "-d")
     else
         subcommand = nil

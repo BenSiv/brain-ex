@@ -67,3 +67,23 @@ teardown() {
     [ "$status" -ne 0 ]
     [[ "$output" =~ "does not exist" || "$output" =~ "brex init" ]]
 }
+
+@test "subcommand help works without config" {
+    # Remove config
+    rm -f "$CONFIG"
+    
+    # Run help for a subcommand
+    run brex task delay --help
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"does not exist"* ]]
+    [[ "$output" != *"brex init"* ]]
+    [[ "$output" =~ "Usage: " && "$output" =~ "brex task delay" ]]
+}
+
+@test "unknown subcommand reports error message on help" {
+    # Run unknown subcommand with help
+    run brex task foo --help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Unknown subcommand: foo" ]]
+    [[ "$output" =~ "Available subcommands: add, list, done, delay, prioritize, rank, last" ]]
+}

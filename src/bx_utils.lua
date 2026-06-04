@@ -1,29 +1,19 @@
 -- Define a module table
 bx_utils = {}
 
-sqlite = require("sqlite3")
+database = require("database")
 config = require("config")
 get_brain_path = config.get_brain_path
 
 function is_id_unique(table_name, target_id, brain_file)
     brain_file = brain_file or get_brain_path()
-    query = string.format("SELECT COUNT(*) FROM %s WHERE id = '%s';", table_name, target_id)
-    db = sqlite.open(brain_file)
-    is_unique = nil
-    
-    count_val = 0
-    for row in sqlite.rows(db, query) do
-        -- count_val = row["COUNT(*)"] or row[1] -- row might be indexed or keyed
-        for _, v in pairs(row) do count_val = v break end 
+    query = string.format("SELECT COUNT(*) AS cnt FROM %s WHERE id = '%s';", table_name, target_id)
+    res = database.local_query(brain_file, query)
+    if res == nil or #res == 0 then
+        return true
     end
-    
-    if count_val != 0 then
-        is_unique = false
-    else
-        is_unique = true
-    end
-    sqlite.close(db)
-    return is_unique
+    count_val = tonumber(res[1].cnt or res[1][1]) or 0
+    return count_val == 0
 end
 
 function generate_id(table_name, desired_length, seed, brain_file)
@@ -52,16 +42,13 @@ function is_timestamp(str)
 end
 
 function is_sqlite_empty(brain_file, table_name)
-    query = "SELECT COUNT(*) FROM " .. table_name .. ";"
-    db = sqlite.open(brain_file)
-    answer = false
-    for row in sqlite.rows(db, query) do
-        for _ ,element in pairs(row) do
-            answer = element == 0
-       end
+    query = "SELECT COUNT(*) AS cnt FROM " .. table_name .. ";"
+    res = database.local_query(brain_file, query)
+    if res == nil or #res == 0 then
+        return true
     end
-    sqlite.close(db)
-    return answer
+    count_val = tonumber(res[1].cnt or res[1][1]) or 0
+    return count_val == 0
 end
 
 bx_utils.generate_id = generate_id

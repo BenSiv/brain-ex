@@ -310,7 +310,7 @@ function knowledge_pool.sync_notes(brain_file)
         FROM notes n
         LEFT JOIN knowledge_items ki ON ki.source_type='note' AND ki.source_id = 
             (CASE WHEN n.subject = '' THEN n.title ELSE n.subject || '/' || n.title END)
-        WHERE ki.id IS NULL OR n.time > ki.updated_at;
+        WHERE ki.id IS NULL OR n.time >= ki.updated_at;
     """
     
     notes = local_query(brain_file, query)

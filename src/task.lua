@@ -111,6 +111,18 @@ function backup_tasks(brain_file)
     if vault_path  !=  nil then
         backup_path = joinpath(vault_path, "tasks.tsv")
         export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
+        
+        -- Update sync_meta
+        local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+        lfs_mod = require("lfs")
+        attr = lfs_mod.attributes(backup_path)
+        if attr != nil then
+            mod_time = tostring(attr.modification)
+            local_update(brain_file, string.format(
+                "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('tasks_tsv_mod_time', '%s');",
+                mod_time
+            ))
+        end
     end
     return true
 end
@@ -435,10 +447,34 @@ function last_done(brain_file, args)
 end
 
 function do_task(brain_file, cmd_args)
-    ensure_priority_columns(brain_file)
+    is_help = false
+    for _, a in ipairs(cmd_args) do
+        if a == "--help" or a == "-h" then
+            is_help = true
+            break
+        end
+    end
+
+    if not is_help then
+        ensure_priority_columns(brain_file)
+    end
     
     subcommand = cmd_args[1]
     if subcommand  !=  nil and string.sub(subcommand, 1, 1)  !=  "-" then
+        valid_subs = {
+            ["add"] = true,
+            ["list"] = true,
+            ["done"] = true,
+            ["delay"] = true,
+            ["prioritize"] = true,
+            ["rank"] = true,
+            ["last"] = true
+        }
+        if valid_subs[subcommand] == nil then
+            print("Unknown subcommand: " .. subcommand)
+            print("Available subcommands: add, list, done, delay, prioritize, rank, last")
+            return "success"
+        end
         table.insert(cmd_args, 1, "-d")
     else
         subcommand = nil

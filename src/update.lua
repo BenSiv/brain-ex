@@ -82,6 +82,7 @@ function update_from_vault(brain_file, force)
                     DROP TABLE IF EXISTS connections;
                     DROP TABLE IF EXISTS notes;
                     DROP TABLE IF EXISTS tasks;
+                    DROP TABLE IF EXISTS sync_meta;
                 """
                 local_update(brain_file, reset_sql)
             end
@@ -102,9 +103,26 @@ function update_from_vault(brain_file, force)
             knowledge_pool.sync_notes(brain_file)
 
             if file_exists(task_file) then
-                status = import_delimited(brain_file, task_file, "tasks", "\t")
-                if status == nil then
-                    return nil, "Failed to import tasks"
+                local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                attr = lfs.attributes(task_file)
+                current_mod = attr and tostring(attr.modification)
+                
+                stored_mod = nil
+                res = local_query(brain_file, "SELECT value FROM sync_meta WHERE key='tasks_tsv_mod_time';")
+                if res != nil and #res > 0 then
+                    stored_mod = res[1].value or res[1][1]
+                end
+                
+                if current_mod != stored_mod then
+                    local_update(brain_file, "DELETE FROM tasks;")
+                    status = import_delimited(brain_file, task_file, "tasks", "\t")
+                    if status == nil then
+                        return nil, "Failed to import tasks"
+                    end
+                    local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('tasks_tsv_mod_time', '%s');",
+                        current_mod
+                    ))
                 end
             end
             return true
@@ -136,6 +154,10 @@ function update_note_from_file(brain_file, note_path)
 		return nil, "Failed to read note: " .. note_path
 	end
 
+	attr = lfs.attributes(note_path)
+	note_time = attr and os.date("%Y-%m-%d %H:%M:%S", attr.modification) or os.date("%Y-%m-%d %H:%M:%S")
+	note_size = attr and attr.size or 0
+
 	links = {}
 	if content != "" then
 		content, links = process_content(content)
@@ -166,14 +188,14 @@ function update_note_from_file(brain_file, note_path)
 		if num_rows > 0 then
 			stmt = string.format("""
 				UPDATE notes
-				SET content = '%s'
+				SET content = '%s', time = '%s', size = %d
 				WHERE subject = '%s' AND title = '%s';
-			""", content, subject, title)
+			""", content, note_time, note_size, subject, title)
 		else
 			stmt = string.format("""
-				INSERT INTO notes (subject, title, content)
-				VALUES ('%s', '%s', '%s');
-			""", subject, title, content)
+				INSERT INTO notes (subject, title, content, time, size)
+				VALUES ('%s', '%s', '%s', '%s', %d);
+			""", subject, title, content, note_time, note_size)
 		end
 
 		-- Execute the statement

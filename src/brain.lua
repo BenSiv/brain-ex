@@ -68,6 +68,15 @@ end
 function do_brain(cmd_args)
     subcommand = cmd_args[1]
     if subcommand != nil and string.sub(subcommand, 1, 1) != "-" then
+        valid_subs = {
+            ["list"] = true,
+            ["use"] = true
+        }
+        if valid_subs[subcommand] == nil then
+            print("Unknown subcommand: " .. subcommand)
+            print("Available subcommands: list, use")
+            return "success"
+        end
         table.insert(cmd_args, 1, "-d")
     else
         subcommand = nil

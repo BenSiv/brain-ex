@@ -147,6 +147,26 @@ function do_knowledge(brain_file, cmd_args)
         end
     end
 
+    sub = cmd_args[1]
+    if sub != nil and string.sub(sub, 1, 1) != "-" then
+        valid_subs = {
+            ["search"] = true,
+            ["sync"] = true,
+            ["browse"] = true,
+            ["show"] = true,
+            ["history"] = true,
+            ["process"] = true,
+            ["queue"] = true,
+            ["promote"] = true
+        }
+        if valid_subs[sub] == nil then
+            print("Unknown subcommand: " .. sub)
+            print("Available subcommands: search, sync, browse, show, history, process, queue, promote")
+            knowledge.print_usage()
+            return "success"
+        end
+    end
+
     if help_requested then
         help_mod = require("help")
         print("Usage: " .. arg[0])

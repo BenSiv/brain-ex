@@ -3,7 +3,7 @@ vault_update = {}
 
 utils = require("utils")
 joinpath = require("paths").joinpath
-sqlite = require("sqlite3")
+database = require("database")
 lfs = require("lfs")
 
 -- parse links string like "daily/note1,backend/note2,note3"
@@ -152,14 +152,14 @@ function process_content(content)
 end
 
 function vault_to_sql(vault_path, brain_file)
-    db = sqlite.open(brain_file)
-    
     -- Ensure size column exists (for upgrade path)
-    sqlite.exec(db, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
+    pcall(database.local_update, brain_file, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
     
     -- Load existing note metadata for incremental update
     existing_notes = {}
-    for row in sqlite.rows(db, "SELECT subject, title, time, size FROM notes;") do
+    query = "SELECT subject, title, time, size FROM notes;"
+    rows = database.local_query(brain_file, query) or {}
+    for _, row in ipairs(rows) do
         -- Handle both named and numeric column access
         subject = row.subject or row[1] or ""
         title = row.title or row[2] or ""
@@ -172,12 +172,10 @@ function vault_to_sql(vault_path, brain_file)
     vault_files = get_vault_files(vault_path)
     if vault_files == nil then
         print("Failed to read vault")
-        sqlite.close(db)
         return nil
     end
 
-    sqlite.exec(db, "BEGIN TRANSACTION;")
-    
+    sql_statements = {}
     seen_notes = {}
     updates_count = 0
     inserts_count = 0
@@ -222,9 +220,9 @@ function vault_to_sql(vault_path, brain_file)
                         actual_subject,
                         note_name
                     )
-                    sqlite.exec(db, update_note)
+                    table.insert(sql_statements, update_note)
                     -- Clear old connections
-                    sqlite.exec(db, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", note_name, actual_subject))
+                    table.insert(sql_statements, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", note_name, actual_subject))
                     updates_count = updates_count + 1
                 else
                     -- Insert new note
@@ -236,7 +234,7 @@ function vault_to_sql(vault_path, brain_file)
                         note_name,
                         content
                     )
-                    sqlite.exec(db, insert_note)
+                    table.insert(sql_statements, insert_note)
                     inserts_count = inserts_count + 1
                 end
 
@@ -257,7 +255,7 @@ function vault_to_sql(vault_path, brain_file)
 
                     -- Trim trailing comma and finalize
                     insert_connections = string.sub(insert_connections, 1, -3) .. ";"
-                    sqlite.exec(db, insert_connections)
+                    table.insert(sql_statements, insert_connections)
                 end
             end
         end
@@ -271,14 +269,21 @@ function vault_to_sql(vault_path, brain_file)
             subject = parts[1]
             title = parts[2]
             
-            sqlite.exec(db, string.format("DELETE FROM notes WHERE subject='%s' AND title='%s';", subject, title))
-            sqlite.exec(db, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", title, subject))
+            table.insert(sql_statements, string.format("DELETE FROM notes WHERE subject='%s' AND title='%s';", subject, title))
+            table.insert(sql_statements, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", title, subject))
             deletes_count = deletes_count + 1
         end
     end
 
-    sqlite.exec(db, "COMMIT;")
-    sqlite.close(db)
+    if #sql_statements > 0 then
+        table.insert(sql_statements, 1, "BEGIN TRANSACTION;")
+        table.insert(sql_statements, "COMMIT;")
+        transaction_sql = table.concat(sql_statements, "\n")
+        status = database.local_update(brain_file, transaction_sql)
+        if status == nil then
+            return nil
+        end
+    end
     
     return "success"
 end
