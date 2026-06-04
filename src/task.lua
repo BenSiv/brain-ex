@@ -230,10 +230,15 @@ function list_tasks(brain_file, args)
     query = """
     SELECT
         id,
+        time,
         subject,
         content,
         due_to,
         overdue,
+        done,
+        comment,
+        owner,
+        urgency,
         COALESCE(importance, 1) AS importance,
         COALESCE(urgency, 1) AS manual_urgency,
         COALESCE(
@@ -280,24 +285,75 @@ function list_tasks(brain_file, args)
 
     result = local_query(brain_file, query)
     if result  !=  nil and length(result) > 0 then
+        -- Load settings
+        settings = config.load_settings()
+        
+        -- Resolve colors
+        defaults = {
+            Q1 = "\027[31m",
+            Q2 = "\027[38;5;208m",
+            Q3 = "\027[33m",
+            Q4 = "\027[90m",
+            reset = "\027[0m"
+        }
+        user_colors = settings.colors or {}
+        colors = {
+            Q1 = user_colors.Q1 or defaults.Q1,
+            Q2 = user_colors.Q2 or defaults.Q2,
+            Q3 = user_colors.Q3 or defaults.Q3,
+            Q4 = user_colors.Q4 or defaults.Q4,
+            reset = user_colors.reset or defaults.reset
+        }
+
+        -- Resolve columns
+        cols = settings.task_columns
+        
+        -- Handle hide_due_to deprecation warning
+        hide_due = false
+        cfg = config.get_config()
+        if cfg  !=  nil and cfg["hide_due_to"]  !=  nil then
+            io.write(io.stderr, "Warning: 'hide_due_to' configuration in config.yaml is deprecated. Please define 'task_columns' in settings.json instead.\n")
+            if cfg["hide_due_to"] == true or cfg["hide_due_to"] == "true" then
+                hide_due = true
+            end
+        end
+
+        if cols == nil then
+            -- Fallback to default logic
+            cols = {"id", "priority", "subject", "content"}
+            if not hide_due then
+                table.insert(cols, "due_to")
+            end
+        else
+            if hide_due then
+                filtered_cols = {}
+                for _, col in ipairs(cols) do
+                    if col != "due_to" then
+                        table.insert(filtered_cols, col)
+                    end
+                end
+                cols = filtered_cols
+            end
+        end
+
         for _, task_row in ipairs(result) do
             imp = tonumber(task_row.importance) or 1
             urg = tonumber(task_row.active_urgency) or 1
             
             quadrant = 4
-            color_code = "\027[90m" -- Q4 Gray (Neutral)
+            color_code = colors.Q4
             if imp >= 4 and urg >= 4 then
                 quadrant = 1
-                color_code = "\027[31m" -- Q1 Red (Muted Red)
+                color_code = colors.Q1
             elseif imp >= 4 and urg < 4 then
                 quadrant = 2
-                color_code = "\027[38;5;208m" -- Q2 Orange (Muted Orange)
+                color_code = colors.Q2
             elseif imp < 4 and urg >= 4 then
                 quadrant = 3
-                color_code = "\027[33m" -- Q3 Yellow (Muted Yellow)
+                color_code = colors.Q3
             end
             
-            reset_code = "\027[0m"
+            reset_code = colors.reset
             priority_text = "Q" .. quadrant .. " (I:" .. imp .. " U:" .. urg .. ")"
             
             -- If due_to is overdue, we want to show [OVERDUE] tag
@@ -306,22 +362,18 @@ function list_tasks(brain_file, args)
                 due_str = due_str .. " [OVERDUE]"
             end
             
-            -- Apply the priority color to the entire row
-            task_row.id = color_code .. tostring(task_row.id) .. reset_code
-            task_row.priority = color_code .. priority_text .. reset_code
-            task_row.subject = color_code .. tostring(task_row.subject or "") .. reset_code
-            task_row.content = color_code .. tostring(task_row.content or "") .. reset_code
-            task_row.due_to = color_code .. due_str .. reset_code
-        end
-        cfg = config.get_config()
-        hide_due = false
-        if cfg  !=  nil and (cfg["hide_due_to"] == true or cfg["hide_due_to"] == "true") then
-            hide_due = true
-        end
-        
-        cols = {"id", "priority", "subject", "content"}
-        if not hide_due then
-            table.insert(cols, "due_to")
+            -- Apply the priority color to the selected columns for this row
+            for _, col in ipairs(cols) do
+                val = task_row[col]
+                if col == "priority" then
+                    val = priority_text
+                elseif col == "due_to" then
+                    val = due_str
+                else
+                    val = tostring(val or "")
+                end
+                task_row[col] = color_code .. val .. reset_code
+            end
         end
         view(result, {columns=cols, line_length=999})
     else

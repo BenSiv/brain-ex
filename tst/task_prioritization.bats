@@ -5,6 +5,7 @@ setup() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
     rm -f "$HOME/.config/brain-ex/config.yaml"
+    rm -f "$HOME/.config/brain-ex/settings.json"
     cleanup_test_env
     brex init --vault tmp_vault --editor micro
 }
@@ -13,6 +14,7 @@ teardown() {
     rm -rf tmp_vault
     rm -f tmp_vault.db
     rm -f "$HOME/.config/brain-ex/config.yaml"
+    rm -f "$HOME/.config/brain-ex/settings.json"
     cleanup_test_env
 }
 
@@ -129,7 +131,7 @@ EOF
     echo "hide_due_to: true" >> "$HOME/.config/brain-ex/config.yaml"
 
     # 3. due_to should be hidden
-    run brex tmp_vault task list
+    run bash -c "brex tmp_vault task list 2>/dev/null"
     [ "$status" -eq 0 ]
     [[ ! "$output" =~ "due_to" ]]
 }

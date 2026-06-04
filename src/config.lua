@@ -219,5 +219,33 @@ function config.set_default_brain(name)
     return true
 end
 
+function config.get_settings_path()
+    home_dir = os.getenv("HOME")
+    return joinpath(home_dir, ".config", "brain-ex", "settings.json")
+end
+
+function config.load_settings()
+    path = config.get_settings_path()
+    if not file_exists(path) then
+        return {}
+    end
+    f = io.open(path, "r")
+    if f == nil then
+        return {}
+    end
+    content = io.read(f, "*all")
+    io.close(f)
+    if content == nil then
+        return {}
+    end
+    dkjson = require("dkjson")
+    obj, pos, err = dkjson.decode(content)
+    if err != nil then
+        io.write(io.stderr, "Warning: Failed to parse settings.json: " .. tostring(err) .. "\n")
+        return {}
+    end
+    return obj or {}
+end
+
 -- Export the module
 return config

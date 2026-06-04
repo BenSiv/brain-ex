@@ -99,3 +99,61 @@ teardown() {
     [ "$OVERDUE" -eq 0 ]
 }
 
+@test "settings.json task_columns selection is respected" {
+    # Write custom settings.json
+    mkdir -p "$HOME/.config/brain-ex"
+    cat <<EOF > "$HOME/.config/brain-ex/settings.json"
+{
+  "task_columns": ["id", "subject", "owner"]
+}
+EOF
+
+    brex task add --content "Test task content" --importance 5 --urgency 5 --owner "test-owner"
+
+    run brex task list
+    [ "$status" -eq 0 ]
+    
+    # "owner" column should be visible, but "priority" or "content" or "due_to" should NOT be visible.
+    [[ "$output" =~ "test-owner" ]]
+    [[ ! "$output" =~ "priority" ]]
+    [[ ! "$output" =~ "content" ]]
+}
+
+@test "settings.json custom quadrant colors are respected" {
+    # Write custom settings.json with a unique ANSI color code for Q1 (e.g. \u001b[96m for cyan)
+    mkdir -p "$HOME/.config/brain-ex"
+    cat <<EOF > "$HOME/.config/brain-ex/settings.json"
+{
+  "task_columns": ["id", "subject"],
+  "colors": {
+    "Q1": "\u001b[96m",
+    "reset": "\u001b[0m"
+  }
+}
+EOF
+
+    # Q1 is imp >= 4 and urg >= 4
+    brex task add --content "Cyan task" --importance 5 --urgency 5
+
+    run brex task list
+    [ "$status" -eq 0 ]
+
+    # The output should contain the cyan escape sequence \027[96m or \e[96m
+    # In bash/bats, we can match against the escape character \x1b or \033 or \e
+    [[ "$output" =~ $'\e[96m' ]]
+}
+
+@test "deprecation warning for hide_due_to in config.yaml is shown" {
+    # Enable hide_due_to in config.yaml
+    echo "hide_due_to: true" >> "$HOME/.config/brain-ex/config.yaml"
+
+    brex task add --content "Warning check task"
+
+    run brex task list
+    [ "$status" -eq 0 ]
+
+    # Deprecation warning should be printed on stderr
+    [[ "$output" =~ "Warning: 'hide_due_to' configuration in config.yaml is deprecated" ]]
+}
+
+

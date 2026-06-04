@@ -107,6 +107,26 @@ function update_config_file(home_dir, updates)
     end
     
     save_config(config_file, current_conf)
+
+    settings_file = joinpath(config_dir, "settings.json")
+    if not file_exists(settings_file) then
+        sf = io.open(settings_file, "w")
+        if sf != nil then
+            json_template = """{
+  "task_columns": ["id", "priority", "subject", "content", "due_to"],
+  "colors": {
+    "Q1": "\u001b[31m",
+    "Q2": "\u001b[38;5;208m",
+    "Q3": "\u001b[33m",
+    "Q4": "\u001b[90m",
+    "reset": "\u001b[0m"
+  }
+}
+"""
+            io.write(sf, json_template)
+            io.close(sf)
+        end
+    end
 end
 
 function remove_trailing_slash(path)
