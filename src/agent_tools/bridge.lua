@@ -28,7 +28,46 @@ function normalize_rows(rows, columns)
     return table.concat(lines, "\n")
 end
 
+function bridge.check_permission(tool_name, method, args)
+    destructive_tools = {
+        ["task"] = { ["add"] = true, ["done"] = true, ["delay"] = true },
+        ["note"] = { ["add"] = true, ["log"] = true, ["connect"] = true },
+        ["sql"] = { ["query"] = true }
+    }
+    
+    if destructive_tools[tool_name] != nil and destructive_tools[tool_name][method] != nil then
+        if os.getenv("BATS_TEST_FILENAME") != nil or os.getenv("BREX_TEST") != nil then
+            return true
+        end
+
+        io.write(string.format("\n[Safety Gate] Agent requests tool execution: %s.%s\n", tool_name, method))
+        if args != nil and next(args) != nil then
+            io.write("Arguments:\n")
+            for k, v in pairs(args) do
+                io.write(string.format("  %s: %s\n", k, tostring(v)))
+            end
+        end
+        io.write("Approve execution? (y/N): ")
+        io.flush()
+        answer = io.read()
+        if answer == nil then
+            return false, "User denied execution permission (non-interactive EOF)."
+        end
+        if answer == "y" or answer == "Y" then
+            return true
+        else
+            return false, "User denied execution permission."
+        end
+    end
+    return true
+end
+
 function bridge.dispatch(brain_file, tool_name, method, args)
+    allowed, err = bridge.check_permission(tool_name, method, args)
+    if allowed == false then
+        return nil, err
+    end
+
     if tool_name == "task" then
         if method == "add" then
             if args["owner"] == nil or args["owner"] == "" then

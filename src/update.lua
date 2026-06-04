@@ -82,6 +82,8 @@ function update_from_vault(brain_file, force)
                     DROP TABLE IF EXISTS connections;
                     DROP TABLE IF EXISTS notes;
                     DROP TABLE IF EXISTS tasks;
+                    DROP TABLE IF EXISTS agent_sessions;
+                    DROP TABLE IF EXISTS agent_messages;
                     DROP TABLE IF EXISTS sync_meta;
                 """
                 local_update(brain_file, reset_sql)
@@ -125,6 +127,57 @@ function update_from_vault(brain_file, force)
                     ))
                 end
             end
+
+            sessions_file = joinpath(vault_path, "agent_sessions.tsv")
+            if file_exists(sessions_file) then
+                local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                attr = lfs.attributes(sessions_file)
+                current_mod = attr and tostring(attr.modification)
+                
+                stored_mod = nil
+                res = local_query(brain_file, "SELECT value FROM sync_meta WHERE key='agent_sessions_tsv_mod_time';")
+                if res != nil and #res > 0 then
+                    stored_mod = res[1].value or res[1][1]
+                end
+                
+                if current_mod != stored_mod then
+                    local_update(brain_file, "DELETE FROM agent_sessions;")
+                    status = import_delimited(brain_file, sessions_file, "agent_sessions", "\t")
+                    if status == nil then
+                        return nil, "Failed to import agent sessions"
+                    end
+                    local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('agent_sessions_tsv_mod_time', '%s');",
+                        current_mod
+                    ))
+                end
+            end
+
+            messages_file = joinpath(vault_path, "agent_messages.tsv")
+            if file_exists(messages_file) then
+                local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                attr = lfs.attributes(messages_file)
+                current_mod = attr and tostring(attr.modification)
+                
+                stored_mod = nil
+                res = local_query(brain_file, "SELECT value FROM sync_meta WHERE key='agent_messages_tsv_mod_time';")
+                if res != nil and #res > 0 then
+                    stored_mod = res[1].value or res[1][1]
+                end
+                
+                if current_mod != stored_mod then
+                    local_update(brain_file, "DELETE FROM agent_messages;")
+                    status = import_delimited(brain_file, messages_file, "agent_messages", "\t")
+                    if status == nil then
+                        return nil, "Failed to import agent messages"
+                    end
+                    local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('agent_messages_tsv_mod_time', '%s');",
+                        current_mod
+                    ))
+                end
+            end
+
             return true
         end)
     end

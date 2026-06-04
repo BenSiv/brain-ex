@@ -155,3 +155,27 @@ teardown() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"brex agent ask"* ]]
 }
+
+@test "agent sessions and messages are persisted to and synced from vault" {
+    export BREX_MOCK_RESPONSE="<done>yes, synced</done>"
+    run $BREX mybrain agent ask "synchronize everything"
+    [ "$status" -eq 0 ]
+    
+    # 1. Check that files exist in vault
+    [ -f "tmp_vault/agent_sessions.tsv" ]
+    [ -f "tmp_vault/agent_messages.tsv" ]
+    
+    # Check they are not empty
+    [ -s "tmp_vault/agent_sessions.tsv" ]
+    [ -s "tmp_vault/agent_messages.tsv" ]
+    
+    # 2. Re-populate database using force update
+    run $BREX mybrain update --force
+    [ "$status" -eq 0 ]
+    
+    # 3. Check SQLite DB to confirm sessions and messages are back
+    COUNT_S=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM agent_sessions WHERE id='default';")
+    [ "$COUNT_S" -eq 1 ]
+    COUNT_M=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM agent_messages WHERE role='user' AND content='synchronize everything';")
+    [ "$COUNT_M" -eq 1 ]
+}

@@ -131,6 +131,17 @@ function config.get_agent_config()
     return provider_name, model_name
 end
 
+function config.get_compaction_threshold()
+    cfg = load_config()
+    if cfg != nil and cfg["agent_compaction_threshold"] != nil then
+        val = tonumber(cfg["agent_compaction_threshold"])
+        if val != nil then
+            return val
+        end
+    end
+    return 4000
+end
+
 function config.get_embedding_config()
     cfg = load_config()
     provider_name = (cfg and cfg["embedding_provider"]) or (cfg and cfg["agent_provider"]) or "ollama"

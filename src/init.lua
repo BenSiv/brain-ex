@@ -44,6 +44,24 @@ CREATE TABLE IF NOT EXISTS tasks (
     importance INTEGER DEFAULT 1,
     urgency INTEGER DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS agent_sessions (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS agent_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    metadata TEXT,
+    in_context INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY(session_id) REFERENCES agent_sessions(id)
+);
 """
 
 function build_config_dir(home_dir)
