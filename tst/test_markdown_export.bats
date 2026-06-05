@@ -34,8 +34,8 @@ teardown() {
     content=$(cat "${md_files[0]}")
     echo "Content: $content"
     
-    # Assert contains frontmatter and body
-    [[ "$content" == *"subject: Test Task"* ]]
+    # Assert contains frontmatter and body, but no subject field (inferred from dir structure)
+    [[ "$content" != *"subject:"* ]]
     [[ "$content" == *"importance: 1"* ]]
     [[ "$content" == *"urgency: 1"* ]]
     [[ "$content" == *"Content"* ]]

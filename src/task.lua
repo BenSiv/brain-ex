@@ -132,7 +132,6 @@ function backup_tasks(brain_file)
             metadata = {
                 id = id,
                 time = time_val,
-                subject = subject,
                 due_to = due_to,
                 overdue = overdue,
                 done = done,
