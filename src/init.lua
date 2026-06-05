@@ -222,10 +222,29 @@ function init_bx_with_vault(args)
 		return nil, "Failed to initialize database"
 	end
 
-    -- optional: import existing tasks if available
-	if file_exists(task_file)  !=  nil and file_exists(task_file) then
-    	import_delimited(brain_path, task_file, "tasks", "\t")    
-	end
+    -- optional: import existing tasks if available and migrate to Markdown
+    paths_mod = require("paths")
+    if paths_mod.file_exists(task_file) != nil and paths_mod.file_exists(task_file) then
+        database.import_delimited(brain_path, task_file, "tasks", "\t")    
+        task_mod = require("task")
+        task_mod.backup_tasks(brain_path)
+        os.remove(task_file)
+    end
+
+    sessions_file = joinpath(vault_dir, "agent_sessions.tsv")
+    messages_file = joinpath(vault_dir, "agent_messages.tsv")
+    if (paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file)) or (paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file)) then
+        if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then
+            database.import_delimited(brain_path, sessions_file, "agent_sessions", "\t")
+        end
+        if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then
+            database.import_delimited(brain_path, messages_file, "agent_messages", "\t")
+        end
+        agent_engine = require("agent_engine")
+        agent_engine.backup_agent_data(brain_path)
+        if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then os.remove(sessions_file) end
+        if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then os.remove(messages_file) end
+    end
 
         -- ensure vault directory exists
     if lfs.attributes(vault_path, "mode") == nil then

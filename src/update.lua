@@ -381,6 +381,34 @@ function update_from_vault(brain_file, force)
                 return nil, "Failed to ensure database tables"
             end
 
+            -- Migrate legacy TSVs if they exist
+            paths_mod = require("paths")
+            task_file = joinpath(vault_path, "tasks.tsv")
+            sessions_file = joinpath(vault_path, "agent_sessions.tsv")
+            messages_file = joinpath(vault_path, "agent_messages.tsv")
+            
+            if paths_mod.file_exists(task_file) != nil and paths_mod.file_exists(task_file) then
+                print("Migrating legacy tasks.tsv to Markdown files in the vault...")
+                database.import_delimited(brain_file, task_file, "tasks", "\t")    
+                task_mod = require("task")
+                task_mod.backup_tasks(brain_file)
+                os.remove(task_file)
+            end
+
+            if (paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file)) or (paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file)) then
+                print("Migrating legacy agent sessions/messages to Markdown files in the vault...")
+                if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then
+                    database.import_delimited(brain_file, sessions_file, "agent_sessions", "\t")
+                end
+                if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then
+                    database.import_delimited(brain_file, messages_file, "agent_messages", "\t")
+                end
+                agent_engine = require("agent_engine")
+                agent_engine.backup_agent_data(brain_file)
+                if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then os.remove(sessions_file) end
+                if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then os.remove(messages_file) end
+            end
+
             -- vault_to_sql now handles incremental updates
             status = vault_to_sql(vault_path, brain_file)
             if status == nil then

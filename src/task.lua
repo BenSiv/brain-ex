@@ -699,6 +699,7 @@ task.mark_done = mark_done
 task.delay_due = delay_due
 task.update_priority = update_priority
 task.last_done = last_done
+task.backup_tasks = backup_tasks
 
 if string.match(arg[0], "task.lua$")  !=  nil then
     do_task(get_brain_path(), arg)
