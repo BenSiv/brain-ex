@@ -232,7 +232,7 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
     embedding_json = ""
     if provider_name != nil and provider_name != "" then
         status, provider = pcall(require, "agent_providers." .. provider_name)
-        if status == false then
+        if status == false or provider == nil or type(provider) != "table" then
             status, provider = pcall(require, provider_name)
         end
         if status == true and provider != nil and provider.embeddings != nil then

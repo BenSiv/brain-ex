@@ -7,7 +7,9 @@ argparse = require("argparse")
 paths = require("paths")
 dates = require("dates")
 
-package.path = "src/?.lua;" .. package.path
+if package.preload["bx_utils"] == nil then
+    package.path = "src/?.lua;" .. package.path
+end
 bx_utils = require("bx_utils")
 config = require("config")
 get_brain_path = config.get_brain_path

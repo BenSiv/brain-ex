@@ -39,6 +39,8 @@ end
 function provider.embeddings(model, input_text, command_tmpl)
     dkjson = require("dkjson")
     utils = require("utils")
+    result = nil
+    success = nil
 
     if command_tmpl != nil and command_tmpl != "" then
         -- Expand template: %m -> model, %t -> input_text (quoted)

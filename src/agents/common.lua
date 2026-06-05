@@ -1,7 +1,7 @@
 -- src/agents/common.lua
-local common = {}
+common = {}
 
-common.tool_instructions = [[
+common.tool_instructions = """
 You have access to the following tool format. If you want to use a tool, you MUST output exactly in this format WITHOUT leading/trailing spaces in tags, on new lines:
 <tool>tool_name</tool>
 <method>method_name</method>
@@ -22,6 +22,6 @@ Available tools:
 After you receive tool output, either request one more tool or finish.
 When you are done with your action and want to return to the user, output:
 <done>Your final message</done>
-]]
+"""
 
 return common
