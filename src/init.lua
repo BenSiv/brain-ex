@@ -225,6 +225,7 @@ function init_bx_with_vault(args)
     -- optional: import existing tasks if available and migrate to Markdown
     paths_mod = require("paths")
     if paths_mod.file_exists(task_file) != nil and paths_mod.file_exists(task_file) then
+        print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy tasks.tsv to Markdown...")
         database.import_delimited(brain_path, task_file, "tasks", "\t")    
         task_mod = require("task")
         task_mod.backup_tasks(brain_path)
@@ -234,6 +235,7 @@ function init_bx_with_vault(args)
     sessions_file = joinpath(vault_dir, "agent_sessions.tsv")
     messages_file = joinpath(vault_dir, "agent_messages.tsv")
     if (paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file)) or (paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file)) then
+        print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
         if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then
             database.import_delimited(brain_path, sessions_file, "agent_sessions", "\t")
         end
