@@ -136,14 +136,26 @@ teardown() {
     [[ ! "$output" =~ "Early task" ]]
 }
 
-@test "tasks tsv edits are synchronized before the next task command" {
-    printf "id\ttime\tcontent\tsubject\tdue_to\toverdue\tdone\tcomment\n701\t2026-05-01 10:00:00\tFrom TSV\tops\t2026-05-03 10:00:00\t0\t\t\n" > tmp_vault/tasks.tsv
+@test "tasks markdown edits are synchronized before the next task command" {
+    mkdir -p tmp_vault/tasks
+    cat <<EOF > tmp_vault/tasks/701.md
+---
+id: "701"
+time: "2026-05-01 10:00:00"
+subject: "ops"
+due_to: "2026-05-03 10:00:00"
+overdue: 0
+importance: 1
+urgency: 1
+---
+From Markdown
+EOF
 
     run brex task list
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "From TSV" ]]
+    [[ "$output" =~ "From Markdown" ]]
 
-    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=701 AND content='From TSV';")
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=701 AND content='From Markdown';")
     [ "$COUNT" -eq 1 ]
 }
 

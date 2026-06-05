@@ -72,8 +72,20 @@ teardown() {
     # Insert DB-only record that should disappear after full rebuild
     sqlite3 tmp_vault.db "INSERT INTO notes(subject, title, content) VALUES('tmp', 'db_only', 'should be removed');"
 
-    # Prepare tasks TSV to verify task import after rebuild
-    printf "id\ttime\tcontent\tsubject\tdue_to\toverdue\tdone\tcomment\n101\t2026-01-01 10:00:00\tImported Task\tops\t2026-01-02 10:00:00\t0\t\t\n" > tmp_vault/tasks.tsv
+    # Prepare task markdown file to verify task import after rebuild
+    mkdir -p tmp_vault/tasks
+    cat <<EOF > tmp_vault/tasks/101.md
+---
+id: "101"
+time: "2026-01-01 10:00:00"
+subject: "ops"
+due_to: "2026-01-02 10:00:00"
+overdue: 0
+importance: 1
+urgency: 1
+---
+Imported Task
+EOF
 
     run $BREX update
     [ "$status" -eq 0 ]

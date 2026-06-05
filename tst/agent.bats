@@ -100,7 +100,9 @@ teardown() {
     export BREX_MOCK_RESPONSE_2="<done>task saved</done>"
     run $BREX mybrain agent task "create a task"
     [ "$status" -eq 0 ]
-    grep -q "Agent task" tmp_vault/tasks.tsv
+    md_files=(tmp_vault/tasks/ops/*.md)
+    [ -f "${md_files[0]}" ]
+    grep -q "Agent task" "${md_files[0]}"
     COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM tasks WHERE content='Agent task' AND subject='ops' AND owner='agent';")
     [ "$COUNT" -eq 1 ]
 }
@@ -162,12 +164,10 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # 1. Check that files exist in vault
-    [ -f "tmp_vault/agent_sessions.tsv" ]
-    [ -f "tmp_vault/agent_messages.tsv" ]
+    [ -f "tmp_vault/agent_sessions/default.md" ]
     
     # Check they are not empty
-    [ -s "tmp_vault/agent_sessions.tsv" ]
-    [ -s "tmp_vault/agent_messages.tsv" ]
+    [ -s "tmp_vault/agent_sessions/default.md" ]
     
     # 2. Re-populate database using force update
     run $BREX mybrain update --force

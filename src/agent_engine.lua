@@ -212,27 +212,68 @@ end
 function agent_engine.backup_agent_data(brain_file)
     vault_path = config.get_vault_path()
     if vault_path != nil then
-        sessions_path = joinpath(vault_path, "agent_sessions.tsv")
-        messages_path = joinpath(vault_path, "agent_messages.tsv")
-        database.export_delimited(brain_file, "SELECT * FROM agent_sessions;", sessions_path, "\t", true)
-        database.export_delimited(brain_file, "SELECT * FROM agent_messages;", messages_path, "\t", true)
+        paths_mod = require("paths")
+        sessions_dir = joinpath(vault_path, "agent_sessions")
+        paths_mod.create_dir_if_not_exists(sessions_dir)
         
-        -- Update sync_meta
-        database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-        lfs_mod = require("lfs")
-        attr_s = lfs_mod.attributes(sessions_path)
-        if attr_s != nil then
-            database.local_update(brain_file, string.format(
-                "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('agent_sessions_tsv_mod_time', '%s');",
-                tostring(attr_s.modification)
-            ))
+        all_sessions = database.local_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;") or {}
+        
+        seen_files = {}
+        for _, sess in ipairs(all_sessions) do
+            sess_id = sess.id or sess[1]
+            sess_name = sess.name or sess[2]
+            created_at = sess.created_at or sess[3]
+            updated_at = sess.updated_at or sess[4]
+            
+            msgs = database.local_query(brain_file, string.format("SELECT role, content, metadata, in_context, created_at FROM agent_messages WHERE session_id='%s' ORDER BY id ASC;", sess_id)) or {}
+            
+            session_meta = {
+                id = sess_id,
+                name = sess_name,
+                created_at = created_at,
+                updated_at = updated_at
+            }
+            
+            bx_utils = require("bx_utils")
+            markdown_content = bx_utils.serialize_session(session_meta, msgs)
+            
+            filename = sess_id .. ".md"
+            file_path = joinpath(sessions_dir, filename)
+            seen_files[filename] = true
+            
+            f = io.open(file_path, "w")
+            if f != nil then
+                io.write(f, markdown_content)
+                io.close(f)
+                
+                database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                lfs_mod = require("lfs")
+                attr = lfs_mod.attributes(file_path)
+                if attr != nil then
+                    database.local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_file_mod_%s', '%s');",
+                        filename,
+                        tostring(attr.modification)
+                    ))
+                    database.local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_file_size_%s', '%s');",
+                        filename,
+                        tostring(attr.size)
+                    ))
+                    database.local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_id_for_%s', '%s');",
+                        filename,
+                        tostring(sess_id)
+                    ))
+                end
+            end
         end
-        attr_m = lfs_mod.attributes(messages_path)
-        if attr_m != nil then
-            database.local_update(brain_file, string.format(
-                "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('agent_messages_tsv_mod_time', '%s');",
-                tostring(attr_m.modification)
-            ))
+        
+        files = readdir(sessions_dir) or {}
+        for _, file in ipairs(files) do
+            if string.match(file, "%.md$") != nil and seen_files[file] == nil then
+                os.remove(joinpath(sessions_dir, file))
+            end
         end
     end
     return true

@@ -1,6 +1,6 @@
 setup_test_env() {
     export PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-    export HOME="$PROJECT_ROOT/.tmp-home"
+    export HOME="$PROJECT_ROOT/.tmp-home-$(basename "$BATS_TEST_FILENAME" .bats)"
     export XDG_CONFIG_HOME="$HOME/.config"
     export CONFIG="$XDG_CONFIG_HOME/brain-ex/config.yaml"
     export PATH="$PROJECT_ROOT/bin:$PATH"
@@ -8,5 +8,5 @@ setup_test_env() {
 }
 
 cleanup_test_env() {
-    rm -rf "$PROJECT_ROOT/.tmp-home"
+    rm -rf "$PROJECT_ROOT/.tmp-home-$(basename "$BATS_TEST_FILENAME" .bats)"
 }

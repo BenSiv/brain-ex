@@ -108,20 +108,115 @@ end
 
 function backup_tasks(brain_file)
     vault_path = get_vault_path()
-    if vault_path  !=  nil then
-        backup_path = joinpath(vault_path, "tasks.tsv")
-        export_delimited(brain_file, "SELECT * FROM tasks;", backup_path, "\t", true)
+    if vault_path != nil then
+        paths_mod = require("paths")
+        tasks_dir = joinpath(vault_path, "tasks")
+        paths_mod.create_dir_if_not_exists(tasks_dir)
         
-        -- Update sync_meta
-        local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+        all_tasks = local_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;") or {}
+        
+        seen_files = {}
+        for _, task_row in ipairs(all_tasks) do
+            id = task_row.id or task_row[1]
+            time_val = task_row.time or task_row[2]
+            content = task_row.content or task_row[3] or ""
+            subject = task_row.subject or task_row[4]
+            due_to = task_row.due_to or task_row[5]
+            overdue = task_row.overdue or task_row[6]
+            done = task_row.done or task_row[7]
+            comment = task_row.comment or task_row[8]
+            owner = task_row.owner or task_row[9]
+            importance = task_row.importance or task_row[10]
+            urgency = task_row.urgency or task_row[11]
+            
+            metadata = {
+                id = id,
+                time = time_val,
+                subject = subject,
+                due_to = due_to,
+                overdue = overdue,
+                done = done,
+                comment = comment,
+                owner = owner,
+                importance = importance,
+                urgency = urgency
+            }
+            
+            frontmatter = bx_utils.serialize_frontmatter(metadata)
+            filename = id .. ".md"
+            if subject != nil and subject != "NULL" and subject != "" then
+                filename = subject .. "/" .. id .. ".md"
+            end
+            file_path = joinpath(tasks_dir, filename)
+            seen_files[filename] = true
+            
+            dir_path = string.match(file_path, "(.*)/[^/]+$")
+            if dir_path != nil then
+                bx_utils.ensure_dir(dir_path)
+            end
+            
+            f = io.open(file_path, "w")
+            if f != nil then
+                io.write(f, frontmatter)
+                io.write(f, content)
+                io.close(f)
+                
+                -- Update sync_meta with modification time of this file
+                local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                lfs_mod = require("lfs")
+                attr = lfs_mod.attributes(file_path)
+                if attr != nil then
+                    local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_mod_%s', '%s');",
+                        filename,
+                        tostring(attr.modification)
+                    ))
+                    local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_size_%s', '%s');",
+                        filename,
+                        tostring(attr.size)
+                    ))
+                    local_update(brain_file, string.format(
+                        "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_id_for_%s', '%s');",
+                        filename,
+                        tostring(id)
+                    ))
+                end
+            end
+        end
+        
+        -- Clean up stale files in tasks_dir
+        file_list = bx_utils.find_markdown_files(tasks_dir) or {}
+        for _, item in ipairs(file_list) do
+            file = item.rel_path
+            if seen_files[file] == nil then
+                os.remove(joinpath(tasks_dir, file))
+            end
+        end
+        
+        -- Clean up empty subdirectories
         lfs_mod = require("lfs")
-        attr = lfs_mod.attributes(backup_path)
-        if attr != nil then
-            mod_time = tostring(attr.modification)
-            local_update(brain_file, string.format(
-                "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('tasks_tsv_mod_time', '%s');",
-                mod_time
-            ))
+        dirs = {}
+        queue = {""}
+        q_index = 1
+        while q_index <= #queue do
+            curr = queue[q_index]
+            q_index = q_index + 1
+            path = curr == "" and tasks_dir or tasks_dir .. "/" .. curr
+            for f in lfs_mod.dir(path) do
+                if f != "." and f != ".." then
+                    rel = curr == "" and f or curr .. "/" .. f
+                    full = tasks_dir .. "/" .. rel
+                    attr = lfs_mod.attributes(full)
+                    if attr != nil and attr.mode == "directory" then
+                        table.insert(queue, rel)
+                        table.insert(dirs, rel)
+                    end
+                end
+            end
+        end
+        for i = #dirs, 1, -1 do
+            lfs_mod.rmdir(tasks_dir .. "/" .. dirs[i])
         end
     end
     return true
