@@ -151,6 +151,10 @@ urgency: 1
 From Markdown
 EOF
 
+    # Run update to sync manual edits before running read-only command
+    run brex update
+    [ "$status" -eq 0 ]
+
     run brex task list
     [ "$status" -eq 0 ]
     [[ "$output" =~ "From Markdown" ]]

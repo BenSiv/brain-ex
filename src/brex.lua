@@ -167,7 +167,7 @@ function main()
 
     brain_file = get_brain_path(target_brain)
     if brain_file  !=  nil then
-        if command != "update" then
+        if command != "update" and not is_read_only_command(command, subcommand) then
             sync_status, sync_err = sync.refresh(brain_file)
             if sync_status == nil then
                 print(sync_err or "Failed to synchronize brain from vault.")
@@ -191,6 +191,25 @@ function main()
     if is_git() then
         auto_update()
     end
+end
+
+function is_read_only_command(command, subcommand)
+    if subcommand != nil and string.sub(subcommand, 1, 1) == "-" then
+        subcommand = nil
+    end
+
+    if command == "note" then
+        return subcommand == "last"
+    elseif command == "task" then
+        return subcommand == "list" or subcommand == "last"
+    elseif command == "knowledge" then
+        return subcommand == "search" or subcommand == "browse" or subcommand == "show" or subcommand == "history" or subcommand == "queue" or subcommand == nil or subcommand == ""
+    elseif command == "sql" then
+        return true
+    elseif command == "agent" then
+        return subcommand == "view" or subcommand == nil or subcommand == ""
+    end
+    return false
 end
 
 -- run program

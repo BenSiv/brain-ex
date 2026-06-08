@@ -214,6 +214,10 @@ teardown() {
 
     printf "Edited from vault\n[[todo]]\n" > tmp_vault/work/sync-test.md
 
+    # Run update to sync manual edits before running read-only command
+    run brex update
+    [ "$status" -eq 0 ]
+
     run brex note last --subject "work" --number 1
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Edited from vault" ]]
