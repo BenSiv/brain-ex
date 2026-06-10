@@ -1,7 +1,7 @@
 sync = {}
 
 config = require("config")
-update = require("update")
+bx_utils = require("bx_utils")
 
 function sync.is_vault_backed()
     return config.get_vault_path() != nil
@@ -12,7 +12,7 @@ function sync.refresh(brain_file)
         return true
     end
 
-    return update.update_from_vault(brain_file)
+    return bx_utils.update_from_vault(brain_file)
 end
 
 return sync

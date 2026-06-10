@@ -13,8 +13,12 @@ local_update = database.local_update
 local_query = database.local_query
 vault_to_sql = require("vault_to_sql").vault_to_sql
 process_content = require("vault_to_sql").process_content
-sql_init = require("init").sql_init
+sql_init = require("sql_schema").sql_init
 get_help_string = require("help").get_help_string
+bx_utils = require("bx_utils")
+paths = require("paths")
+task_mod = require("task")
+agent_engine = require("agent_engine")
 
 function read_raw(path)
     f = io.open(path, "r")
@@ -88,10 +92,8 @@ end
 function sync_tasks_from_vault(vault_path, brain_file, force)
     local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     tasks_dir = joinpath(vault_path, "tasks")
-    lfs_mod = require("lfs")
-    bx_utils = require("bx_utils")
     
-    attr_dir = lfs_mod.attributes(tasks_dir)
+    attr_dir = lfs.attributes(tasks_dir)
     if attr_dir == nil or attr_dir.mode != "directory" then
         return true
     end
@@ -102,7 +104,7 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
     for _, item in ipairs(file_list) do
         file = item.rel_path
         file_path = joinpath(tasks_dir, file)
-        attr = lfs_mod.attributes(file_path)
+        attr = lfs.attributes(file_path)
         if attr != nil then
             current_mod = tostring(attr.modification)
             file_size = attr.size
@@ -145,7 +147,7 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
                         io.write(f, new_content)
                         io.close(f)
                     end
-                    fresh_attr = lfs_mod.attributes(file_path)
+                    fresh_attr = lfs.attributes(file_path)
                     if fresh_attr != nil then
                         current_mod = tostring(fresh_attr.modification)
                         file_size = fresh_attr.size
@@ -230,10 +232,8 @@ end
 function sync_sessions_from_vault(vault_path, brain_file, force)
     local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     sessions_dir = joinpath(vault_path, "agent_sessions")
-    lfs_mod = require("lfs")
-    bx_utils = require("bx_utils")
     
-    attr_dir = lfs_mod.attributes(sessions_dir)
+    attr_dir = lfs.attributes(sessions_dir)
     if attr_dir == nil or attr_dir.mode != "directory" then
         return true
     end
@@ -244,7 +244,7 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
     for _, file in ipairs(files) do
         if string.match(file, "%.md$") != nil then
             file_path = joinpath(sessions_dir, file)
-            attr = lfs_mod.attributes(file_path)
+            attr = lfs.attributes(file_path)
             if attr != nil then
                 current_mod = tostring(attr.modification)
                 file_size = attr.size
@@ -382,31 +382,28 @@ function update_from_vault(brain_file, force)
             end
 
             -- Migrate legacy TSVs if they exist
-            paths_mod = require("paths")
             task_file = joinpath(vault_path, "tasks.tsv")
             sessions_file = joinpath(vault_path, "agent_sessions.tsv")
             messages_file = joinpath(vault_path, "agent_messages.tsv")
             
-            if paths_mod.file_exists(task_file) != nil and paths_mod.file_exists(task_file) then
+            if paths.file_exists(task_file) != nil and paths.file_exists(task_file) then
                 print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy tasks.tsv to Markdown...")
                 database.import_delimited(brain_file, task_file, "tasks", "\t")    
-                task_mod = require("task")
                 task_mod.backup_tasks(brain_file)
                 os.remove(task_file)
             end
 
-            if (paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file)) or (paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file)) then
+            if (paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file)) or (paths.file_exists(messages_file) != nil and paths.file_exists(messages_file)) then
                 print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
-                if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then
+                if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then
                     database.import_delimited(brain_file, sessions_file, "agent_sessions", "\t")
                 end
-                if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then
+                if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then
                     database.import_delimited(brain_file, messages_file, "agent_messages", "\t")
                 end
-                agent_engine = require("agent_engine")
                 agent_engine.backup_agent_data(brain_file)
-                if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then os.remove(sessions_file) end
-                if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then os.remove(messages_file) end
+                if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then os.remove(sessions_file) end
+                if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then os.remove(messages_file) end
             end
 
             -- vault_to_sql now handles incremental updates
@@ -563,6 +560,11 @@ end
 update.update_note_from_file = update_note_from_file
 update.update_from_vault = update_from_vault
 update.do_update = do_update
+update.sync_tasks_from_vault = sync_tasks_from_vault
+update.sync_sessions_from_vault = sync_sessions_from_vault
+
+bx_utils.update_from_vault = update_from_vault
+bx_utils.update_note_from_file = update_note_from_file
 
 if string.match(arg[0], "update.lua$") != nil then
     do_update(get_brain_path(), arg)

@@ -1,6 +1,10 @@
 -- Define a module table
 init = {}
 
+sql_schema = require("sql_schema")
+sql_init = sql_schema.sql_init
+init.sql_init = sql_init
+
 utils = require("utils")
 argparse = require("argparse")
 database = require("database")
@@ -10,59 +14,10 @@ local_query = database.local_query
 lfs = require("lfs")
 vault_to_sql = require("vault_to_sql").vault_to_sql
 get_help_string = require("help").get_help_string
-
-sql_init = """
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS notes (
-    time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
-    subject TEXT,
-    title TEXT,
-    content TEXT,
-    size INTEGER DEFAULT 0,
-    PRIMARY KEY (title, subject)
-);
-
-CREATE TABLE IF NOT EXISTS connections (
-    source_title TEXT NOT NULL,
-    source_subject TEXT,
-    target_title TEXT NOT NULL,
-    target_subject TEXT,
-    PRIMARY KEY (source_title, source_subject, target_title, target_subject)
-);
-
-CREATE TABLE IF NOT EXISTS tasks (
-    id INTEGER PRIMARY KEY,
-    time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
-    content TEXT,
-    subject TEXT,
-    due_to TIMESTAMP,
-    overdue INTEGER,
-    done TIMESTAMP DEFAULT NULL,
-    comment TEXT DEFAULT NULL,
-    owner TEXT DEFAULT NULL,
-    importance INTEGER DEFAULT 1,
-    urgency INTEGER DEFAULT 1
-);
-
-CREATE TABLE IF NOT EXISTS agent_sessions (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    updated_at TEXT DEFAULT (datetime('now', 'localtime'))
-);
-
-CREATE TABLE IF NOT EXISTS agent_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    metadata TEXT,
-    in_context INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    FOREIGN KEY(session_id) REFERENCES agent_sessions(id)
-);
-"""
+update_mod = require("update")
+paths = require("paths")
+task_mod = require("task")
+agent_engine = require("agent_engine")
 
 function build_config_dir(home_dir)
     config_root = joinpath(home_dir, ".config")
@@ -223,29 +178,26 @@ function init_bx_with_vault(args)
 	end
 
     -- optional: import existing tasks if available and migrate to Markdown
-    paths_mod = require("paths")
-    if paths_mod.file_exists(task_file) != nil and paths_mod.file_exists(task_file) then
+    if paths.file_exists(task_file) != nil and paths.file_exists(task_file) then
         print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy tasks.tsv to Markdown...")
         database.import_delimited(brain_path, task_file, "tasks", "\t")    
-        task_mod = require("task")
         task_mod.backup_tasks(brain_path)
         os.remove(task_file)
     end
 
     sessions_file = joinpath(vault_dir, "agent_sessions.tsv")
     messages_file = joinpath(vault_dir, "agent_messages.tsv")
-    if (paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file)) or (paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file)) then
+    if (paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file)) or (paths.file_exists(messages_file) != nil and paths.file_exists(messages_file)) then
         print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
-        if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then
+        if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then
             database.import_delimited(brain_path, sessions_file, "agent_sessions", "\t")
         end
-        if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then
+        if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then
             database.import_delimited(brain_path, messages_file, "agent_messages", "\t")
         end
-        agent_engine = require("agent_engine")
         agent_engine.backup_agent_data(brain_path)
-        if paths_mod.file_exists(sessions_file) != nil and paths_mod.file_exists(sessions_file) then os.remove(sessions_file) end
-        if paths_mod.file_exists(messages_file) != nil and paths_mod.file_exists(messages_file) then os.remove(messages_file) end
+        if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then os.remove(sessions_file) end
+        if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then os.remove(messages_file) end
     end
 
         -- ensure vault directory exists
@@ -280,9 +232,11 @@ function init_bx_with_vault(args)
     updates.brains[brain_name] = brain_path
     update_config_file(home_dir, updates)
 
-    -- import existing notes if any
+    -- import existing notes, tasks and agent sessions if any
     vault_to_sql(vault_path, brain_path)
     knowledge_pool.sync_notes(brain_path)
+    update_mod.sync_tasks_from_vault(vault_path, brain_path)
+    update_mod.sync_sessions_from_vault(vault_path, brain_path)
     return true
 end
 
@@ -315,7 +269,6 @@ function do_init(cmd_args)
     return "success"
 end
 
-init.sql_init = sql_init
 init.do_init = do_init
 
 if string.match(arg[0], "init.lua$")  !=  nil then

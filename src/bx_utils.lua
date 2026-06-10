@@ -4,6 +4,7 @@ bx_utils = {}
 database = require("database")
 config = require("config")
 get_brain_path = config.get_brain_path
+lfs = require("lfs")
 
 function is_id_unique(table_name, target_id, brain_file)
     brain_file = brain_file or get_brain_path()
@@ -52,7 +53,6 @@ function is_sqlite_empty(brain_file, table_name)
 end
 
 function ensure_dir(path)
-    lfs_mod = require("lfs")
     current = ""
     if string.sub(path, 1, 1) == "/" then
         current = "/"
@@ -63,12 +63,11 @@ function ensure_dir(path)
         else
             current = current .. "/" .. part
         end
-        lfs_mod.mkdir(current)
+        lfs.mkdir(current)
     end
 end
 
 function find_markdown_files(base_dir)
-    lfs_mod = require("lfs")
     file_list = {}
     queue = {""}
     q_index = 1
@@ -79,11 +78,11 @@ function find_markdown_files(base_dir)
         
         path_to_scan = current_dir == "" and base_dir or base_dir .. "/" .. current_dir
         
-        for file in lfs_mod.dir(path_to_scan) do
+        for file in lfs.dir(path_to_scan) do
             if file != "." and file != ".." then
                 rel_path = current_dir == "" and file or (current_dir .. "/" .. file)
                 full_path = base_dir .. "/" .. rel_path
-                attr = lfs_mod.attributes(full_path)
+                attr = lfs.attributes(full_path)
                 if attr != nil then
                     if attr.mode == "directory" then
                         table.insert(queue, rel_path)

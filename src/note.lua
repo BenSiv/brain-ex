@@ -12,8 +12,8 @@ get_vault_path = config.get_vault_path
 get_default_editor = config.get_default_editor
 lfs = require("lfs")
 parse_links_str = require("vault_to_sql").parse_links_str
-update = require("update")
 help = require("help")
+bx_utils = require("bx_utils")
 
 function escape_sql(str)
     return string.gsub(str, "'", "''")
@@ -110,7 +110,7 @@ end
 
 function sync_note_from_vault(brain_file, vault_dir, subject, title)
     _, note_path = get_note_paths(vault_dir, subject, title)
-    return update.update_note_from_file(brain_file, note_path)
+    return bx_utils.update_note_from_file(brain_file, note_path)
 end
 
 function write_note(vault_dir, subject, title, content, links, mode)
@@ -244,7 +244,7 @@ function edit_note(brain_file, args)
         return nil, "Failed to open editor"
     end
 
-    success = update.update_note_from_file(brain_file, note_path)
+    success = bx_utils.update_note_from_file(brain_file, note_path)
     if success == nil then
         return nil, "Failed to edit note in brain file"
     end
