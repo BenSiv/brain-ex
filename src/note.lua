@@ -42,7 +42,13 @@ function append_content(brain_file, subject, title, content)
         return nil, "Failed to find note for append: " .. title
     end
     -- Handle both named and numeric column access
-    old_content = result[1].content or result[1][1] or ""
+    old_content = ""
+    if result[1][1] != nil then
+        old_content = result[1][1]
+    end
+    if result[1].content != nil then
+        old_content = result[1].content
+    end
     new_content = old_content .. "\n" .. content
     esc_content = escape_sql(new_content)
 
@@ -63,14 +69,22 @@ function connect_notes(brain_file, source_title, source_subject, links)
 
     insert_statement = "INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
 
+    safe_source_subject = ""
+    if source_subject != nil then
+        safe_source_subject = source_subject
+    end
+
     for _, link in pairs(links) do
         target_title = link.title
-        target_subject = link.subject or ""
+        target_subject = ""
+        if link.subject != nil then
+            target_subject = link.subject
+        end
 
         statement_value = string.format(
             "('%s','%s','%s','%s'), ",
             source_title,
-            source_subject or "",
+            safe_source_subject,
             target_title,
             target_subject
         )
@@ -97,14 +111,28 @@ function get_note_paths(vault_dir, subject, title)
 end
 
 function note_exists(brain_file, subject, title)
-    esc_subject = escape_sql(subject or "")
-    esc_title = escape_sql(title or "")
+    safe_subject = ""
+    if subject != nil then
+        safe_subject = subject
+    end
+    safe_title = ""
+    if title != nil then
+        safe_title = title
+    end
+    esc_subject = escape_sql(safe_subject)
+    esc_title = escape_sql(safe_title)
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
     result = local_query(brain_file, query)
     if result == nil or result[1] == nil then
         return false
     end
-    count_val = result[1].count or result[1][1] or 0
+    count_val = 0
+    if result[1][1] != nil then
+        count_val = result[1][1]
+    end
+    if result[1].count != nil then
+        count_val = result[1].count
+    end
     return tonumber(count_val) > 0
 end
 
@@ -127,7 +155,9 @@ function write_note(vault_dir, subject, title, content, links, mode)
     end
 
     note_dir, note_path = get_note_paths(vault_dir, subject, title)
-    mode = mode or "a"
+    if mode == nil then
+        mode = "a"
+    end
 
     -- Ensure the directory exists
     if lfs.attributes(note_dir, "mode") == nil then
@@ -149,10 +179,22 @@ function write_note(vault_dir, subject, title, content, links, mode)
 end
 
 function take_note(brain_file, args)
-    subject = args["subject"] or ""
-    title = args["title"] or ""
-    content = args["content"] or ""
-    links_str = args["links"] or ""
+    subject = ""
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    title = ""
+    if args["title"] != nil then
+        title = args["title"]
+    end
+    content = ""
+    if args["content"] != nil then
+        content = args["content"]
+    end
+    links_str = ""
+    if args["links"] != nil then
+        links_str = args["links"]
+    end
     links = parse_links_str(links_str)
 
     vault_path = get_vault_path()
@@ -206,8 +248,14 @@ function take_note(brain_file, args)
 end
 
 function edit_note(brain_file, args)
-    subject = args["subject"] or ""
-    title = args["title"] or ""
+    subject = ""
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    title = ""
+    if args["title"] != nil then
+        title = args["title"]
+    end
     editor = get_default_editor()
     vault_path = get_vault_path()
 
@@ -253,8 +301,14 @@ function edit_note(brain_file, args)
 end
 
 function last_notes(brain_file, args)
-    subject = args["subject"] or "log"
-    num = args["number"] or 5
+    subject = "log"
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    num = 5
+    if args["number"] != nil then
+        num = args["number"]
+    end
 
     query = string.format("SELECT title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s", subject, num)
     result = local_query(brain_file, query)
@@ -262,8 +316,20 @@ function last_notes(brain_file, args)
     if result != nil and length(result) > 0 then
         for i, note in pairs(result) do
             -- Handle both named and numeric column access
-            note_title = note.title or note[1] or ""
-            note_content = note.content or note[2] or ""
+            note_title = ""
+            if note[1] != nil then
+                note_title = note[1]
+            end
+            if note.title != nil then
+                note_title = note.title
+            end
+            note_content = ""
+            if note[2] != nil then
+                note_content = note[2]
+            end
+            if note.content != nil then
+                note_content = note.content
+            end
             bold(note_title)
             print(note_content .. "\n")
         end
@@ -275,9 +341,18 @@ end
 
 function log_note(brain_file, args)
     title = os.date("%Y-%m-%d_%H:%M:%S")
-    subject = args["subject"] or "log"
-    content = args["content"] or ""
-    links_str = args["links"] or ""
+    subject = "log"
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    content = ""
+    if args["content"] != nil then
+        content = args["content"]
+    end
+    links_str = ""
+    if args["links"] != nil then
+        links_str = args["links"]
+    end
     links = parse_links_str(links_str)
 
     vault_path = get_vault_path()
@@ -295,7 +370,13 @@ function log_note(brain_file, args)
         return nil, "Failed to query note database"
     end
 
-    count_val = result[1].count or result[1][1]
+    count_val = nil
+    if result[1][1] != nil then
+        count_val = result[1][1]
+    end
+    if result[1].count != nil then
+        count_val = result[1].count
+    end
     note_exists = tonumber(count_val) > 0
 
     if vault_path != nil then
@@ -337,9 +418,18 @@ function log_note(brain_file, args)
 end
 
 function do_note_connect(brain_file, args)
-    title = args["title"] or os.date("%Y-%m-%d_%H:%M:%S")
-    subject = args["subject"] or "log"
-    links_str = args["links"] or ""
+    title = os.date("%Y-%m-%d_%H:%M:%S")
+    if args["title"] != nil then
+        title = args["title"]
+    end
+    subject = "log"
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    links_str = ""
+    if args["links"] != nil then
+        links_str = args["links"]
+    end
     links = parse_links_str(links_str)
 
     if isempty(links) then
@@ -437,7 +527,11 @@ function do_note(brain_file, cmd_args)
         end
     end
     if status != true then
-        print(err or "Note command failed")
+        err_msg = "Note command failed"
+        if err != nil then
+            err_msg = err
+        end
+        print(err_msg)
         return "error"
     end
     return "success"

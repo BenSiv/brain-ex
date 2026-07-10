@@ -40,8 +40,12 @@ function knowledge_pool.number_value(value, default_value)
 end
 
 function knowledge_pool.note_source_id(subject, title)
-    subject = subject or ""
-    title = title or ""
+    if subject == nil then
+        subject = ""
+    end
+    if title == nil then
+        title = ""
+    end
     if subject == "" then
         return title
     end
@@ -54,7 +58,9 @@ function knowledge_pool.note_source_ref(subject, title)
 end
 
 function knowledge_pool.content_hash(content)
-    content = content or ""
+    if content == nil then
+        content = ""
+    end
     normalized = string.lower(content)
     hash = 5381
     for i = 1, #normalized do
@@ -64,7 +70,10 @@ function knowledge_pool.content_hash(content)
 end
 
 function knowledge_pool.slugify(text)
-    text = string.lower(text or "knowledge")
+    if text == nil then
+        text = "knowledge"
+    end
+    text = string.lower(text)
     text = string.gsub(text, "[^%w]+", "-")
     text = string.gsub(text, "^-+", "")
     text = string.gsub(text, "-+$", "")
@@ -201,7 +210,10 @@ function knowledge_pool.record_interaction(brain_file, source_type, source_id, i
     total_weight = 0
     res = local_query(brain_file, string.format("SELECT SUM(weight) AS total_weight FROM knowledge_pool WHERE source_type='%s' AND source_id='%s';", source_type, source_id))
     if res != nil and type(res) == "table" and res[1] != nil then
-        total_weight = tonumber(knowledge_pool.row_value(res[1], "total_weight", 1, 0)) or 0
+        total_weight = tonumber(knowledge_pool.row_value(res[1], "total_weight", 1, 0))
+        if total_weight == nil then
+            total_weight = 0
+        end
     end
 
     new_status = 'cold'
@@ -217,10 +229,18 @@ function knowledge_pool.record_interaction(brain_file, source_type, source_id, i
 end
 
 function knowledge_pool.upsert_note(brain_file, subject, title, content, note_time)
-    subject = subject or ""
-    title = title or ""
-    content = content or ""
-    note_time = note_time or os.date("%Y-%m-%d %H:%M:%S")
+    if subject == nil then
+        subject = ""
+    end
+    if title == nil then
+        title = ""
+    end
+    if content == nil then
+        content = ""
+    end
+    if note_time == nil then
+        note_time = os.date("%Y-%m-%d %H:%M:%S")
+    end
 
     source_id = knowledge_pool.note_source_id(subject, title)
     source_ref = knowledge_pool.note_source_ref(subject, title)
@@ -371,7 +391,9 @@ function knowledge_pool.sync_notes(brain_file)
 end
 
 function knowledge_pool.count_words(text)
-    text = text or ""
+    if text == nil then
+        text = ""
+    end
     count = 0
     for _ in string.gmatch(text, "%S+") do
         count = count + 1
@@ -477,8 +499,14 @@ function knowledge_pool.escape_pattern(text)
 end
 
 function knowledge_pool.count_matches(text, term)
-    text = string.lower(text or "")
-    term = string.lower(term or "")
+    if text == nil then
+        text = ""
+    end
+    text = string.lower(text)
+    if term == nil then
+        term = ""
+    end
+    term = string.lower(term)
     if term == "" then
         return 0
     end
@@ -553,7 +581,10 @@ function knowledge_pool.search_score(item, query_terms, query_text, query_vector
         score = score + knowledge_pool.count_matches(content, term)
     end
 
-    query_text = string.lower(query_text or "")
+    if query_text == nil then
+        query_text = ""
+    end
+    query_text = string.lower(query_text)
     if query_text != "" then
         if string.find(string.lower(title), knowledge_pool.escape_pattern(query_text)) != nil then
             score = score + 6
@@ -587,7 +618,10 @@ end
 
 function knowledge_pool.query_terms(query_text)
     terms = {}
-    query_text = string.lower(query_text or "")
+    if query_text == nil then
+        query_text = ""
+    end
+    query_text = string.lower(query_text)
     for term in string.gmatch(query_text, "%S+") do
         table.insert(terms, term)
     end
@@ -607,8 +641,12 @@ function knowledge_pool.insert_retrieval(brain_file, query_text)
 end
 
 function knowledge_pool.record_review(brain_file, retrieval_id, knowledge_id, atomicity_status, duplication_status, title_status, promotion_status, action_summary)
-    retrieval_id = retrieval_id or 0
-    knowledge_id = knowledge_id or 0
+    if retrieval_id == nil then
+        retrieval_id = 0
+    end
+    if knowledge_id == nil then
+        knowledge_id = 0
+    end
     local_update(brain_file, string.format("""
         INSERT INTO knowledge_reviews
             (retrieval_id, knowledge_id, atomicity_status, connectivity_status,
@@ -709,7 +747,10 @@ end
 
 function knowledge_pool.search(brain_file, query_text, limit)
     knowledge_pool.sync_notes(brain_file)
-    limit = tonumber(limit) or 5
+    limit = tonumber(limit)
+    if limit == nil then
+        limit = 5
+    end
     query_terms = knowledge_pool.query_terms(query_text)
     if #query_terms == 0 then
         return {}, 0
@@ -794,19 +835,29 @@ end
 
 function knowledge_pool.browse(brain_file, limit)
     knowledge_pool.sync_notes(brain_file)
-    limit = tonumber(limit) or 20
-    return local_query(brain_file, string.format("""
+    limit = tonumber(limit)
+    if limit == nil then
+        limit = 20
+    end
+    rows = local_query(brain_file, string.format("""
         SELECT id, title, subject, tier, process_level, retrieval_count,
                heat, artifact_status, promotion_status, source_ref, artifact_ref
         FROM knowledge_items
         ORDER BY tier DESC, heat DESC, retrieval_count DESC, title
         LIMIT %d;
-    """, limit)) or {}
+    """, limit))
+    if rows == nil then
+        rows = {}
+    end
+    return rows
 end
 
 function knowledge_pool.get_item(brain_file, id)
     knowledge_pool.sync_notes(brain_file)
-    id = tonumber(id) or 0
+    id = tonumber(id)
+    if id == nil then
+        id = 0
+    end
     rows = local_query(brain_file, string.format("""
         SELECT id, title, subject, tier, process_level, retrieval_count,
                heat, source_type, source_ref, artifact_kind, artifact_ref,
@@ -824,7 +875,11 @@ end
 function knowledge_pool.history(brain_file, id)
     knowledge_pool.ensure_table(brain_file)
     if id != nil and tostring(id) != "" then
-        return local_query(brain_file, string.format("""
+        id_number = tonumber(id)
+        if id_number == nil then
+            id_number = 0
+        end
+        rows = local_query(brain_file, string.format("""
             SELECT kr.id AS retrieval_id, kr.query_text, kr.created_at,
                    krr.rank, krr.score
             FROM knowledge_retrieval_results krr
@@ -832,20 +887,28 @@ function knowledge_pool.history(brain_file, id)
             WHERE krr.knowledge_id=%d
             ORDER BY kr.id DESC
             LIMIT 20;
-        """, tonumber(id) or 0)) or {}
+        """, id_number))
+        if rows == nil then
+            rows = {}
+        end
+        return rows
     end
 
-    return local_query(brain_file, """
+    rows = local_query(brain_file, """
         SELECT id, query_text, created_at
         FROM knowledge_retrievals
         ORDER BY id DESC
         LIMIT 20;
-    """) or {}
+    """)
+    if rows == nil then
+        rows = {}
+    end
+    return rows
 end
 
 function knowledge_pool.queue(brain_file)
     knowledge_pool.process_items(brain_file)
-    return local_query(brain_file, """
+    rows = local_query(brain_file, """
         SELECT id, title, tier, process_level, promotion_status,
                retrieval_count, heat, artifact_status, source_ref, duplicate_of
         FROM knowledge_items
@@ -860,12 +923,19 @@ function knowledge_pool.queue(brain_file)
             END,
             heat DESC,
             title;
-    """) or {}
+    """)
+    if rows == nil then
+        rows = {}
+    end
+    return rows
 end
 
 function knowledge_pool.promote(brain_file, id, target_tier, artifact_status)
     knowledge_pool.sync_notes(brain_file)
-    id = tonumber(id) or 0
+    id = tonumber(id)
+    if id == nil then
+        id = 0
+    end
     if id <= 0 then
         return nil, "Must provide a knowledge item id"
     end
@@ -886,7 +956,10 @@ function knowledge_pool.promote(brain_file, id, target_tier, artifact_status)
     end
 
     current_tier = knowledge_pool.number_value(knowledge_pool.row_value(item, "tier", 4, 1), 1)
-    target_tier = tonumber(target_tier) or current_tier
+    target_tier = tonumber(target_tier)
+    if target_tier == nil then
+        target_tier = current_tier
+    end
     if target_tier < 2 then
         target_tier = 2
     end
@@ -894,7 +967,9 @@ function knowledge_pool.promote(brain_file, id, target_tier, artifact_status)
         target_tier = 3
     end
 
-    artifact_status = artifact_status or "draft"
+    if artifact_status == nil then
+        artifact_status = "draft"
+    end
     if target_tier >= 3 and artifact_status == "draft" then
         artifact_status = "materialized"
     end
@@ -978,7 +1053,9 @@ end
 
 function knowledge_pool.get_hot_items(brain_file, limit)
     knowledge_pool.ensure_table(brain_file)
-    limit = limit or 10
+    if limit == nil then
+        limit = 10
+    end
     query = string.format("""
         SELECT source_type, source_id, COUNT(*) as usage_count
         FROM knowledge_pool

@@ -63,7 +63,10 @@ function update_config_file(home_dir, updates)
     f = io.open(config_file, "r")
     if f  !=  nil then
         io.close(f)
-        current_conf = utils.read_yaml(config_file) or {}
+        current_conf = utils.read_yaml(config_file)
+        if current_conf == nil then
+            current_conf = {}
+        end
     end
     
     -- Merge updates
@@ -112,22 +115,35 @@ function remove_trailing_slash(path)
 end
 
 function get_path_label(path)
-    normalized = remove_trailing_slash(path or "")
+    path_arg = path
+    if path_arg == nil then
+        path_arg = ""
+    end
+    normalized = remove_trailing_slash(path_arg)
     if normalized == "" then
         return ""
     end
     -- Use the last path component as the label (e.g. /a/b/vault -> vault)
     label = string.match(normalized, "([^/]+)$")
-    return label or normalized
+    if label != nil then
+        return label
+    end
+    return normalized
 end
 
 function init_bx(args)
-    brain_name = args["name"] or "brain"
+    brain_name = "brain"
+    if args["name"] != nil then
+        brain_name = args["name"]
+    end
     brain_name = remove_trailing_slash(brain_name)
     current_dir = lfs.currentdir()
     brain_path = current_dir .. "/" .. brain_name .. ".db"
     home_dir = os.getenv("HOME")
-    default_editor = args["editor"] or "nano"
+    default_editor = "nano"
+    if args["editor"] != nil then
+        default_editor = args["editor"]
+    end
 
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -158,14 +174,23 @@ function init_bx_with_vault(args)
     vault_dir = remove_trailing_slash(args["vault"])
     current_dir = lfs.currentdir()
     vault_name = get_path_label(vault_dir)
-    brain_name = args["name"] or vault_name
+    brain_name = vault_name
+    if args["name"] != nil then
+        brain_name = args["name"]
+    end
     brain_name = remove_trailing_slash(brain_name)
     brain_path = joinpath(current_dir, brain_name .. ".db")
     vault_path = joinpath(current_dir, vault_dir)
     home_dir = os.getenv("HOME")
     task_file = joinpath(vault_dir, "tasks.tsv")
-    default_editor = args["editor"] or "nano"
-    enable_git = args["git"] or false
+    default_editor = "nano"
+    if args["editor"] != nil then
+        default_editor = args["editor"]
+    end
+    enable_git = false
+    if args["git"] != nil then
+        enable_git = args["git"]
+    end
 	
     -- remove old brain_path if it exists
     os.remove(brain_path)
@@ -263,7 +288,11 @@ function do_init(cmd_args)
     end
 
     if status == nil then
-        print(err or "Init command failed")
+        error_message = "Init command failed"
+        if err != nil then
+            error_message = err
+        end
+        print(error_message)
         return "error"
     end
     return "success"

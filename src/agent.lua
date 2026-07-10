@@ -104,7 +104,10 @@ function do_agent(brain_file, cmd_args)
         -- Implementation: open agent.log in pager
         -- Assuming agent.log is in the same directory as the brain file or root
         log_file = "agent.log" -- Needs correct path resolution
-        pager = os.getenv("PAGER") or "less"
+        pager = "less"
+        if os.getenv("PAGER") != nil then
+            pager = os.getenv("PAGER")
+        end
         os.execute(pager .. " " .. log_file)
         return "success"
     elseif subcommand == "process_tasks" then
@@ -122,7 +125,11 @@ function do_agent(brain_file, cmd_args)
         end
         return agent_engine.run_agent(subcommand, prompt, brain_file)
     else
-        print("Unknown agent command: " .. (subcommand or ""))
+        subcommand_str = ""
+        if subcommand != nil then
+            subcommand_str = subcommand
+        end
+        print("Unknown agent command: " .. subcommand_str)
         return "error"
     end
 end

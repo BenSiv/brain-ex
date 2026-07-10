@@ -7,19 +7,32 @@ get_brain_path = config.get_brain_path
 lfs = require("lfs")
 
 function is_id_unique(table_name, target_id, brain_file)
-    brain_file = brain_file or get_brain_path()
+    if brain_file == nil then
+        brain_file = get_brain_path()
+    end
     query = string.format("SELECT COUNT(*) AS cnt FROM %s WHERE id = '%s';", table_name, target_id)
     res = database.local_query(brain_file, query)
     if res == nil or #res == 0 then
         return true
     end
-    count_val = tonumber(res[1].cnt or res[1][1]) or 0
+    raw_count = res[1].cnt
+    if raw_count == nil then
+        raw_count = res[1][1]
+    end
+    count_val = tonumber(raw_count)
+    if count_val == nil then
+        count_val = 0
+    end
     return count_val == 0
 end
 
 function generate_id(table_name, desired_length, seed, brain_file)
-    desired_length = desired_length or 10
-    seed = seed or os.time()
+    if desired_length == nil then
+        desired_length = 10
+    end
+    if seed == nil then
+        seed = os.time()
+    end
     math.randomseed(seed)
 
     id = ""
@@ -48,7 +61,14 @@ function is_sqlite_empty(brain_file, table_name)
     if res == nil or #res == 0 then
         return true
     end
-    count_val = tonumber(res[1].cnt or res[1][1]) or 0
+    raw_count = res[1].cnt
+    if raw_count == nil then
+        raw_count = res[1][1]
+    end
+    count_val = tonumber(raw_count)
+    if count_val == nil then
+        count_val = 0
+    end
     return count_val == 0
 end
 
@@ -76,11 +96,17 @@ function find_markdown_files(base_dir)
         current_dir = queue[q_index]
         q_index = q_index + 1
         
-        path_to_scan = current_dir == "" and base_dir or base_dir .. "/" .. current_dir
-        
+        path_to_scan = base_dir .. "/" .. current_dir
+        if current_dir == "" then
+            path_to_scan = base_dir
+        end
+
         for file in lfs.dir(path_to_scan) do
             if file != "." and file != ".." then
-                rel_path = current_dir == "" and file or (current_dir .. "/" .. file)
+                rel_path = current_dir .. "/" .. file
+                if current_dir == "" then
+                    rel_path = file
+                end
                 full_path = base_dir .. "/" .. rel_path
                 attr = lfs.attributes(full_path)
                 if attr != nil then
@@ -228,7 +254,11 @@ end
 function serialize_session(session_meta, messages)
     sb = {}
     table.insert(sb, serialize_frontmatter(session_meta))
-    table.insert(sb, "# Session: " .. (session_meta.name or "Unnamed Session"))
+    session_name = session_meta.name
+    if session_name == nil then
+        session_name = "Unnamed Session"
+    end
+    table.insert(sb, "# Session: " .. session_name)
     table.insert(sb, "")
     
     for _, msg in ipairs(messages) do
@@ -255,7 +285,11 @@ function serialize_session(session_meta, messages)
             end
         end
         table.insert(sb, "")
-        table.insert(sb, msg.content or "")
+        msg_content = msg.content
+        if msg_content == nil then
+            msg_content = ""
+        end
+        table.insert(sb, msg_content)
         table.insert(sb, "")
     end
     

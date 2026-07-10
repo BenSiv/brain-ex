@@ -108,7 +108,9 @@ function remove_link(input_line, link)
 end
 
 function extract_links(line, link_found)
-    link_found = link_found or {}
+    if link_found == nil then
+        link_found = {}
+    end
     processed_line = line
 
     for raw_link in match_all(line, "%[%[(.-)%]%]") do
@@ -158,13 +160,50 @@ function vault_to_sql(vault_path, brain_file)
     -- Load existing note metadata for incremental update
     existing_notes = {}
     query = "SELECT subject, title, time, size FROM notes;"
-    rows = database.local_query(brain_file, query) or {}
+    rows_raw = database.local_query(brain_file, query)
+    rows = {}
+    if rows_raw != nil then
+        rows = rows_raw
+    end
     for _, row in ipairs(rows) do
         -- Handle both named and numeric column access
-        subject = row.subject or row[1] or ""
-        title = row.title or row[2] or ""
-        time = row.time or row[3] or ""
-        size = tonumber(row.size or row[4] or 0) or 0
+        subject = ""
+        if row[1] != nil then
+            subject = row[1]
+        end
+        if row.subject != nil then
+            subject = row.subject
+        end
+
+        title = ""
+        if row[2] != nil then
+            title = row[2]
+        end
+        if row.title != nil then
+            title = row.title
+        end
+
+        time = ""
+        if row[3] != nil then
+            time = row[3]
+        end
+        if row.time != nil then
+            time = row.time
+        end
+
+        size_field = 0
+        if row[4] != nil then
+            size_field = row[4]
+        end
+        if row.size != nil then
+            size_field = row.size
+        end
+        size_num = tonumber(size_field)
+        size = 0
+        if size_num != nil then
+            size = size_num
+        end
+
         key = subject .. "||" .. title
         existing_notes[key] = {time = time, size = size}
     end
@@ -243,12 +282,16 @@ function vault_to_sql(vault_path, brain_file)
                     insert_connections = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
 
                     for _, link in pairs(links) do
+                        link_subject = ""
+                        if link.subject != nil then
+                            link_subject = link.subject
+                        end
                         statement_value = string.format(
                             "('%s','%s','%s','%s'), ",
                             note_name,
                             actual_subject,
                             link.title,
-                            link.subject or ""
+                            link_subject
                         )
                         insert_connections = insert_connections .. statement_value
                     end

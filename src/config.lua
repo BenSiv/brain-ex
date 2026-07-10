@@ -46,7 +46,10 @@ function get_path_label(path)
         normalized = string.gsub(path, "/*$", "")
     end
     label = string.match(normalized, "([^/]+)$")
-    return label or normalized
+    if label != nil then
+        return label
+    end
+    return normalized
 end
 
 function save_config_file(path, conf)
@@ -106,17 +109,26 @@ end
 
 function config.get_vault_path()
     cfg = load_config()
-    return cfg and cfg["vault"]
+    if cfg == nil then
+        return nil
+    end
+    return cfg["vault"]
 end
 
 function config.get_default_editor()
     cfg = load_config()
-    return cfg and cfg["editor"]
+    if cfg == nil then
+        return nil
+    end
+    return cfg["editor"]
 end
 
 function config.is_git()
     cfg = load_config()
-    val = cfg and cfg["git"]
+    val = nil
+    if cfg != nil then
+        val = cfg["git"]
+    end
     if val  !=  nil and (val == true or val == "true") then
         return true
     else
@@ -126,8 +138,14 @@ end
 
 function config.get_agent_config()
     cfg = load_config()
-    provider_name = (cfg and cfg["agent_provider"]) or "ollama"
-    model_name = (cfg and cfg["agent_model"]) or "qwen3.5:0.8b"
+    provider_name = "ollama"
+    if cfg != nil and cfg["agent_provider"] != nil then
+        provider_name = cfg["agent_provider"]
+    end
+    model_name = "qwen3.5:0.8b"
+    if cfg != nil and cfg["agent_model"] != nil then
+        model_name = cfg["agent_model"]
+    end
     return provider_name, model_name
 end
 
@@ -144,14 +162,26 @@ end
 
 function config.get_embedding_config()
     cfg = load_config()
-    provider_name = (cfg and cfg["embedding_provider"]) or (cfg and cfg["agent_provider"]) or "ollama"
-    model_name = (cfg and cfg["embedding_model"]) or "nomic-embed-text"
+    provider_name = "ollama"
+    if cfg != nil and cfg["agent_provider"] != nil then
+        provider_name = cfg["agent_provider"]
+    end
+    if cfg != nil and cfg["embedding_provider"] != nil then
+        provider_name = cfg["embedding_provider"]
+    end
+    model_name = "nomic-embed-text"
+    if cfg != nil and cfg["embedding_model"] != nil then
+        model_name = cfg["embedding_model"]
+    end
     return provider_name, model_name
 end
 
 function config.get_embedding_command()
     cfg = load_config()
-    return cfg and cfg["embedding_command"]
+    if cfg == nil then
+        return nil
+    end
+    return cfg["embedding_command"]
 end
 
 function config.reload()
@@ -255,7 +285,10 @@ function config.load_settings()
         io.write(io.stderr, "Warning: Failed to parse settings.json: " .. tostring(err) .. "\n")
         return {}
     end
-    return obj or {}
+    if obj == nil then
+        return {}
+    end
+    return obj
 end
 
 -- Export the module

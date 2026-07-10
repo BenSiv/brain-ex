@@ -170,7 +170,11 @@ function main()
         if command != "update" and not is_read_only_command(command, subcommand) then
             sync_status, sync_err = sync.refresh(brain_file)
             if sync_status == nil then
-                print(sync_err or "Failed to synchronize brain from vault.")
+                msg = "Failed to synchronize brain from vault."
+                if sync_err != nil then
+                    msg = sync_err
+                end
+                print(msg)
                 os.exit(1)
             end
         end

@@ -29,7 +29,10 @@ function read_raw(path)
 end
 
 function escape_sql(str)
-    return string.gsub(str or "", "'", "''")
+    if str == nil then
+        str = ""
+    end
+    return string.gsub(str, "'", "''")
 end
 
 function get_db_lock_path(brain_file)
@@ -43,7 +46,9 @@ function release_db_lock(lock_path)
 end
 
 function acquire_db_lock(brain_file, timeout_seconds)
-    timeout_seconds = timeout_seconds or 30
+    if timeout_seconds == nil then
+        timeout_seconds = 30
+    end
     lock_path = get_db_lock_path(brain_file)
     deadline = os.time() + timeout_seconds
 
@@ -98,7 +103,11 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
         return true
     end
 
-    file_list = bx_utils.find_markdown_files(tasks_dir) or {}
+    file_list_raw = bx_utils.find_markdown_files(tasks_dir)
+    file_list = {}
+    if file_list_raw != nil then
+        file_list = file_list_raw
+    end
     seen_ids = {}
     
     for _, item in ipairs(file_list) do
@@ -116,26 +125,39 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
             
             res_mod = local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='task_file_mod_%s';", file))
             if res_mod != nil and #res_mod > 0 then
-                stored_mod = res_mod[1].value or res_mod[1][1]
+                stored_mod = res_mod[1][1]
+                if res_mod[1].value != nil then
+                    stored_mod = res_mod[1].value
+                end
             end
-            
+
             res_size = local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='task_file_size_%s';", file))
             if res_size != nil and #res_size > 0 then
-                stored_size = res_size[1].value or res_size[1][1]
+                stored_size = res_size[1][1]
+                if res_size[1].value != nil then
+                    stored_size = res_size[1].value
+                end
             end
-            
+
             task_id = nil
             res_id = local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='task_id_for_%s';", file))
             if res_id != nil and #res_id > 0 then
-                task_id = res_id[1].value or res_id[1][1]
+                task_id = res_id[1][1]
+                if res_id[1].value != nil then
+                    task_id = res_id[1].value
+                end
             end
 
             needs_parse = (force == true) or (stored_mod == nil) or (stored_mod != current_mod) or (stored_size == nil) or (tostring(stored_size) != tostring(file_size)) or (task_id == nil)
             
             if needs_parse then
-                file_content = read_raw(file_path) or ""
+                file_content_raw = read_raw(file_path)
+                file_content = ""
+                if file_content_raw != nil then
+                    file_content = file_content_raw
+                end
                 metadata, body = bx_utils.parse_frontmatter(file_content)
-                
+
                 id = metadata.id
                 if id == nil or id == "" then
                     id = bx_utils.generate_id("tasks", nil, nil, brain_file)
@@ -162,15 +184,48 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
                     seen_ids[num_id] = true
                 end
                 
-                subject = item.dir_path != "" and item.dir_path or (metadata.subject or "NULL")
-                due_to = metadata.due_to or "NULL"
-                overdue = tonumber(metadata.overdue) or 0
-                done = metadata.done or "NULL"
-                comment = metadata.comment or "NULL"
-                owner = metadata.owner or "NULL"
-                importance = tonumber(metadata.importance) or 1
-                urgency = tonumber(metadata.urgency) or 1
-                    time_val = metadata.time or os.date("%Y-%m-%d %H:%M:%S")
+                subject = "NULL"
+                if metadata.subject != nil then
+                    subject = metadata.subject
+                end
+                if item.dir_path != "" then
+                    subject = item.dir_path
+                end
+                due_to = "NULL"
+                if metadata.due_to != nil then
+                    due_to = metadata.due_to
+                end
+                overdue_num = tonumber(metadata.overdue)
+                overdue = 0
+                if overdue_num != nil then
+                    overdue = overdue_num
+                end
+                done = "NULL"
+                if metadata.done != nil then
+                    done = metadata.done
+                end
+                comment = "NULL"
+                if metadata.comment != nil then
+                    comment = metadata.comment
+                end
+                owner = "NULL"
+                if metadata.owner != nil then
+                    owner = metadata.owner
+                end
+                importance_num = tonumber(metadata.importance)
+                importance = 1
+                if importance_num != nil then
+                    importance = importance_num
+                end
+                urgency_num = tonumber(metadata.urgency)
+                urgency = 1
+                if urgency_num != nil then
+                    urgency = urgency_num
+                end
+                    time_val = metadata.time
+                    if time_val == nil then
+                        time_val = os.date("%Y-%m-%d %H:%M:%S")
+                    end
                     
                     esc_subject = escape_field(subject)
                     esc_due_to = escape_field(due_to)
@@ -206,18 +261,35 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
             end
         end
     
-    all_db_tasks = local_query(brain_file, "SELECT id FROM tasks;") or {}
+    all_db_tasks_raw = local_query(brain_file, "SELECT id FROM tasks;")
+    all_db_tasks = {}
+    if all_db_tasks_raw != nil then
+        all_db_tasks = all_db_tasks_raw
+    end
     for _, task_row in ipairs(all_db_tasks) do
-        id = task_row.id or task_row[1]
+        id = task_row[1]
+        if task_row.id != nil then
+            id = task_row.id
+        end
         if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
             local_update(brain_file, string.format("DELETE FROM tasks WHERE id='%s';", id))
         end
     end
-    
-    res_keys = local_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'task_id_for_%';") or {}
+
+    res_keys_raw = local_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'task_id_for_%';")
+    res_keys = {}
+    if res_keys_raw != nil then
+        res_keys = res_keys_raw
+    end
     for _, r in ipairs(res_keys) do
-        k = r.key or r[1]
-        v = r.value or r[2]
+        k = r[1]
+        if r.key != nil then
+            k = r.key
+        end
+        v = r[2]
+        if r.value != nil then
+            v = r.value
+        end
         if seen_ids[v] == nil then
             f_name = string.sub(k, 13)
             local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_id_for_%s';", f_name))
@@ -238,7 +310,11 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         return true
     end
     
-    files = readdir(sessions_dir) or {}
+    files_raw = readdir(sessions_dir)
+    files = {}
+    if files_raw != nil then
+        files = files_raw
+    end
     seen_ids = {}
     
     for _, file in ipairs(files) do
@@ -256,26 +332,39 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                 
                 res_mod = local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='session_file_mod_%s';", file))
                 if res_mod != nil and #res_mod > 0 then
-                    stored_mod = res_mod[1].value or res_mod[1][1]
+                    stored_mod = res_mod[1][1]
+                    if res_mod[1].value != nil then
+                        stored_mod = res_mod[1].value
+                    end
                 end
-                
+
                 res_size = local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='session_file_size_%s';", file))
                 if res_size != nil and #res_size > 0 then
-                    stored_size = res_size[1].value or res_size[1][1]
+                    stored_size = res_size[1][1]
+                    if res_size[1].value != nil then
+                        stored_size = res_size[1].value
+                    end
                 end
-                
+
                 sess_id = nil
                 res_id = local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='session_id_for_%s';", file))
                 if res_id != nil and #res_id > 0 then
-                    sess_id = res_id[1].value or res_id[1][1]
+                    sess_id = res_id[1][1]
+                    if res_id[1].value != nil then
+                        sess_id = res_id[1].value
+                    end
                 end
                 
                 needs_parse = (force == true) or (stored_mod == nil) or (stored_mod != current_mod) or (stored_size == nil) or (tostring(stored_size) != tostring(file_size)) or (sess_id == nil)
                 
                 if needs_parse then
-                    file_content = read_raw(file_path) or ""
+                    file_content_raw = read_raw(file_path)
+                    file_content = ""
+                    if file_content_raw != nil then
+                        file_content = file_content_raw
+                    end
                     metadata, body = bx_utils.parse_frontmatter(file_content)
-                    
+
                     id = metadata.id
                     if id == nil or id == "" then
                         id = string.gsub(file, "%.md$", "")
@@ -284,9 +373,18 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                     sess_id = id
                     seen_ids[sess_id] = true
                     
-                    name = metadata.name or "Unnamed Session"
-                    created_at = metadata.created_at or os.date("%Y-%m-%d %H:%M:%S")
-                    updated_at = metadata.updated_at or os.date("%Y-%m-%d %H:%M:%S")
+                    name = "Unnamed Session"
+                    if metadata.name != nil then
+                        name = metadata.name
+                    end
+                    created_at = metadata.created_at
+                    if created_at == nil then
+                        created_at = os.date("%Y-%m-%d %H:%M:%S")
+                    end
+                    updated_at = metadata.updated_at
+                    if updated_at == nil then
+                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
+                    end
                     
                     esc_id = string.gsub(sess_id, "'", "''")
                     esc_name = string.gsub(name, "'", "''")
@@ -306,15 +404,26 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                     
                     for _, msg in ipairs(msgs) do
                         esc_role = string.gsub(msg.role, "'", "''")
-                        esc_content = string.gsub(msg.content or "", "'", "''")
-                        esc_msg_created = string.gsub(msg.created_at or created_at, "'", "''")
-                        
+                        msg_content = ""
+                        if msg.content != nil then
+                            msg_content = msg.content
+                        end
+                        esc_content = string.gsub(msg_content, "'", "''")
+                        msg_created = created_at
+                        if msg.created_at != nil then
+                            msg_created = msg.created_at
+                        end
+                        esc_msg_created = string.gsub(msg_created, "'", "''")
+
                         esc_meta = "NULL"
                         if msg.metadata != nil and msg.metadata != "" then
                             esc_meta = "'" .. string.gsub(msg.metadata, "'", "''") .. "'"
                         end
-                        
-                        in_context_val = msg.in_context or 1
+
+                        in_context_val = 1
+                        if msg.in_context != nil then
+                            in_context_val = msg.in_context
+                        end
                         
                         local_update(brain_file, string.format("""
                             INSERT INTO agent_messages (session_id, role, content, metadata, in_context, created_at)
@@ -332,19 +441,36 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         end
     end
     
-    all_db_sessions = local_query(brain_file, "SELECT id FROM agent_sessions;") or {}
+    all_db_sessions_raw = local_query(brain_file, "SELECT id FROM agent_sessions;")
+    all_db_sessions = {}
+    if all_db_sessions_raw != nil then
+        all_db_sessions = all_db_sessions_raw
+    end
     for _, sess_row in ipairs(all_db_sessions) do
-        id = sess_row.id or sess_row[1]
+        id = sess_row[1]
+        if sess_row.id != nil then
+            id = sess_row.id
+        end
         if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
             local_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", id))
             local_update(brain_file, string.format("DELETE FROM agent_sessions WHERE id='%s';", id))
         end
     end
-    
-    res_keys = local_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';") or {}
+
+    res_keys_raw = local_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';")
+    res_keys = {}
+    if res_keys_raw != nil then
+        res_keys = res_keys_raw
+    end
     for _, r in ipairs(res_keys) do
-        k = r.key or r[1]
-        v = r.value or r[2]
+        k = r[1]
+        if r.key != nil then
+            k = r.key
+        end
+        v = r[2]
+        if r.value != nil then
+            v = r.value
+        end
         if seen_ids[v] == nil and seen_ids[tostring(v)] == nil then
             f_name = string.sub(k, 16)
             local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_id_for_%s';", f_name))
@@ -424,7 +550,9 @@ function update_from_vault(brain_file, force)
 end
 
 function update_note_from_file(brain_file, note_path)
-	note_path = note_path or user.input("Note path: ")
+	if note_path == nil then
+		note_path = user.input("Note path: ")
+	end
 
 	title = "note"
 	subject = ""
@@ -433,7 +561,11 @@ function update_note_from_file(brain_file, note_path)
 	if vault_path != nil then
 		-- Extract subject and title from the note path
 		title = string.match(note_path, "([^/]+)%.md$")
-		subject = string.match(note_path, ".*/([^/]+)/[^/]+%.md$") or ""
+		subject_match = string.match(note_path, ".*/([^/]+)/[^/]+%.md$")
+		subject = ""
+		if subject_match != nil then
+			subject = subject_match
+		end
 	else
 		title = user.input("Title: ")
 		subject = user.input("Subject: ")
@@ -446,18 +578,28 @@ function update_note_from_file(brain_file, note_path)
 	end
 
 	attr = lfs.attributes(note_path)
-	note_time = attr and os.date("%Y-%m-%d %H:%M:%S", attr.modification) or os.date("%Y-%m-%d %H:%M:%S")
-	note_size = attr and attr.size or 0
+	note_time = os.date("%Y-%m-%d %H:%M:%S")
+	if attr != nil then
+		note_time = os.date("%Y-%m-%d %H:%M:%S", attr.modification)
+	end
+	note_size = 0
+	if attr != nil then
+		note_size = attr.size
+	end
 
 	links = {}
 	if content != "" then
 		content, links = process_content(content)
         -- Ensure links is a table if nil returned
-        links = links or {}
+        if links == nil then
+            links = {}
+        end
 	end
 
 	-- Escape single quotes for SQL
-    content = content or ""
+    if content == nil then
+        content = ""
+    end
     content = string.gsub(content, "'", "''")
 
 	return with_db_lock(brain_file, function()
@@ -471,7 +613,15 @@ function update_note_from_file(brain_file, note_path)
 		result = local_query(brain_file, note_exists_query)
 		if result != nil then
 			-- Handle both named and numeric column access
-			num_rows = tonumber(result[1].num or result[1][1]) or 0
+			num_field = result[1][1]
+			if result[1].num != nil then
+				num_field = result[1].num
+			end
+			num_num = tonumber(num_field)
+			num_rows = 0
+			if num_num != nil then
+				num_rows = num_num
+			end
 		end
 
 		-- Construct INSERT or UPDATE statement
@@ -506,12 +656,16 @@ function update_note_from_file(brain_file, note_path)
         if #links > 0 then
             insert_links = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
             for i, link in ipairs(links) do
+                link_subject = ""
+                if link.subject != nil then
+                    link_subject = link.subject
+                end
                 statement_value = string.format(
                     "('%s', '%s', '%s', '%s'), ",
                     escape_sql(title),
                     escape_sql(subject),
                     escape_sql(link.title),
-                    escape_sql(link.subject or "")
+                    escape_sql(link_subject)
                 )
                 insert_links = insert_links .. statement_value
             end
@@ -551,7 +705,11 @@ function do_update(brain_file, cmd_args)
 		end
 	end
 	if status != true then
-		print(err or "Update command failed")
+		err_msg = "Update command failed"
+		if err != nil then
+			err_msg = err
+		end
+		print(err_msg)
 		return "error"
 	end
 	return "success"

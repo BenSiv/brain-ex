@@ -75,13 +75,24 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     agent_engine.backup_agent_data(brain_file)
 
     -- Context token size estimation and compaction check
-    active_messages = database.local_query(brain_file, "SELECT id, role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;") or {}
+    active_messages = database.local_query(brain_file, "SELECT id, role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
+    if active_messages == nil then
+        active_messages = {}
+    end
     total_tokens = estimate_tokens(system_prompt)
     for _, msg in ipairs(active_messages) do
-        total_tokens = total_tokens + estimate_tokens(msg.content or msg[3])
+        msg_content = msg[3]
+        if msg.content != nil then
+            msg_content = msg.content
+        end
+        total_tokens = total_tokens + estimate_tokens(msg_content)
     end
 
-    threshold = config.get_compaction_threshold() or 4000
+    threshold = 4000
+    compaction_threshold = config.get_compaction_threshold()
+    if compaction_threshold != nil then
+        threshold = compaction_threshold
+    end
     if total_tokens > threshold and #active_messages > 4 then
         to_compact = {}
         for i = 1, #active_messages - 4 do
@@ -90,8 +101,14 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
 
         summary_prompt = "You are a context compaction engine. Please summarize the following conversation history into a concise, structured Markdown summary of goals, key information established, and progress. Focus on preserving factual details and state, so that a future model invocation has all the necessary context. Keep the summary under 300 words.\n\nConversation to summarize:\n"
         for _, msg in ipairs(to_compact) do
-            role = msg.role or msg[2]
-            content = msg.content or msg[3]
+            role = msg[2]
+            if msg.role != nil then
+                role = msg.role
+            end
+            content = msg[3]
+            if msg.content != nil then
+                content = msg.content
+            end
             summary_prompt = summary_prompt .. string.upper(role) .. ": " .. content .. "\n"
         end
 
@@ -103,7 +120,10 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
             -- Mark old as out of context (zero-deletion)
             ids_to_update = {}
             for _, msg in ipairs(to_compact) do
-                mid = msg.id or msg[1]
+                mid = msg[1]
+                if msg.id != nil then
+                    mid = msg.id
+                end
                 table.insert(ids_to_update, tostring(mid))
             end
             database.local_update(brain_file, "UPDATE agent_messages SET in_context=0 WHERE id IN (" .. table.concat(ids_to_update, ",") .. ");")
@@ -117,10 +137,19 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     -- Run multi-turn loops up to 10 turns
     for turn = 1, 10 do
         history_parts = {}
-        current_active = database.local_query(brain_file, "SELECT role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;") or {}
+        current_active = database.local_query(brain_file, "SELECT role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
+        if current_active == nil then
+            current_active = {}
+        end
         for _, msg in ipairs(current_active) do
-            role = msg.role or msg[1]
-            content = msg.content or msg[2]
+            role = msg[1]
+            if msg.role != nil then
+                role = msg.role
+            end
+            content = msg[2]
+            if msg.content != nil then
+                content = msg.content
+            end
             if role == "compaction_summary" then
                 table.insert(history_parts, "[COMPACTED HISTORY SUMMARY]:\n" .. content)
             elseif role == "user" then
@@ -200,8 +229,22 @@ function agent_engine.process_tasks(brain_file)
         return "success"
     end
     for _, task in ipairs(result) do
-        task_id = task.id or task[1]
-        prompt = "Please handle task. Subject: " .. (task.subject or task[2]) .. "\nContent: " .. (task.content or task[3] or "")
+        task_id = task[1]
+        if task.id != nil then
+            task_id = task.id
+        end
+        task_subject = task[2]
+        if task.subject != nil then
+            task_subject = task.subject
+        end
+        task_content = ""
+        if task[3] != nil then
+            task_content = task[3]
+        end
+        if task.content != nil then
+            task_content = task.content
+        end
+        prompt = "Please handle task. Subject: " .. task_subject .. "\nContent: " .. task_content
         print("Processing task " .. task_id .. "...")
         agent_engine.run_agent("worker", prompt, brain_file)
         database.local_update(brain_file, "UPDATE tasks SET done = datetime('now') WHERE id = '" .. task_id .. "';")
@@ -216,16 +259,34 @@ function agent_engine.backup_agent_data(brain_file)
         sessions_dir = joinpath(vault_path, "agent_sessions")
         paths_mod.create_dir_if_not_exists(sessions_dir)
         
-        all_sessions = database.local_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;") or {}
-        
+        all_sessions = database.local_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;")
+        if all_sessions == nil then
+            all_sessions = {}
+        end
+
         seen_files = {}
         for _, sess in ipairs(all_sessions) do
-            sess_id = sess.id or sess[1]
-            sess_name = sess.name or sess[2]
-            created_at = sess.created_at or sess[3]
-            updated_at = sess.updated_at or sess[4]
-            
-            msgs = database.local_query(brain_file, string.format("SELECT role, content, metadata, in_context, created_at FROM agent_messages WHERE session_id='%s' ORDER BY id ASC;", sess_id)) or {}
+            sess_id = sess[1]
+            if sess.id != nil then
+                sess_id = sess.id
+            end
+            sess_name = sess[2]
+            if sess.name != nil then
+                sess_name = sess.name
+            end
+            created_at = sess[3]
+            if sess.created_at != nil then
+                created_at = sess.created_at
+            end
+            updated_at = sess[4]
+            if sess.updated_at != nil then
+                updated_at = sess.updated_at
+            end
+
+            msgs = database.local_query(brain_file, string.format("SELECT role, content, metadata, in_context, created_at FROM agent_messages WHERE session_id='%s' ORDER BY id ASC;", sess_id))
+            if msgs == nil then
+                msgs = {}
+            end
             
             session_meta = {
                 id = sess_id,
@@ -269,7 +330,10 @@ function agent_engine.backup_agent_data(brain_file)
             end
         end
         
-        files = readdir(sessions_dir) or {}
+        files = readdir(sessions_dir)
+        if files == nil then
+            files = {}
+        end
         for _, file in ipairs(files) do
             if string.match(file, "%.md$") != nil and seen_files[file] == nil then
                 os.remove(joinpath(sessions_dir, file))

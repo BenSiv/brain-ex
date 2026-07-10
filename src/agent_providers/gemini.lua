@@ -62,7 +62,11 @@ function provider.generate(model, system_prompt, prompt)
     end
 
     if res_obj.error != nil then
-        return nil, "Gemini API Error: " .. tostring(res_obj.error.message or res_obj.error)
+        error_detail = res_obj.error
+        if res_obj.error.message != nil then
+            error_detail = res_obj.error.message
+        end
+        return nil, "Gemini API Error: " .. tostring(error_detail)
     end
 
     if res_obj.candidates == nil or res_obj.candidates[1] == nil or res_obj.candidates[1].content == nil or res_obj.candidates[1].content.parts == nil or res_obj.candidates[1].content.parts[1] == nil then
@@ -129,7 +133,11 @@ function provider.embeddings(model, input_text, command_tmpl)
     end
 
     if res_obj.error != nil then
-        return nil, "Gemini API Error: " .. tostring(res_obj.error.message or res_obj.error)
+        error_detail = res_obj.error
+        if res_obj.error.message != nil then
+            error_detail = res_obj.error.message
+        end
+        return nil, "Gemini API Error: " .. tostring(error_detail)
     end
 
     if res_obj.embedding == nil or res_obj.embedding.values == nil then

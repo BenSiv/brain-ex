@@ -90,14 +90,30 @@ function bridge.dispatch(brain_file, tool_name, method, args)
         elseif method == "connect" then
             return note.do_note_connect(brain_file, args)
         elseif method == "read" then
-            subject = args["subject"] or ""
-            title = args["title"] or ""
+            subject = ""
+            if args["subject"] != nil then
+                subject = args["subject"]
+            end
+            title = ""
+            if args["title"] != nil then
+                title = args["title"]
+            end
             query = string.format("SELECT subject, title, content FROM notes WHERE subject='%s' AND title='%s';", subject, title)
             rows = local_query(brain_file, query)
             return normalize_rows(rows, {"subject", "title", "content"})
         elseif method == "last" then
-            subject = args["subject"] or "log"
-            number = tonumber(args["number"] or "5") or 5
+            subject = "log"
+            if args["subject"] != nil then
+                subject = args["subject"]
+            end
+            number_input = "5"
+            if args["number"] != nil then
+                number_input = args["number"]
+            end
+            number = 5
+            if tonumber(number_input) != nil then
+                number = tonumber(number_input)
+            end
             query = string.format("SELECT subject, title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s;", subject, number)
             rows = local_query(brain_file, query)
             return normalize_rows(rows, {"subject", "title", "content"})

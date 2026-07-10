@@ -24,7 +24,10 @@ end
 
 function knowledge.retrieve(brain_file, query_str)
     results, _ = knowledge.search(brain_file, query_str, 5)
-    return results or {}
+    if results == nil then
+        results = {}
+    end
+    return results
 end
 
 function knowledge.sync(brain_file)
@@ -77,7 +80,10 @@ function knowledge.query_from_args(args, start_index)
     while i <= #args do
         if args[i] == "--limit" or args[i] == "-n" then
             if args[i + 1] != nil then
-                limit = tonumber(args[i + 1]) or limit
+                converted_limit = tonumber(args[i + 1])
+                if converted_limit != nil then
+                    limit = converted_limit
+                end
             end
             i = i + 2
         else
@@ -106,7 +112,10 @@ function knowledge.item_value(item, key, index, default_value)
     elseif item[index] != nil then
         return item[index]
     end
-    return default_value or ""
+    if default_value != nil then
+        return default_value
+    end
+    return ""
 end
 
 function knowledge.print_item(item)
@@ -229,7 +238,11 @@ function do_knowledge(brain_file, cmd_args)
         artifact_status = knowledge.get_option(cmd_args, "--status", "-s", nil)
         artifact_path, err = knowledge.promote(brain_file, id, target_tier, artifact_status)
         if artifact_path == nil then
-            print(err or "Promotion failed")
+            error_message = "Promotion failed"
+            if err != nil then
+                error_message = err
+            end
+            print(error_message)
             return "error"
         end
         print("Promoted " .. tostring(id) .. " to " .. artifact_path)

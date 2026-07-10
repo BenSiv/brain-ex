@@ -11,7 +11,13 @@ function provider.generate(model, system_prompt, prompt)
     utils = require("utils")
     
     api_key = os.getenv("OPENAI_API_KEY")
-    api_base = os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+    api_base = "https://api.openai.com/v1"
+    if os.getenv("OPENAI_BASE_URL") != nil then
+        api_base = os.getenv("OPENAI_BASE_URL")
+    end
+    if os.getenv("OPENAI_API_BASE") != nil then
+        api_base = os.getenv("OPENAI_API_BASE")
+    end
     
     if api_key == nil or api_key == "" then
         api_key = "local"
@@ -52,7 +58,11 @@ function provider.generate(model, system_prompt, prompt)
     end
 
     if res_obj.error != nil then
-        return nil, "OpenAI API Error: " .. tostring(res_obj.error.message or res_obj.error)
+        error_detail = res_obj.error
+        if res_obj.error.message != nil then
+            error_detail = res_obj.error.message
+        end
+        return nil, "OpenAI API Error: " .. tostring(error_detail)
     end
 
     if res_obj.choices == nil or res_obj.choices[1] == nil or res_obj.choices[1].message == nil then
@@ -85,7 +95,13 @@ function provider.embeddings(model, input_text, command_tmpl)
     end
 
     api_key = os.getenv("OPENAI_API_KEY")
-    api_base = os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+    api_base = "https://api.openai.com/v1"
+    if os.getenv("OPENAI_BASE_URL") != nil then
+        api_base = os.getenv("OPENAI_BASE_URL")
+    end
+    if os.getenv("OPENAI_API_BASE") != nil then
+        api_base = os.getenv("OPENAI_API_BASE")
+    end
     
     if api_key == nil or api_key == "" then
         api_key = "local"
@@ -119,7 +135,11 @@ function provider.embeddings(model, input_text, command_tmpl)
     end
 
     if res_obj.error != nil then
-        return nil, "OpenAI API Error: " .. tostring(res_obj.error.message or res_obj.error)
+        error_detail = res_obj.error
+        if res_obj.error.message != nil then
+            error_detail = res_obj.error.message
+        end
+        return nil, "OpenAI API Error: " .. tostring(error_detail)
     end
 
     if res_obj.data == nil or res_obj.data[1] == nil or res_obj.data[1].embedding == nil then

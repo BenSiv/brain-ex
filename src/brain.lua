@@ -12,7 +12,10 @@ function list_brains()
     end
 
     default_path = config.get_brain_path()
-    named = config.get_named_brains() or {}
+    named = config.get_named_brains()
+    if named == nil then
+        named = {}
+    end
     default_name = "(unlabeled)"
 
     if default_path == nil then
@@ -51,7 +54,10 @@ function list_brains()
 end
 
 function use_brain(args)
-    brain_name = args["name"] or ""
+    brain_name = ""
+    if args["name"] != nil then
+        brain_name = args["name"]
+    end
     if brain_name == "" then
         return nil, "Must provide brain name"
     end
@@ -97,7 +103,11 @@ function do_brain(cmd_args)
     if args["do"] == "list" or args["do"] == nil then
         status, err = list_brains()
         if status == nil then
-            print(err or "Brain command failed")
+            msg = "Brain command failed"
+            if err != nil then
+                msg = err
+            end
+            print(msg)
             return "error"
         end
         return "success"
@@ -106,7 +116,11 @@ function do_brain(cmd_args)
     if args["do"] == "use" then
         status, err = use_brain(args)
         if status == nil then
-            print(err or "Brain command failed")
+            msg = "Brain command failed"
+            if err != nil then
+                msg = err
+            end
+            print(msg)
             return "error"
         end
         return "success"

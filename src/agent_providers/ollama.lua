@@ -11,7 +11,7 @@ end
 function provider.generate(model, system_prompt, prompt)
     -- Build the prompt structure
     full_prompt = ""
-    if system_prompt and system_prompt != "" then
+    if system_prompt != nil and system_prompt != "" then
         full_prompt = full_prompt .. system_prompt .. "\n\n"
     end
     full_prompt = full_prompt .. "Task: " .. prompt
@@ -78,7 +78,14 @@ function provider.embeddings(model, input_text, command_tmpl)
     end
 
     -- API usually returns { "embedding": [...] }
-    return obj.embedding or obj.embeddings or obj, nil
+    embeddings_result = obj
+    if obj.embeddings != nil then
+        embeddings_result = obj.embeddings
+    end
+    if obj.embedding != nil then
+        embeddings_result = obj.embedding
+    end
+    return embeddings_result, nil
 end
 
 return provider

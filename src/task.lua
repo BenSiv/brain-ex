@@ -87,8 +87,14 @@ function update_overdue(brain_file)
     update_statement = ""
     if unfinished  !=  nil then
         for _, task in pairs(unfinished) do
-            task_id = task.id or task[1]
-            task_due = task.due_to or task[2]
+            task_id = task[1]
+            if task.id != nil then
+                task_id = task.id
+            end
+            task_due = task[2]
+            if task.due_to != nil then
+                task_due = task.due_to
+            end
             overdue = check_overdue(task_due)
             if overdue then
                 if task_id  !=  nil then
@@ -113,21 +119,60 @@ function backup_tasks(brain_file)
         tasks_dir = joinpath(vault_path, "tasks")
         paths_mod.create_dir_if_not_exists(tasks_dir)
         
-        all_tasks = local_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;") or {}
-        
+        all_tasks = local_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;")
+        if all_tasks == nil then
+            all_tasks = {}
+        end
+
         seen_files = {}
         for _, task_row in ipairs(all_tasks) do
-            id = task_row.id or task_row[1]
-            time_val = task_row.time or task_row[2]
-            content = task_row.content or task_row[3] or ""
-            subject = task_row.subject or task_row[4]
-            due_to = task_row.due_to or task_row[5]
-            overdue = task_row.overdue or task_row[6]
-            done = task_row.done or task_row[7]
-            comment = task_row.comment or task_row[8]
-            owner = task_row.owner or task_row[9]
-            importance = task_row.importance or task_row[10]
-            urgency = task_row.urgency or task_row[11]
+            id = task_row[1]
+            if task_row.id != nil then
+                id = task_row.id
+            end
+            time_val = task_row[2]
+            if task_row.time != nil then
+                time_val = task_row.time
+            end
+            content = task_row[3]
+            if task_row.content != nil then
+                content = task_row.content
+            end
+            if content == nil then
+                content = ""
+            end
+            subject = task_row[4]
+            if task_row.subject != nil then
+                subject = task_row.subject
+            end
+            due_to = task_row[5]
+            if task_row.due_to != nil then
+                due_to = task_row.due_to
+            end
+            overdue = task_row[6]
+            if task_row.overdue != nil then
+                overdue = task_row.overdue
+            end
+            done = task_row[7]
+            if task_row.done != nil then
+                done = task_row.done
+            end
+            comment = task_row[8]
+            if task_row.comment != nil then
+                comment = task_row.comment
+            end
+            owner = task_row[9]
+            if task_row.owner != nil then
+                owner = task_row.owner
+            end
+            importance = task_row[10]
+            if task_row.importance != nil then
+                importance = task_row.importance
+            end
+            urgency = task_row[11]
+            if task_row.urgency != nil then
+                urgency = task_row.urgency
+            end
             
             metadata = {
                 id = id,
@@ -185,7 +230,10 @@ function backup_tasks(brain_file)
         end
         
         -- Clean up stale files in tasks_dir
-        file_list = bx_utils.find_markdown_files(tasks_dir) or {}
+        file_list = bx_utils.find_markdown_files(tasks_dir)
+        if file_list == nil then
+            file_list = {}
+        end
         for _, item in ipairs(file_list) do
             file = item.rel_path
             if seen_files[file] == nil then
@@ -201,10 +249,16 @@ function backup_tasks(brain_file)
         while q_index <= #queue do
             curr = queue[q_index]
             q_index = q_index + 1
-            path = curr == "" and tasks_dir or tasks_dir .. "/" .. curr
+            path = tasks_dir .. "/" .. curr
+            if curr == "" then
+                path = tasks_dir
+            end
             for f in lfs_mod.dir(path) do
                 if f != "." and f != ".." then
-                    rel = curr == "" and f or curr .. "/" .. f
+                    rel = curr .. "/" .. f
+                    if curr == "" then
+                        rel = f
+                    end
                     full = tasks_dir .. "/" .. rel
                     attr = lfs_mod.attributes(full)
                     if attr != nil and attr.mode == "directory" then
@@ -238,10 +292,19 @@ function add_task(brain_file, args)
     -- get note info
     subject = args["subject"]
     owner = args["owner"]
-    content = args["content"] or ""
-    
-    importance = tonumber(args["importance"]) or 1
-    urgency = tonumber(args["urgency"]) or 1
+    content = ""
+    if args["content"] != nil then
+        content = args["content"]
+    end
+
+    importance = 1
+    if tonumber(args["importance"]) != nil then
+        importance = tonumber(args["importance"])
+    end
+    urgency = 1
+    if tonumber(args["urgency"]) != nil then
+        urgency = tonumber(args["urgency"])
+    end
     
     if importance < 1 or importance > 5 then
         return nil, "Importance must be an integer between 1 and 5"
@@ -310,9 +373,15 @@ function list_tasks(brain_file, args)
     
     update_overdue(brain_file)
 
-    subject = args["subject"] or ""
-    owner = args["owner"] or ""
-    
+    subject = ""
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    owner = ""
+    if args["owner"] != nil then
+        owner = args["owner"]
+    end
+
     due_to = nil
     if args["due_to"] != nil then
         due_to = dates.normalize_datetime(args["due_to"])
@@ -390,13 +459,36 @@ function list_tasks(brain_file, args)
             Q4 = "\027[90m",
             reset = "\027[0m"
         }
-        user_colors = settings.colors or {}
+        user_colors = settings.colors
+        if user_colors == nil then
+            user_colors = {}
+        end
+        Q1_color = defaults.Q1
+        if user_colors.Q1 != nil then
+            Q1_color = user_colors.Q1
+        end
+        Q2_color = defaults.Q2
+        if user_colors.Q2 != nil then
+            Q2_color = user_colors.Q2
+        end
+        Q3_color = defaults.Q3
+        if user_colors.Q3 != nil then
+            Q3_color = user_colors.Q3
+        end
+        Q4_color = defaults.Q4
+        if user_colors.Q4 != nil then
+            Q4_color = user_colors.Q4
+        end
+        reset_color = defaults.reset
+        if user_colors.reset != nil then
+            reset_color = user_colors.reset
+        end
         colors = {
-            Q1 = user_colors.Q1 or defaults.Q1,
-            Q2 = user_colors.Q2 or defaults.Q2,
-            Q3 = user_colors.Q3 or defaults.Q3,
-            Q4 = user_colors.Q4 or defaults.Q4,
-            reset = user_colors.reset or defaults.reset
+            Q1 = Q1_color,
+            Q2 = Q2_color,
+            Q3 = Q3_color,
+            Q4 = Q4_color,
+            reset = reset_color
         }
 
         -- Resolve columns
@@ -431,8 +523,14 @@ function list_tasks(brain_file, args)
         end
 
         for _, task_row in ipairs(result) do
-            imp = tonumber(task_row.importance) or 1
-            urg = tonumber(task_row.active_urgency) or 1
+            imp = 1
+            if tonumber(task_row.importance) != nil then
+                imp = tonumber(task_row.importance)
+            end
+            urg = 1
+            if tonumber(task_row.active_urgency) != nil then
+                urg = tonumber(task_row.active_urgency)
+            end
             
             quadrant = 4
             color_code = colors.Q4
@@ -451,7 +549,11 @@ function list_tasks(brain_file, args)
             priority_text = "Q" .. quadrant .. " (I:" .. imp .. " U:" .. urg .. ")"
             
             -- If due_to is overdue, we want to show [OVERDUE] tag
-            due_str = tostring(task_row.due_to or "")
+            due_to_val = task_row.due_to
+            if due_to_val == nil then
+                due_to_val = ""
+            end
+            due_str = tostring(due_to_val)
             if task_row.overdue == 1 or task_row.overdue == "1" then
                 due_str = due_str .. " [OVERDUE]"
             end
@@ -464,7 +566,10 @@ function list_tasks(brain_file, args)
                 elseif col == "due_to" then
                     val = due_str
                 else
-                    val = tostring(val or "")
+                    if val == nil then
+                        val = ""
+                    end
+                    val = tostring(val)
                 end
                 task_row[col] = color_code .. val .. reset_code
             end
@@ -477,8 +582,14 @@ function list_tasks(brain_file, args)
 end
 
 function mark_done(brain_file, args)
-    task_id = args["id"] or ""
-    comment = args["comment"] or ""
+    task_id = ""
+    if args["id"] != nil then
+        task_id = args["id"]
+    end
+    comment = ""
+    if args["comment"] != nil then
+        comment = args["comment"]
+    end
 
     if task_id == "" then
         return nil, "Must provide task id"
@@ -493,8 +604,11 @@ function mark_done(brain_file, args)
 end
 
 function delay_due(brain_file, args)
-    task_id = args["id"] or ""
-    
+    task_id = ""
+    if args["id"] != nil then
+        task_id = args["id"]
+    end
+
     due_to = nil
     is_indefinite = false
     if args["due_to"] != nil then
@@ -541,7 +655,10 @@ function delay_due(brain_file, args)
 end
 
 function update_priority(brain_file, args)
-    task_id = args["id"] or ""
+    task_id = ""
+    if args["id"] != nil then
+        task_id = args["id"]
+    end
     importance_str = args["importance"]
     urgency_str = args["urgency"]
 
@@ -585,8 +702,14 @@ function update_priority(brain_file, args)
 end
 
 function last_done(brain_file, args)
-    subject = args["subject"] or ""
-    num = args["number"] or 5
+    subject = ""
+    if args["subject"] != nil then
+        subject = args["subject"]
+    end
+    num = 5
+    if args["number"] != nil then
+        num = args["number"]
+    end
 
     query = "SELECT content, subject, comment FROM tasks WHERE done IS NOT NULL "
     if subject  !=  "" then
@@ -685,7 +808,11 @@ function do_task(brain_file, cmd_args)
         end
     end
     if status  !=  true then
-        print(err or "Task command failed")
+        if err != nil then
+            print(err)
+        else
+            print("Task command failed")
+        end
         return "error"
     end
     return "success"
