@@ -193,7 +193,7 @@ function main()
     end
 
     if is_git() then
-        auto_update()
+        git.auto_update()
     end
 end
 

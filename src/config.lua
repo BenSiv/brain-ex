@@ -5,6 +5,7 @@ config = {}
 paths = require("paths")
 joinpath = paths.joinpath
 utils = require("utils")
+database = require("database")
 file_exists = paths.file_exists
 read_yaml = utils.read_yaml
 
@@ -17,7 +18,7 @@ config_path = nil
 function get_config_path()
     if config_path == nil then
         home_dir = os.getenv("HOME")
-        config_path = joinpath(home_dir, ".config", "brain-ex", "config.yaml")
+        config_path = paths.joinpath(home_dir, ".config", "brain-ex", "config.yaml")
     end
     return config_path
 end
@@ -28,12 +29,12 @@ function load_config()
     end
     
     path = get_config_path()
-    if not file_exists(path) then
+    if not paths.file_exists(path) then
         print("Error: " .. path .. " file does not exist, run brex init.")
         return nil
     end
     
-    cached_config = read_yaml(path)
+    cached_config = utils.read_yaml(path)
     return cached_config
 end
 
@@ -262,12 +263,12 @@ end
 
 function config.get_settings_path()
     home_dir = os.getenv("HOME")
-    return joinpath(home_dir, ".config", "brain-ex", "settings.json")
+    return paths.joinpath(home_dir, ".config", "brain-ex", "settings.json")
 end
 
 function config.load_settings()
     path = config.get_settings_path()
-    if not file_exists(path) then
+    if not paths.file_exists(path) then
         return {}
     end
     f = io.open(path, "r")

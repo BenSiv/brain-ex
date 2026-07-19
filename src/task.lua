@@ -17,10 +17,11 @@ generate_id = bx_utils.generate_id
 dataframes = require("dataframes")
 view = dataframes.view
 sync = require("sync")
+paths = require("paths")
 
 function column_exists(brain_file, table_name, column_name)
     query = "PRAGMA table_info(" .. table_name .. ");"
-    columns = local_query(brain_file, query)
+    columns = database.local_query(brain_file, query)
     if columns == nil then
         return false
     end
@@ -34,18 +35,18 @@ end
 
 function ensure_priority_columns(brain_file)
     check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
-    if local_query(brain_file, check_table) == nil or #local_query(brain_file, check_table) == 0 then
+    if database.local_query(brain_file, check_table) == nil or #database.local_query(brain_file, check_table) == 0 then
         return
     end
 
     if not column_exists(brain_file, "tasks", "owner") then
-        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
+        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
     end
     if not column_exists(brain_file, "tasks", "importance") then
-        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN importance INTEGER DEFAULT 1;")
+        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN importance INTEGER DEFAULT 1;")
     end
     if not column_exists(brain_file, "tasks", "urgency") then
-        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN urgency INTEGER DEFAULT 1;")
+        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN urgency INTEGER DEFAULT 1;")
     end
 end
 
@@ -81,7 +82,7 @@ end
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
     query = "SELECT id, due_to FROM tasks WHERE done IS NULL AND due_to IS NOT NULL;"
-    unfinished = local_query(brain_file, query)
+    unfinished = database.local_query(brain_file, query)
 
     overdue = false
     update_statement = ""
@@ -102,7 +103,7 @@ function update_overdue(brain_file)
                 else
                     update_statement = nil
                 end
-                success = local_update(brain_file, update_statement)
+                success = database.local_update(brain_file, update_statement)
                 if success == nil then
                     return nil, "Failed to update overdue status for task ID: " .. tostring(task_id)
                 end
@@ -116,10 +117,10 @@ function backup_tasks(brain_file)
     vault_path = get_vault_path()
     if vault_path != nil then
         paths_mod = require("paths")
-        tasks_dir = joinpath(vault_path, "tasks")
+        tasks_dir = paths.joinpath(vault_path, "tasks")
         paths_mod.create_dir_if_not_exists(tasks_dir)
         
-        all_tasks = local_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;")
+        all_tasks = database.local_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;")
         if all_tasks == nil then
             all_tasks = {}
         end
@@ -191,7 +192,7 @@ function backup_tasks(brain_file)
             if subject != nil and subject != "NULL" and subject != "" then
                 filename = subject .. "/" .. id .. ".md"
             end
-            file_path = joinpath(tasks_dir, filename)
+            file_path = paths.joinpath(tasks_dir, filename)
             seen_files[filename] = true
             
             dir_path = string.match(file_path, "(.*)/[^/]+$")
@@ -206,21 +207,21 @@ function backup_tasks(brain_file)
                 io.close(f)
                 
                 -- Update sync_meta with modification time of this file
-                local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
                 lfs_mod = require("lfs")
                 attr = lfs_mod.attributes(file_path)
                 if attr != nil then
-                    local_update(brain_file, string.format(
+                    database.local_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_mod_%s', '%s');",
                         filename,
                         tostring(attr.modification)
                     ))
-                    local_update(brain_file, string.format(
+                    database.local_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_size_%s', '%s');",
                         filename,
                         tostring(attr.size)
                     ))
-                    local_update(brain_file, string.format(
+                    database.local_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_id_for_%s', '%s');",
                         filename,
                         tostring(id)
@@ -237,7 +238,7 @@ function backup_tasks(brain_file)
         for _, item in ipairs(file_list) do
             file = item.rel_path
             if seen_files[file] == nil then
-                os.remove(joinpath(tasks_dir, file))
+                os.remove(paths.joinpath(tasks_dir, file))
             end
         end
         
@@ -333,7 +334,7 @@ function add_task(brain_file, args)
     if overdue_bool == true then
         esc_overdue = 1
     end
-    id = generate_id("tasks", nil, nil, brain_file)
+    id = bx_utils.generate_id("tasks", nil, nil, brain_file)
     
     esc_subject = "NULL"
     if subject  !=  nil then
@@ -355,7 +356,7 @@ function add_task(brain_file, args)
     VALUES ('%s', %s, '%s', %s, '%s', NULL, %s, %d, %d);
     """, id, esc_subject, esc_content, esc_due_to, esc_overdue, esc_owner, importance, urgency)
     -- write note info
-    success = local_update(brain_file, insert_statement)
+    success = database.local_update(brain_file, insert_statement)
 	if success == nil then
 		return nil, "Failed to add task"
 	end
@@ -365,7 +366,7 @@ end
 
 function list_tasks(brain_file, args)
     ensure_priority_columns(brain_file)
-    tasks_empty = is_sqlite_empty(brain_file, "tasks")
+    tasks_empty = bx_utils.is_sqlite_empty(brain_file, "tasks")
     if tasks_empty then
         print("No pending tasks")
         return true
@@ -446,8 +447,8 @@ function list_tasks(brain_file, args)
         subject ASC;
     """
 
-    result = local_query(brain_file, query)
-    if result  !=  nil and length(result) > 0 then
+    result = database.local_query(brain_file, query)
+    if result  !=  nil and utils.length(result) > 0 then
         -- Load settings
         settings = config.load_settings()
         
@@ -596,7 +597,7 @@ function mark_done(brain_file, args)
     end
 
     update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
-    status = local_update(brain_file, update_statement)
+    status = database.local_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to mark task as done"
     end
@@ -647,7 +648,7 @@ function delay_due(brain_file, args)
             update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, esc_overdue, task_id)
         end
     end
-    status = local_update(brain_file, update_statement)
+    status = database.local_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to delay task due date"
     end
@@ -694,7 +695,7 @@ function update_priority(brain_file, args)
         update_statement = string.format("UPDATE tasks SET %s WHERE id='%s';", table.concat(updates, ", "), task_id)
     end
 
-    status = local_update(brain_file, update_statement)
+    status = database.local_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to update task priority"
     end
@@ -722,8 +723,8 @@ function last_done(brain_file, args)
         query = query .. string.format("LIMIT %s", num)
     end
 
-    result = local_query(brain_file, query)
-    if length(result) > 0 then
+    result = database.local_query(brain_file, query)
+    if utils.length(result) > 0 then
         view(result, {columns={"subject", "content", "comment"}})
     else
         print("No tasks to view")
@@ -779,8 +780,8 @@ function do_task(brain_file, cmd_args)
     """
 
     help_string = help.get_help_string(arg[0])
-    expected_args = def_args(arg_string)
-    args = parse_args(cmd_args, expected_args, help_string)
+    expected_args = argparse.def_args(arg_string)
+    args = argparse.parse_args(cmd_args, expected_args, help_string)
     if args == nil then
         return "success"
     end

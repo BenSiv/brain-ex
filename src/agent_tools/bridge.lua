@@ -79,7 +79,7 @@ function bridge.dispatch(brain_file, tool_name, method, args)
         elseif method == "delay" then
             return task.delay_due(brain_file, args)
         elseif method == "list" then
-            rows = local_query(brain_file, "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL ORDER BY due_to, subject;")
+            rows = database.local_query(brain_file, "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL ORDER BY due_to, subject;")
             return normalize_rows(rows, {"id", "subject", "content", "due_to", "overdue"})
         end
     elseif tool_name == "note" then
@@ -99,7 +99,7 @@ function bridge.dispatch(brain_file, tool_name, method, args)
                 title = args["title"]
             end
             query = string.format("SELECT subject, title, content FROM notes WHERE subject='%s' AND title='%s';", subject, title)
-            rows = local_query(brain_file, query)
+            rows = database.local_query(brain_file, query)
             return normalize_rows(rows, {"subject", "title", "content"})
         elseif method == "last" then
             subject = "log"
@@ -115,7 +115,7 @@ function bridge.dispatch(brain_file, tool_name, method, args)
                 number = tonumber(number_input)
             end
             query = string.format("SELECT subject, title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s;", subject, number)
-            rows = local_query(brain_file, query)
+            rows = database.local_query(brain_file, query)
             return normalize_rows(rows, {"subject", "title", "content"})
         end
     elseif tool_name == "sql" then

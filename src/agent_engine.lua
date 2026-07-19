@@ -7,6 +7,7 @@ joinpath = paths.joinpath
 database = require("database")
 bridge = require("agent_tools.bridge")
 knowledge_pool = require("knowledge_pool")
+utils = require("utils")
 
 
 
@@ -256,7 +257,7 @@ function agent_engine.backup_agent_data(brain_file)
     vault_path = config.get_vault_path()
     if vault_path != nil then
         paths_mod = require("paths")
-        sessions_dir = joinpath(vault_path, "agent_sessions")
+        sessions_dir = paths.joinpath(vault_path, "agent_sessions")
         paths_mod.create_dir_if_not_exists(sessions_dir)
         
         all_sessions = database.local_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;")
@@ -299,7 +300,7 @@ function agent_engine.backup_agent_data(brain_file)
             markdown_content = bx_utils.serialize_session(session_meta, msgs)
             
             filename = sess_id .. ".md"
-            file_path = joinpath(sessions_dir, filename)
+            file_path = paths.joinpath(sessions_dir, filename)
             seen_files[filename] = true
             
             f = io.open(file_path, "w")
@@ -330,13 +331,13 @@ function agent_engine.backup_agent_data(brain_file)
             end
         end
         
-        files = readdir(sessions_dir)
+        files = utils.readdir(sessions_dir)
         if files == nil then
             files = {}
         end
         for _, file in ipairs(files) do
             if string.match(file, "%.md$") != nil and seen_files[file] == nil then
-                os.remove(joinpath(sessions_dir, file))
+                os.remove(paths.joinpath(sessions_dir, file))
             end
         end
     end

@@ -94,8 +94,8 @@ function do_brain(cmd_args)
     """
 
     help_string = help.get_help_string(arg[0])
-    expected_args = def_args(arg_string)
-    args = parse_args(cmd_args, expected_args, help_string)
+    expected_args = argparse.def_args(arg_string)
+    args = argparse.parse_args(cmd_args, expected_args, help_string)
     if args == nil then
         return "success"
     end

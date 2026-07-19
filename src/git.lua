@@ -9,7 +9,7 @@ function auto_update()
     vault_path = get_vault_path()
 
     -- Check if there are any changes
-    output, success = exec_command(string.format( "git -C '%s' status --porcelain", vault_path))
+    output, success = utils.exec_command(string.format( "git -C '%s' status --porcelain", vault_path))
     if success == nil then
         return "Failed to check git status"
     end
@@ -20,17 +20,17 @@ function auto_update()
     end
 
     -- Stage, commit, and push changes
-    output, success = exec_command(string.format( "git -C '%s' add -A", vault_path))
+    output, success = utils.exec_command(string.format( "git -C '%s' add -A", vault_path))
     if success == nil then
         return "Failed to add changes: " .. output
     end
 
-    output, success = exec_command(string.format("git -C '%s' commit -m 'auto update'", vault_path))
+    output, success = utils.exec_command(string.format("git -C '%s' commit -m 'auto update'", vault_path))
     if success == nil then
         return "Failed to commit changes: " .. output
     end
 
-    output, success = exec_command(string.format("git -C '%s' push", vault_path))
+    output, success = utils.exec_command(string.format("git -C '%s' push", vault_path))
     if success == nil then
         return "Failed to push changes: " .. output
     end

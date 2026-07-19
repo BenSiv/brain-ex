@@ -14,7 +14,7 @@ agent_engine = require("agent_engine")
 -- Utility to check if a column exists in a table
 function column_exists(brain_file, table_name, column_name)
     query = "PRAGMA table_info(" .. table_name .. ");"
-    columns = local_query(brain_file, query)
+    columns = database.local_query(brain_file, query)
     if columns == nil then return false end
     for _, col in pairs(columns) do
         -- Check both 'name' key and integer index 2 (name)
@@ -29,12 +29,12 @@ end
 function ensure_owner_column(brain_file)
     -- Check if table exists first
     check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
-    if local_query(brain_file, check_table) == nil or #local_query(brain_file, check_table) == 0 then
+    if database.local_query(brain_file, check_table) == nil or #database.local_query(brain_file, check_table) == 0 then
         return
     end
 
     if not column_exists(brain_file, "tasks", "owner") then
-        local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
+        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
     end
 end
 

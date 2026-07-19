@@ -20,14 +20,14 @@ task_mod = require("task")
 agent_engine = require("agent_engine")
 
 function build_config_dir(home_dir)
-    config_root = joinpath(home_dir, ".config")
-    status = create_dir_if_not_exists(config_root)
+    config_root = paths.joinpath(home_dir, ".config")
+    status = paths.create_dir_if_not_exists(config_root)
     if status == nil then
         return
     end
 
-    bx_config_dir = joinpath(config_root, "brain-ex")
-    status = create_dir_if_not_exists(bx_config_dir)
+    bx_config_dir = paths.joinpath(config_root, "brain-ex")
+    status = paths.create_dir_if_not_exists(bx_config_dir)
     if status == nil then
         return
     end
@@ -57,7 +57,7 @@ end
 
 function update_config_file(home_dir, updates)
     config_dir = build_config_dir(home_dir)
-    config_file = joinpath(config_dir, "config.yaml")
+    config_file = paths.joinpath(config_dir, "config.yaml")
     
     current_conf = {}
     f = io.open(config_file, "r")
@@ -84,8 +84,8 @@ function update_config_file(home_dir, updates)
     
     save_config(config_file, current_conf)
 
-    settings_file = joinpath(config_dir, "settings.json")
-    if not file_exists(settings_file) then
+    settings_file = paths.joinpath(config_dir, "settings.json")
+    if not paths.file_exists(settings_file) then
         sf = io.open(settings_file, "w")
         if sf != nil then
             json_template = """{
@@ -149,7 +149,7 @@ function init_bx(args)
     os.remove(brain_path)
 
     -- create database and tables
-    success = local_update(brain_path, sql_init)
+    success = database.local_update(brain_path, sql_init)
     knowledge_pool.ensure_table(brain_path)
 	if success == nil then
 		return nil, "Failed to initialize database"
@@ -179,10 +179,10 @@ function init_bx_with_vault(args)
         brain_name = args["name"]
     end
     brain_name = remove_trailing_slash(brain_name)
-    brain_path = joinpath(current_dir, brain_name .. ".db")
-    vault_path = joinpath(current_dir, vault_dir)
+    brain_path = paths.joinpath(current_dir, brain_name .. ".db")
+    vault_path = paths.joinpath(current_dir, vault_dir)
     home_dir = os.getenv("HOME")
-    task_file = joinpath(vault_dir, "tasks.tsv")
+    task_file = paths.joinpath(vault_dir, "tasks.tsv")
     default_editor = "nano"
     if args["editor"] != nil then
         default_editor = args["editor"]
@@ -196,7 +196,7 @@ function init_bx_with_vault(args)
     os.remove(brain_path)
     
     -- create database and tables
-    success = local_update(brain_path, sql_init)
+    success = database.local_update(brain_path, sql_init)
     knowledge_pool.ensure_table(brain_path)
 	if success == nil then
 		return nil, "Failed to initialize database"
@@ -210,8 +210,8 @@ function init_bx_with_vault(args)
         os.remove(task_file)
     end
 
-    sessions_file = joinpath(vault_dir, "agent_sessions.tsv")
-    messages_file = joinpath(vault_dir, "agent_messages.tsv")
+    sessions_file = paths.joinpath(vault_dir, "agent_sessions.tsv")
+    messages_file = paths.joinpath(vault_dir, "agent_messages.tsv")
     if (paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file)) or (paths.file_exists(messages_file) != nil and paths.file_exists(messages_file)) then
         print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
         if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then
@@ -232,7 +232,7 @@ function init_bx_with_vault(args)
 
     -- if --git flag is used, initialize a Git repo if not present
     if enable_git  !=  nil and enable_git then
-        git_dir = joinpath(vault_path, ".git")
+        git_dir = paths.joinpath(vault_path, ".git")
         mode = lfs.attributes(git_dir, "mode")
         if mode == nil then
             print("Initializing new git repository in " .. vault_path)
@@ -274,8 +274,8 @@ function do_init(cmd_args)
     """
 
     help_string = get_help_string(arg[0])
-    expected_args = def_args(arg_string)
-    args = parse_args(cmd_args, expected_args, help_string)
+    expected_args = argparse.def_args(arg_string)
+    args = argparse.parse_args(cmd_args, expected_args, help_string)
     if args == nil then
         return "success"
     end

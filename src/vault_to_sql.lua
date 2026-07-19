@@ -64,11 +64,11 @@ end
 
 function get_vault_files(vault_path)
     vault_content = {}
-    dir_content = readdir(vault_path)
+    dir_content = utils.readdir(vault_path)
     vault_content["root"] = filter_markdown_files(dir_content)
     vault_subjects = filter_directories(vault_path, dir_content)
     for _, subject in pairs(vault_subjects) do
-        dir_content = readdir(vault_path .. "/" .. subject)
+        dir_content = utils.readdir(vault_path .. "/" .. subject)
         vault_content[subject] = filter_markdown_files(dir_content)
     end
     return vault_content
@@ -80,14 +80,14 @@ function read_note(vault_path, note)
     end
     note_path = joinpath(vault_path, note)
     note_name = string.gsub(note, "%.md$", "")
-    note_content = read(note_path)
+    note_content = utils.read(note_path)
     return {name = note_name, content = note_content}
 end
 
 function get_lines(markdown_text)
     lines = {}
     
-    for line in match_all(markdown_text, "[^\r\n]+") do
+    for line in utils.match_all(markdown_text, "[^\r\n]+") do
         table.insert(lines, line)
     end
 
@@ -100,8 +100,8 @@ function remove_link(input_line, link)
         return ""
     end
     link_pattern = "%[%[" .. link .. "%]%]"
-    output_line = replace(input_line, link_pattern, "")
-    if match(output_line, "^%s*$") != nil then
+    output_line = utils.replace(input_line, link_pattern, "")
+    if utils.match(output_line, "^%s*$") != nil then
     	output_line = ""
     end
     return output_line
@@ -113,7 +113,7 @@ function extract_links(line, link_found)
     end
     processed_line = line
 
-    for raw_link in match_all(line, "%[%[(.-)%]%]") do
+    for raw_link in utils.match_all(line, "%[%[(.-)%]%]") do
         parsed_links = parse_links_str(raw_link)
         for _, link in ipairs(parsed_links) do
             table.insert(link_found, link)
@@ -246,7 +246,7 @@ function vault_to_sql(vault_path, brain_file)
             needs_update = (existing == nil) or (existing.time != last_update_time) or (existing.size != file_size)
 
             if needs_update then
-                note_content = read(note_path)
+                note_content = utils.read(note_path)
                 content, links = process_content(note_content)
 
                 if existing != nil then
@@ -278,7 +278,7 @@ function vault_to_sql(vault_path, brain_file)
                 end
 
                 -- Insert connections if any
-                if length(links) > 0 then
+                if utils.length(links) > 0 then
                     insert_connections = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
 
                     for _, link in pairs(links) do

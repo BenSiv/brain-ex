@@ -8,13 +8,14 @@ local_query = database.local_query
 config = require("config")
 get_brain_path = config.get_brain_path
 dataframes = require("dataframes")
+help = require("help")
 view = dataframes.view
 function sqlite_shell(brain_file)
     os.execute("sqlite3 -column -header " .. brain_file)
 end
 
 function sqlite_query(brain_file, query)
-    results = local_query(brain_file, query)
+    results = database.local_query(brain_file, query)
     if results == nil then
         return nil
     end
@@ -30,9 +31,9 @@ function do_sql(brain_file, cmd_args)
         -q --query arg string false
     """
 
-    help_string = get_help_string(arg[0])
-    expected_args = def_args(arg_string)
-    args = parse_args(cmd_args, expected_args, help_string)
+    help_string = help.get_help_string(arg[0])
+    expected_args = argparse.def_args(arg_string)
+    args = argparse.parse_args(cmd_args, expected_args, help_string)
 
     if args  !=  nil then
         if args["query"]  !=  nil then
