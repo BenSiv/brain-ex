@@ -2,8 +2,8 @@
 knowledge_pool = {}
 
 database = require("database")
-local_query = database.local_query
-local_update = database.local_update
+local_query = database.sqlite_query
+local_update = database.sqlite_update
 config = require("config")
 paths = require("paths")
 joinpath = paths.joinpath
@@ -177,11 +177,11 @@ function knowledge_pool.ensure_table(brain_file)
         );
         CREATE INDEX IF NOT EXISTS idx_knowledge_reviews_item ON knowledge_reviews(knowledge_id);
     """
-    res = database.local_update(brain_file, create_tables)
+    res = database.sqlite_update(brain_file, create_tables)
 
     -- Migration: check if embedding column exists in knowledge_items
     has_emb = false
-    check_emb = database.local_query(brain_file, "PRAGMA table_info(knowledge_items);")
+    check_emb = database.sqlite_query(brain_file, "PRAGMA table_info(knowledge_items);")
     if check_emb != nil then
         for _, col in pairs(check_emb) do
             if col.name == "embedding" or col[2] == "embedding" then
@@ -191,7 +191,7 @@ function knowledge_pool.ensure_table(brain_file)
         end
     end
     if has_emb == false then
-        database.local_update(brain_file, "ALTER TABLE knowledge_items ADD COLUMN embedding TEXT;")
+        database.sqlite_update(brain_file, "ALTER TABLE knowledge_items ADD COLUMN embedding TEXT;")
     end
 
     return res
@@ -205,10 +205,10 @@ function knowledge_pool.record_interaction(brain_file, source_type, source_id, i
 
     query = string.format("INSERT INTO knowledge_pool (source_type, source_id, interaction_type, weight) VALUES ('%s', '%s', '%s', 1.0);",
         source_type, source_id, interaction_type)
-    database.local_update(brain_file, query)
+    database.sqlite_update(brain_file, query)
 
     total_weight = 0
-    res = database.local_query(brain_file, string.format("SELECT SUM(weight) AS total_weight FROM knowledge_pool WHERE source_type='%s' AND source_id='%s';", source_type, source_id))
+    res = database.sqlite_query(brain_file, string.format("SELECT SUM(weight) AS total_weight FROM knowledge_pool WHERE source_type='%s' AND source_id='%s';", source_type, source_id))
     if res != nil and type(res) == "table" and res[1] != nil then
         total_weight = tonumber(knowledge_pool.row_value(res[1], "total_weight", 1, 0))
         if total_weight == nil then
@@ -225,7 +225,7 @@ function knowledge_pool.record_interaction(brain_file, source_type, source_id, i
 
     update_status = string.format("UPDATE knowledge_pool SET weight = %f, status = '%s' WHERE source_type='%s' AND source_id='%s';",
         total_weight, new_status, source_type, source_id)
-    database.local_update(brain_file, update_status)
+    database.sqlite_update(brain_file, update_status)
 end
 
 function knowledge_pool.upsert_note(brain_file, subject, title, content, note_time)
@@ -264,7 +264,7 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
         end
     end
 
-    existing = database.local_query(brain_file, "SELECT id, content_hash, artifact_status FROM knowledge_items WHERE source_type='note' AND source_id='%s';", source_id)
+    existing = database.sqlite_query(brain_file, "SELECT id, content_hash, artifact_status FROM knowledge_items WHERE source_type='note' AND source_id='%s';", source_id)
 
     if existing != nil and existing[1] != nil then
         old_hash = knowledge_pool.row_value(existing[1], "content_hash", 2, "")
@@ -285,7 +285,7 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
                 %s
             WHERE source_type='note' AND source_id='%%s';
         """, artifact_update)
-        database.local_update(brain_file, update_sql,
+        database.sqlite_update(brain_file, update_sql,
             source_ref,
             subject,
             title,
@@ -304,7 +304,7 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
                  '%s', '%s', 1, 'working', 1.0, 0,
                  'none', 'pool', '%s', datetime('now', 'localtime'));
         """
-        database.local_update(brain_file, insert_sql,
+        database.sqlite_update(brain_file, insert_sql,
             source_id,
             source_ref,
             subject,
@@ -319,9 +319,9 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
 end
 
 function knowledge_pool.mark_duplicates(brain_file)
-    database.local_update(brain_file, "UPDATE knowledge_items SET duplicate_of=NULL WHERE merged_into IS NULL;")
+    database.sqlite_update(brain_file, "UPDATE knowledge_items SET duplicate_of=NULL WHERE merged_into IS NULL;")
 
-    duplicate_groups = database.local_query(brain_file, """
+    duplicate_groups = database.sqlite_query(brain_file, """
         SELECT content_hash AS content_hash, MIN(id) AS canonical_id, COUNT(*) AS duplicate_count
         FROM knowledge_items
         WHERE content_hash != ''
@@ -338,13 +338,13 @@ function knowledge_pool.mark_duplicates(brain_file)
         hash = knowledge_pool.row_value(group, "content_hash", 1, "")
         canonical_id = knowledge_pool.number_value(knowledge_pool.row_value(group, "canonical_id", 2, 0), 0)
         if hash != "" and canonical_id > 0 then
-            database.local_update(brain_file, string.format(
+            database.sqlite_update(brain_file, string.format(
                 "UPDATE knowledge_items SET duplicate_of=%d, process_level='duplicate', promotion_status='duplicate' WHERE content_hash='%s' AND id != %d;",
                 canonical_id,
                 knowledge_pool.escape_sql(hash),
                 canonical_id
             ))
-            database.local_update(brain_file, string.format(
+            database.sqlite_update(brain_file, string.format(
                 "UPDATE knowledge_items SET promotion_status='pool' WHERE id=%d AND promotion_status='duplicate';",
                 canonical_id
             ))
@@ -369,7 +369,7 @@ function knowledge_pool.sync_notes(brain_file)
         WHERE ki.id IS NULL OR n.time >= ki.updated_at;
     """
     
-    notes = database.local_query(brain_file, query)
+    notes = database.sqlite_query(brain_file, query)
     if notes == nil or #notes == 0 then
         return 0
     end
@@ -450,7 +450,7 @@ function knowledge_pool.process_items(brain_file)
     synced = knowledge_pool.sync_notes(brain_file)
     duplicates = knowledge_pool.mark_duplicates(brain_file)
 
-    items = database.local_query(brain_file, """
+    items = database.sqlite_query(brain_file, """
         SELECT id, source_type, source_id, source_ref, subject, title, content,
                content_hash, tier, process_level, heat, retrieval_count,
                last_retrieved_at, duplicate_of, merged_into, artifact_kind,
@@ -465,7 +465,7 @@ function knowledge_pool.process_items(brain_file)
             id = knowledge_pool.number_value(knowledge_pool.row_value(item, "id", 1, 0), 0)
             atomicity_status, duplication_status, title_status, promotion_status, process_level = knowledge_pool.review_status_for_item(item)
             if id > 0 then
-                database.local_update(brain_file, string.format(
+                database.sqlite_update(brain_file, string.format(
                     "UPDATE knowledge_items SET process_level='%s', promotion_status='%s', updated_at=datetime('now', 'localtime') WHERE id=%d;",
                     knowledge_pool.escape_sql(process_level),
                     knowledge_pool.escape_sql(promotion_status),
@@ -629,11 +629,11 @@ function knowledge_pool.query_terms(query_text)
 end
 
 function knowledge_pool.insert_retrieval(brain_file, query_text)
-    database.local_update(brain_file, string.format(
+    database.sqlite_update(brain_file, string.format(
         "INSERT INTO knowledge_retrievals (query_text) VALUES ('%s');",
         knowledge_pool.escape_sql(query_text)
     ))
-    rows = database.local_query(brain_file, "SELECT MAX(id) AS retrieval_id FROM knowledge_retrievals;")
+    rows = database.sqlite_query(brain_file, "SELECT MAX(id) AS retrieval_id FROM knowledge_retrievals;")
     if rows != nil and rows[1] != nil then
         return knowledge_pool.number_value(knowledge_pool.row_value(rows[1], "retrieval_id", 1, 0), 0)
     end
@@ -647,7 +647,7 @@ function knowledge_pool.record_review(brain_file, retrieval_id, knowledge_id, at
     if knowledge_id == nil then
         knowledge_id = 0
     end
-    database.local_update(brain_file, string.format("""
+    database.sqlite_update(brain_file, string.format("""
         INSERT INTO knowledge_reviews
             (retrieval_id, knowledge_id, atomicity_status, connectivity_status,
              duplication_status, title_status, promotion_status, action_summary)
@@ -677,19 +677,19 @@ function knowledge_pool.reinforce_links(brain_file, ids)
                 from_id = to_id
                 to_id = tmp
             end
-            existing = database.local_query(brain_file, string.format(
+            existing = database.sqlite_query(brain_file, string.format(
                 "SELECT weight FROM knowledge_links WHERE from_id=%d AND to_id=%d AND link_type='co-retrieved';",
                 from_id,
                 to_id
             ))
             if existing != nil and existing[1] != nil then
-                database.local_update(brain_file, string.format(
+                database.sqlite_update(brain_file, string.format(
                     "UPDATE knowledge_links SET weight=weight+1.0, updated_at=datetime('now', 'localtime') WHERE from_id=%d AND to_id=%d AND link_type='co-retrieved';",
                     from_id,
                     to_id
                 ))
             else
-                database.local_update(brain_file, string.format(
+                database.sqlite_update(brain_file, string.format(
                     "INSERT INTO knowledge_links (from_id, to_id, link_type, weight) VALUES (%d, %d, 'co-retrieved', 1.0);",
                     from_id,
                     to_id
@@ -708,7 +708,7 @@ function knowledge_pool.record_retrieval(brain_file, query_text, results)
         id = knowledge_pool.number_value(item.id, 0)
         if id > 0 then
             reinforcement_delta = 0.25 + (knowledge_pool.number_value(item.tier, 1) * 0.05)
-            database.local_update(brain_file, string.format("""
+            database.sqlite_update(brain_file, string.format("""
                 INSERT OR REPLACE INTO knowledge_retrieval_results
                     (retrieval_id, knowledge_id, rank, score, tier_weight, reinforcement_delta)
                 VALUES (%d, %d, %d, %f, %f, %f);
@@ -720,7 +720,7 @@ function knowledge_pool.record_retrieval(brain_file, query_text, results)
                 item.tier_weight,
                 reinforcement_delta))
 
-            database.local_update(brain_file, string.format(
+            database.sqlite_update(brain_file, string.format(
                 "UPDATE knowledge_items SET retrieval_count=retrieval_count+1, heat=heat+%f, last_retrieved_at=datetime('now', 'localtime') WHERE id=%d;",
                 reinforcement_delta,
                 id
@@ -772,7 +772,7 @@ function knowledge_pool.search(brain_file, query_text, limit)
         end
     end
 
-    rows = database.local_query(brain_file, """
+    rows = database.sqlite_query(brain_file, """
         SELECT id, source_type, source_id, subject, title, content, tier,
                process_level, heat, retrieval_count, last_retrieved_at,
                duplicate_of, merged_into, artifact_ref, artifact_path,
@@ -839,7 +839,7 @@ function knowledge_pool.browse(brain_file, limit)
     if limit == nil then
         limit = 20
     end
-    rows = database.local_query(brain_file, string.format("""
+    rows = database.sqlite_query(brain_file, string.format("""
         SELECT id, title, subject, tier, process_level, retrieval_count,
                heat, artifact_status, promotion_status, source_ref, artifact_ref
         FROM knowledge_items
@@ -858,7 +858,7 @@ function knowledge_pool.get_item(brain_file, id)
     if id == nil then
         id = 0
     end
-    rows = database.local_query(brain_file, string.format("""
+    rows = database.sqlite_query(brain_file, string.format("""
         SELECT id, title, subject, tier, process_level, retrieval_count,
                heat, source_type, source_ref, artifact_kind, artifact_ref,
                artifact_path, artifact_status, promotion_status, duplicate_of,
@@ -879,7 +879,7 @@ function knowledge_pool.history(brain_file, id)
         if id_number == nil then
             id_number = 0
         end
-        rows = database.local_query(brain_file, string.format("""
+        rows = database.sqlite_query(brain_file, string.format("""
             SELECT kr.id AS retrieval_id, kr.query_text, kr.created_at,
                    krr.rank, krr.score
             FROM knowledge_retrieval_results krr
@@ -894,7 +894,7 @@ function knowledge_pool.history(brain_file, id)
         return rows
     end
 
-    rows = database.local_query(brain_file, """
+    rows = database.sqlite_query(brain_file, """
         SELECT id, query_text, created_at
         FROM knowledge_retrievals
         ORDER BY id DESC
@@ -908,7 +908,7 @@ end
 
 function knowledge_pool.queue(brain_file)
     knowledge_pool.process_items(brain_file)
-    rows = database.local_query(brain_file, """
+    rows = database.sqlite_query(brain_file, """
         SELECT id, title, tier, process_level, promotion_status,
                retrieval_count, heat, artifact_status, source_ref, duplicate_of
         FROM knowledge_items
@@ -1017,7 +1017,7 @@ function knowledge_pool.promote(brain_file, id, target_tier, artifact_status)
     io.write(file, content .. "\n")
     io.close(file)
 
-    database.local_update(brain_file, string.format("""
+    database.sqlite_update(brain_file, string.format("""
         UPDATE knowledge_items
         SET tier=%d,
             process_level='%s',
@@ -1063,7 +1063,7 @@ function knowledge_pool.get_hot_items(brain_file, limit)
         ORDER BY usage_count DESC
         LIMIT %d;
     """, limit)
-    return database.local_query(brain_file, query)
+    return database.sqlite_query(brain_file, query)
 end
 
 knowledge_pool.ensure_schema = knowledge_pool.ensure_table

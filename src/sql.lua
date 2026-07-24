@@ -4,7 +4,7 @@ sql = {}
 utils = require("utils")
 argparse = require("argparse")
 database = require("database")
-local_query = database.local_query
+local_query = database.sqlite_query
 config = require("config")
 get_brain_path = config.get_brain_path
 dataframes = require("dataframes")
@@ -15,7 +15,7 @@ function sqlite_shell(brain_file)
 end
 
 function sqlite_query(brain_file, query)
-    results = database.local_query(brain_file, query)
+    results = database.sqlite_query(brain_file, query)
     if results == nil then
         return nil
     end

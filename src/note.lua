@@ -4,8 +4,8 @@ note = {}
 utils = require("utils")
 argparse = require("argparse")
 database = require("database")
-local_update = database.local_update
-local_query = database.local_query
+local_update = database.sqlite_update
+local_query = database.sqlite_query
 config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
@@ -25,7 +25,7 @@ function insert_note(brain_file, subject, title, content)
     title = escape_sql(title)
     content = escape_sql(content)
     insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
-    status = database.local_update(brain_file, insert_statement)
+    status = database.sqlite_update(brain_file, insert_statement)
     if status == nil then
         return nil, "Failed to update database"
     end
@@ -38,7 +38,7 @@ function append_content(brain_file, subject, title, content)
     esc_title = escape_sql(title)
 
     query = string.format("SELECT content FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
     if result == nil or #result == 0 then
         return nil, "Failed to find note for append: " .. title
     end
@@ -55,7 +55,7 @@ function append_content(brain_file, subject, title, content)
 
     update_statement = string.format("UPDATE notes SET content='%s' WHERE title='%s' AND subject='%s';", esc_content, esc_title, esc_subject)
 
-    status = database.local_update(brain_file, update_statement)
+    status = database.sqlite_update(brain_file, update_statement)
     if status == nil then
         print("Failed to update database")
         return nil
@@ -95,7 +95,7 @@ function connect_notes(brain_file, source_title, source_subject, links)
     -- remove trailing comma + space and add semicolon
     insert_statement = string.sub(insert_statement, 1, -3) .. ";"
 
-    status = database.local_update(brain_file, insert_statement)
+    status = database.sqlite_update(brain_file, insert_statement)
     if status == nil then
         return nil, "Failed to connect notes"
     end
@@ -123,7 +123,7 @@ function note_exists(brain_file, subject, title)
     esc_subject = escape_sql(safe_subject)
     esc_title = escape_sql(safe_title)
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
     if result == nil or result[1] == nil then
         return false
     end
@@ -312,7 +312,7 @@ function last_notes(brain_file, args)
     end
 
     query = string.format("SELECT title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s", subject, num)
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
 
     if result != nil and utils.length(result) > 0 then
         for i, note in pairs(result) do
@@ -366,7 +366,7 @@ function log_note(brain_file, args)
     esc_subject = escape_sql(subject)
     esc_title = escape_sql(title) -- title comes from os.date usually but good practice to escape if it ever changes
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
     if result == nil then
         return nil, "Failed to query note database"
     end

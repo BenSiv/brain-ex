@@ -65,18 +65,18 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
 
     -- Ensure tables and default session exist
     knowledge_pool.ensure_table(brain_file)
-    check_session = database.local_query(brain_file, "SELECT id FROM agent_sessions WHERE id='default';")
+    check_session = database.sqlite_query(brain_file, "SELECT id FROM agent_sessions WHERE id='default';")
     if check_session == nil or #check_session == 0 then
-        database.local_update(brain_file, "INSERT INTO agent_sessions (id, name) VALUES ('default', 'Default Session');")
+        database.sqlite_update(brain_file, "INSERT INTO agent_sessions (id, name) VALUES ('default', 'Default Session');")
         agent_engine.backup_agent_data(brain_file)
     end
 
     -- Insert user prompt to DB
-    database.local_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'user', '%s', 1);", prompt)
+    database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'user', '%s', 1);", prompt)
     agent_engine.backup_agent_data(brain_file)
 
     -- Context token size estimation and compaction check
-    active_messages = database.local_query(brain_file, "SELECT id, role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
+    active_messages = database.sqlite_query(brain_file, "SELECT id, role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
     if active_messages == nil then
         active_messages = {}
     end
@@ -117,7 +117,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
         compaction_summary, comp_err = provider.generate(model_name, "You are a concise summarizer.", summary_prompt)
         if compaction_summary != nil and comp_err == nil then
             -- Save summary
-            database.local_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'compaction_summary', '%s', 1);", compaction_summary)
+            database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'compaction_summary', '%s', 1);", compaction_summary)
             -- Mark old as out of context (zero-deletion)
             ids_to_update = {}
             for _, msg in ipairs(to_compact) do
@@ -127,7 +127,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
                 end
                 table.insert(ids_to_update, tostring(mid))
             end
-            database.local_update(brain_file, "UPDATE agent_messages SET in_context=0 WHERE id IN (" .. table.concat(ids_to_update, ",") .. ");")
+            database.sqlite_update(brain_file, "UPDATE agent_messages SET in_context=0 WHERE id IN (" .. table.concat(ids_to_update, ",") .. ");")
             print("[Compaction] History compacted successfully.")
             agent_engine.backup_agent_data(brain_file)
         else
@@ -138,7 +138,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     -- Run multi-turn loops up to 10 turns
     for turn = 1, 10 do
         history_parts = {}
-        current_active = database.local_query(brain_file, "SELECT role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
+        current_active = database.sqlite_query(brain_file, "SELECT role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
         if current_active == nil then
             current_active = {}
         end
@@ -175,7 +175,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
         end
 
         -- Record assistant reply in database
-        database.local_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'assistant', '%s', 1);", result)
+        database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'assistant', '%s', 1);", result)
         agent_engine.backup_agent_data(brain_file)
 
         done_message = string.match(result, "<done>%s*(.-)%s*</done>")
@@ -214,7 +214,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
         end
 
         -- Record tool result in database
-        database.local_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'tool_result', '%s', 1);", tool_summary)
+        database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'tool_result', '%s', 1);", tool_summary)
         agent_engine.backup_agent_data(brain_file)
     end
 
@@ -224,7 +224,7 @@ end
 
 function agent_engine.process_tasks(brain_file)
     query = "SELECT id, subject, content FROM tasks WHERE owner = 'agent' AND done IS NULL;"
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
     if result == nil or #result == 0 then
         print("No pending tasks for agent.")
         return "success"
@@ -248,7 +248,7 @@ function agent_engine.process_tasks(brain_file)
         prompt = "Please handle task. Subject: " .. task_subject .. "\nContent: " .. task_content
         print("Processing task " .. task_id .. "...")
         agent_engine.run_agent("worker", prompt, brain_file)
-        database.local_update(brain_file, "UPDATE tasks SET done = datetime('now') WHERE id = '" .. task_id .. "';")
+        database.sqlite_update(brain_file, "UPDATE tasks SET done = datetime('now') WHERE id = '" .. task_id .. "';")
     end
     return "success"
 end
@@ -260,7 +260,7 @@ function agent_engine.backup_agent_data(brain_file)
         sessions_dir = paths.joinpath(vault_path, "agent_sessions")
         paths_mod.create_dir_if_not_exists(sessions_dir)
         
-        all_sessions = database.local_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;")
+        all_sessions = database.sqlite_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;")
         if all_sessions == nil then
             all_sessions = {}
         end
@@ -284,7 +284,7 @@ function agent_engine.backup_agent_data(brain_file)
                 updated_at = sess.updated_at
             end
 
-            msgs = database.local_query(brain_file, string.format("SELECT role, content, metadata, in_context, created_at FROM agent_messages WHERE session_id='%s' ORDER BY id ASC;", sess_id))
+            msgs = database.sqlite_query(brain_file, string.format("SELECT role, content, metadata, in_context, created_at FROM agent_messages WHERE session_id='%s' ORDER BY id ASC;", sess_id))
             if msgs == nil then
                 msgs = {}
             end
@@ -308,21 +308,21 @@ function agent_engine.backup_agent_data(brain_file)
                 io.write(f, markdown_content)
                 io.close(f)
                 
-                database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
                 lfs_mod = require("lfs")
                 attr = lfs_mod.attributes(file_path)
                 if attr != nil then
-                    database.local_update(brain_file, string.format(
+                    database.sqlite_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_file_mod_%s', '%s');",
                         filename,
                         tostring(attr.modification)
                     ))
-                    database.local_update(brain_file, string.format(
+                    database.sqlite_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_file_size_%s', '%s');",
                         filename,
                         tostring(attr.size)
                     ))
-                    database.local_update(brain_file, string.format(
+                    database.sqlite_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_id_for_%s', '%s');",
                         filename,
                         tostring(sess_id)

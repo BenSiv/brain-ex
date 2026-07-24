@@ -11,7 +11,7 @@ function is_id_unique(table_name, target_id, brain_file)
         brain_file = get_brain_path()
     end
     query = string.format("SELECT COUNT(*) AS cnt FROM %s WHERE id = '%s';", table_name, target_id)
-    res = database.local_query(brain_file, query)
+    res = database.sqlite_query(brain_file, query)
     if res == nil or #res == 0 then
         return true
     end
@@ -57,7 +57,7 @@ end
 
 function is_sqlite_empty(brain_file, table_name)
     query = "SELECT COUNT(*) AS cnt FROM " .. table_name .. ";"
-    res = database.local_query(brain_file, query)
+    res = database.sqlite_query(brain_file, query)
     if res == nil or #res == 0 then
         return true
     end

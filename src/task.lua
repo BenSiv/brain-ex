@@ -5,8 +5,8 @@ os = require("os")
 utils = require("utils")
 argparse = require("argparse")
 database = require("database")
-local_update = database.local_update
-local_query = database.local_query
+local_update = database.sqlite_update
+local_query = database.sqlite_query
 config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
@@ -21,7 +21,7 @@ paths = require("paths")
 
 function column_exists(brain_file, table_name, column_name)
     query = "PRAGMA table_info(" .. table_name .. ");"
-    columns = database.local_query(brain_file, query)
+    columns = database.sqlite_query(brain_file, query)
     if columns == nil then
         return false
     end
@@ -35,18 +35,18 @@ end
 
 function ensure_priority_columns(brain_file)
     check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
-    if database.local_query(brain_file, check_table) == nil or #database.local_query(brain_file, check_table) == 0 then
+    if database.sqlite_query(brain_file, check_table) == nil or #database.sqlite_query(brain_file, check_table) == 0 then
         return
     end
 
     if not column_exists(brain_file, "tasks", "owner") then
-        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
+        database.sqlite_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
     end
     if not column_exists(brain_file, "tasks", "importance") then
-        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN importance INTEGER DEFAULT 1;")
+        database.sqlite_update(brain_file, "ALTER TABLE tasks ADD COLUMN importance INTEGER DEFAULT 1;")
     end
     if not column_exists(brain_file, "tasks", "urgency") then
-        database.local_update(brain_file, "ALTER TABLE tasks ADD COLUMN urgency INTEGER DEFAULT 1;")
+        database.sqlite_update(brain_file, "ALTER TABLE tasks ADD COLUMN urgency INTEGER DEFAULT 1;")
     end
 end
 
@@ -82,7 +82,7 @@ end
 function update_overdue(brain_file)
     -- Query to get all unfinished tasks
     query = "SELECT id, due_to FROM tasks WHERE done IS NULL AND due_to IS NOT NULL;"
-    unfinished = database.local_query(brain_file, query)
+    unfinished = database.sqlite_query(brain_file, query)
 
     overdue = false
     update_statement = ""
@@ -103,7 +103,7 @@ function update_overdue(brain_file)
                 else
                     update_statement = nil
                 end
-                success = database.local_update(brain_file, update_statement)
+                success = database.sqlite_update(brain_file, update_statement)
                 if success == nil then
                     return nil, "Failed to update overdue status for task ID: " .. tostring(task_id)
                 end
@@ -120,7 +120,7 @@ function backup_tasks(brain_file)
         tasks_dir = paths.joinpath(vault_path, "tasks")
         paths_mod.create_dir_if_not_exists(tasks_dir)
         
-        all_tasks = database.local_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;")
+        all_tasks = database.sqlite_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;")
         if all_tasks == nil then
             all_tasks = {}
         end
@@ -207,21 +207,21 @@ function backup_tasks(brain_file)
                 io.close(f)
                 
                 -- Update sync_meta with modification time of this file
-                database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+                database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
                 lfs_mod = require("lfs")
                 attr = lfs_mod.attributes(file_path)
                 if attr != nil then
-                    database.local_update(brain_file, string.format(
+                    database.sqlite_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_mod_%s', '%s');",
                         filename,
                         tostring(attr.modification)
                     ))
-                    database.local_update(brain_file, string.format(
+                    database.sqlite_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_size_%s', '%s');",
                         filename,
                         tostring(attr.size)
                     ))
-                    database.local_update(brain_file, string.format(
+                    database.sqlite_update(brain_file, string.format(
                         "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_id_for_%s', '%s');",
                         filename,
                         tostring(id)
@@ -356,7 +356,7 @@ function add_task(brain_file, args)
     VALUES ('%s', %s, '%s', %s, '%s', NULL, %s, %d, %d);
     """, id, esc_subject, esc_content, esc_due_to, esc_overdue, esc_owner, importance, urgency)
     -- write note info
-    success = database.local_update(brain_file, insert_statement)
+    success = database.sqlite_update(brain_file, insert_statement)
 	if success == nil then
 		return nil, "Failed to add task"
 	end
@@ -447,7 +447,7 @@ function list_tasks(brain_file, args)
         subject ASC;
     """
 
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
     if result  !=  nil and utils.length(result) > 0 then
         -- Load settings
         settings = config.load_settings()
@@ -597,7 +597,7 @@ function mark_done(brain_file, args)
     end
 
     update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP, comment = '" .. escape_sql(comment) .. "' WHERE id = " .. task_id .. ";"
-    status = database.local_update(brain_file, update_statement)
+    status = database.sqlite_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to mark task as done"
     end
@@ -648,7 +648,7 @@ function delay_due(brain_file, args)
             update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE id='%s';", due_to, esc_overdue, task_id)
         end
     end
-    status = database.local_update(brain_file, update_statement)
+    status = database.sqlite_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to delay task due date"
     end
@@ -695,7 +695,7 @@ function update_priority(brain_file, args)
         update_statement = string.format("UPDATE tasks SET %s WHERE id='%s';", table.concat(updates, ", "), task_id)
     end
 
-    status = database.local_update(brain_file, update_statement)
+    status = database.sqlite_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to update task priority"
     end
@@ -723,7 +723,7 @@ function last_done(brain_file, args)
         query = query .. string.format("LIMIT %s", num)
     end
 
-    result = database.local_query(brain_file, query)
+    result = database.sqlite_query(brain_file, query)
     if utils.length(result) > 0 then
         view(result, {columns={"subject", "content", "comment"}})
     else

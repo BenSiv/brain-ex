@@ -9,8 +9,8 @@ utils = require("utils")
 argparse = require("argparse")
 database = require("database")
 knowledge_pool = require("knowledge_pool")
-local_update = database.local_update
-local_query = database.local_query
+local_update = database.sqlite_update
+local_query = database.sqlite_query
 lfs = require("lfs")
 vault_to_sql = require("vault_to_sql").vault_to_sql
 get_help_string = require("help").get_help_string
@@ -149,7 +149,7 @@ function init_bx(args)
     os.remove(brain_path)
 
     -- create database and tables
-    success = database.local_update(brain_path, sql_init)
+    success = database.sqlite_update(brain_path, sql_init)
     knowledge_pool.ensure_table(brain_path)
 	if success == nil then
 		return nil, "Failed to initialize database"
@@ -196,7 +196,7 @@ function init_bx_with_vault(args)
     os.remove(brain_path)
     
     -- create database and tables
-    success = database.local_update(brain_path, sql_init)
+    success = database.sqlite_update(brain_path, sql_init)
     knowledge_pool.ensure_table(brain_path)
 	if success == nil then
 		return nil, "Failed to initialize database"

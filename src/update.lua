@@ -9,8 +9,8 @@ get_vault_path = config.get_vault_path
 lfs = require("lfs")
 database = require("database")
 knowledge_pool = require("knowledge_pool")
-local_update = database.local_update
-local_query = database.local_query
+local_update = database.sqlite_update
+local_query = database.sqlite_query
 vault_to_sql = require("vault_to_sql").vault_to_sql
 process_content = require("vault_to_sql").process_content
 sql_init = require("sql_schema").sql_init
@@ -95,7 +95,7 @@ function escape_field(val)
 end
 
 function sync_tasks_from_vault(vault_path, brain_file, force)
-    database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     tasks_dir = paths.joinpath(vault_path, "tasks")
     
     attr_dir = lfs.attributes(tasks_dir)
@@ -109,7 +109,42 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
         file_list = file_list_raw
     end
     seen_ids = {}
-    
+
+    -- Perf: one query for every file's sync_meta row, up front, instead
+    -- of 3 separate SELECTs per file inside the loop below -- with N
+    -- task files that was 3N+ individual round-trips on every single
+    -- task add/done/list call, regardless of whether anything actually
+    -- changed (the exact same class of bug found and fixed the same
+    -- day in platform-wip's own schema.sync_all, task #118 -- unrelated
+    -- codebase, identical root cause: unconditional per-item DB
+    -- round-trips instead of one batched read).
+    stored_mod_by_file = {}
+    stored_size_by_file = {}
+    task_id_by_file = {}
+    sync_meta_rows_raw = database.sqlite_query(brain_file,
+        "SELECT key, value FROM sync_meta WHERE key LIKE 'task_file_mod_%' OR key LIKE 'task_file_size_%' OR key LIKE 'task_id_for_%';")
+    sync_meta_rows = {}
+    if sync_meta_rows_raw != nil then
+        sync_meta_rows = sync_meta_rows_raw
+    end
+    for _, row in ipairs(sync_meta_rows) do
+        k = row[1]
+        if row.key != nil then
+            k = row.key
+        end
+        v = row[2]
+        if row.value != nil then
+            v = row.value
+        end
+        if string.sub(k, 1, 14) == "task_file_mod_" then
+            stored_mod_by_file[string.sub(k, 15)] = v
+        elseif string.sub(k, 1, 15) == "task_file_size_" then
+            stored_size_by_file[string.sub(k, 16)] = v
+        elseif string.sub(k, 1, 12) == "task_id_for_" then
+            task_id_by_file[string.sub(k, 13)] = v
+        end
+    end
+
     for _, item in ipairs(file_list) do
         file = item.rel_path
         file_path = paths.joinpath(tasks_dir, file)
@@ -117,36 +152,10 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
         if attr != nil then
             current_mod = tostring(attr.modification)
             file_size = attr.size
-            
-            database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-            
-            stored_mod = nil
-            stored_size = nil
-            
-            res_mod = database.local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='task_file_mod_%s';", file))
-            if res_mod != nil and #res_mod > 0 then
-                stored_mod = res_mod[1][1]
-                if res_mod[1].value != nil then
-                    stored_mod = res_mod[1].value
-                end
-            end
 
-            res_size = database.local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='task_file_size_%s';", file))
-            if res_size != nil and #res_size > 0 then
-                stored_size = res_size[1][1]
-                if res_size[1].value != nil then
-                    stored_size = res_size[1].value
-                end
-            end
-
-            task_id = nil
-            res_id = database.local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='task_id_for_%s';", file))
-            if res_id != nil and #res_id > 0 then
-                task_id = res_id[1][1]
-                if res_id[1].value != nil then
-                    task_id = res_id[1].value
-                end
-            end
+            stored_mod = stored_mod_by_file[file]
+            stored_size = stored_size_by_file[file]
+            task_id = task_id_by_file[file]
 
             needs_parse = (force == true) or (stored_mod == nil) or (stored_mod != current_mod) or (stored_size == nil) or (tostring(stored_size) != tostring(file_size)) or (task_id == nil)
             
@@ -235,21 +244,24 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
                     esc_content = string.gsub(bx_utils.strip(body), "'", "''")
                     esc_time = "'" .. string.gsub(time_val, "'", "''") .. "'"
                     
-                    check_task = database.local_query(brain_file, string.format("SELECT id FROM tasks WHERE id='%s';", task_id))
+                    check_task = database.sqlite_query(brain_file, string.format("SELECT id FROM tasks WHERE id='%s';", task_id))
                     if check_task != nil and #check_task > 0 then
-                        database.local_update(brain_file, string.format("""
+                        database.sqlite_update(brain_file, string.format("""
                             UPDATE tasks SET time=%s, content='%s', subject=%s, due_to=%s, overdue='%s', done=%s, comment=%s, owner=%s, importance=%d, urgency=%d WHERE id='%s';
                         """, esc_time, esc_content, esc_subject, esc_due_to, tostring(overdue), esc_done, esc_comment, esc_owner, importance, urgency, task_id))
                     else
-                        database.local_update(brain_file, string.format("""
+                        database.sqlite_update(brain_file, string.format("""
                             INSERT INTO tasks (id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency)
                             VALUES ('%s', %s, '%s', %s, %s, '%s', %s, %s, %s, %d, %d);
                         """, task_id, esc_time, esc_content, esc_subject, esc_due_to, tostring(overdue), esc_done, esc_comment, esc_owner, importance, urgency))
                     end
                     
-                    database.local_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_mod_%s', '%s');", file, current_mod))
-                    database.local_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_file_size_%s', '%s');", file, tostring(file_size)))
-                    database.local_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('task_id_for_%s', '%s');", file, task_id))
+                    database.sqlite_update(brain_file, string.format("""
+                        INSERT OR REPLACE INTO sync_meta (key, value) VALUES
+                            ('task_file_mod_%s', '%s'),
+                            ('task_file_size_%s', '%s'),
+                            ('task_id_for_%s', '%s');
+                    """, file, current_mod, file, tostring(file_size), file, task_id))
                 else
                     seen_ids[task_id] = true
                     seen_ids[tostring(task_id)] = true
@@ -261,7 +273,7 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
             end
         end
     
-    all_db_tasks_raw = database.local_query(brain_file, "SELECT id FROM tasks;")
+    all_db_tasks_raw = database.sqlite_query(brain_file, "SELECT id FROM tasks;")
     all_db_tasks = {}
     if all_db_tasks_raw != nil then
         all_db_tasks = all_db_tasks_raw
@@ -272,11 +284,11 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
             id = task_row.id
         end
         if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
-            database.local_update(brain_file, string.format("DELETE FROM tasks WHERE id='%s';", id))
+            database.sqlite_update(brain_file, string.format("DELETE FROM tasks WHERE id='%s';", id))
         end
     end
 
-    res_keys_raw = database.local_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'task_id_for_%';")
+    res_keys_raw = database.sqlite_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'task_id_for_%';")
     res_keys = {}
     if res_keys_raw != nil then
         res_keys = res_keys_raw
@@ -292,9 +304,9 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
         end
         if seen_ids[v] == nil then
             f_name = string.sub(k, 13)
-            database.local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_id_for_%s';", f_name))
-            database.local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_file_mod_%s';", f_name))
-            database.local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_file_size_%s';", f_name))
+            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_id_for_%s';", f_name))
+            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_file_mod_%s';", f_name))
+            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_file_size_%s';", f_name))
         end
     end
     
@@ -302,7 +314,7 @@ function sync_tasks_from_vault(vault_path, brain_file, force)
 end
 
 function sync_sessions_from_vault(vault_path, brain_file, force)
-    database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     sessions_dir = paths.joinpath(vault_path, "agent_sessions")
     
     attr_dir = lfs.attributes(sessions_dir)
@@ -316,7 +328,37 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         files = files_raw
     end
     seen_ids = {}
-    
+
+    -- Perf: same fix as sync_tasks_from_vault above -- one batched
+    -- read of every session file's sync_meta row up front, instead of
+    -- 3 separate SELECTs per file on every single write call.
+    stored_mod_by_file = {}
+    stored_size_by_file = {}
+    sess_id_by_file = {}
+    sync_meta_rows_raw = database.sqlite_query(brain_file,
+        "SELECT key, value FROM sync_meta WHERE key LIKE 'session_file_mod_%' OR key LIKE 'session_file_size_%' OR key LIKE 'session_id_for_%';")
+    sync_meta_rows = {}
+    if sync_meta_rows_raw != nil then
+        sync_meta_rows = sync_meta_rows_raw
+    end
+    for _, row in ipairs(sync_meta_rows) do
+        k = row[1]
+        if row.key != nil then
+            k = row.key
+        end
+        v = row[2]
+        if row.value != nil then
+            v = row.value
+        end
+        if string.sub(k, 1, 17) == "session_file_mod_" then
+            stored_mod_by_file[string.sub(k, 18)] = v
+        elseif string.sub(k, 1, 18) == "session_file_size_" then
+            stored_size_by_file[string.sub(k, 19)] = v
+        elseif string.sub(k, 1, 15) == "session_id_for_" then
+            sess_id_by_file[string.sub(k, 16)] = v
+        end
+    end
+
     for _, file in ipairs(files) do
         if string.match(file, "%.md$") != nil then
             file_path = paths.joinpath(sessions_dir, file)
@@ -324,37 +366,11 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
             if attr != nil then
                 current_mod = tostring(attr.modification)
                 file_size = attr.size
-                
-                database.local_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-                
-                stored_mod = nil
-                stored_size = nil
-                
-                res_mod = database.local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='session_file_mod_%s';", file))
-                if res_mod != nil and #res_mod > 0 then
-                    stored_mod = res_mod[1][1]
-                    if res_mod[1].value != nil then
-                        stored_mod = res_mod[1].value
-                    end
-                end
 
-                res_size = database.local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='session_file_size_%s';", file))
-                if res_size != nil and #res_size > 0 then
-                    stored_size = res_size[1][1]
-                    if res_size[1].value != nil then
-                        stored_size = res_size[1].value
-                    end
-                end
+                stored_mod = stored_mod_by_file[file]
+                stored_size = stored_size_by_file[file]
+                sess_id = sess_id_by_file[file]
 
-                sess_id = nil
-                res_id = database.local_query(brain_file, string.format("SELECT value FROM sync_meta WHERE key='session_id_for_%s';", file))
-                if res_id != nil and #res_id > 0 then
-                    sess_id = res_id[1][1]
-                    if res_id[1].value != nil then
-                        sess_id = res_id[1].value
-                    end
-                end
-                
                 needs_parse = (force == true) or (stored_mod == nil) or (stored_mod != current_mod) or (stored_size == nil) or (tostring(stored_size) != tostring(file_size)) or (sess_id == nil)
                 
                 if needs_parse then
@@ -391,16 +407,16 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                     esc_created_at = string.gsub(created_at, "'", "''")
                     esc_updated_at = string.gsub(updated_at, "'", "''")
                     
-                    check_sess = database.local_query(brain_file, string.format("SELECT id FROM agent_sessions WHERE id='%s';", esc_id))
+                    check_sess = database.sqlite_query(brain_file, string.format("SELECT id FROM agent_sessions WHERE id='%s';", esc_id))
                     if check_sess != nil and #check_sess > 0 then
-                        database.local_update(brain_file, string.format("UPDATE agent_sessions SET name='%s', created_at='%s', updated_at='%s' WHERE id='%s';", esc_name, esc_created_at, esc_updated_at, esc_id))
+                        database.sqlite_update(brain_file, string.format("UPDATE agent_sessions SET name='%s', created_at='%s', updated_at='%s' WHERE id='%s';", esc_name, esc_created_at, esc_updated_at, esc_id))
                     else
-                        database.local_update(brain_file, string.format("INSERT INTO agent_sessions (id, name, created_at, updated_at) VALUES ('%s', '%s', '%s', '%s');", esc_id, esc_name, esc_created_at, esc_updated_at))
+                        database.sqlite_update(brain_file, string.format("INSERT INTO agent_sessions (id, name, created_at, updated_at) VALUES ('%s', '%s', '%s', '%s');", esc_id, esc_name, esc_created_at, esc_updated_at))
                     end
                     
                     msgs = bx_utils.parse_session_body(body)
                     
-                    database.local_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", esc_id))
+                    database.sqlite_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", esc_id))
                     
                     for _, msg in ipairs(msgs) do
                         esc_role = string.gsub(msg.role, "'", "''")
@@ -425,15 +441,18 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                             in_context_val = msg.in_context
                         end
                         
-                        database.local_update(brain_file, string.format("""
+                        database.sqlite_update(brain_file, string.format("""
                             INSERT INTO agent_messages (session_id, role, content, metadata, in_context, created_at)
                             VALUES ('%s', '%s', '%s', %s, %d, '%s');
                         """, esc_id, esc_role, esc_content, esc_meta, in_context_val, esc_msg_created))
                     end
                     
-                    database.local_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_file_mod_%s', '%s');", file, current_mod))
-                    database.local_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_file_size_%s', '%s');", file, tostring(file_size)))
-                    database.local_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('session_id_for_%s', '%s');", file, sess_id))
+                    database.sqlite_update(brain_file, string.format("""
+                        INSERT OR REPLACE INTO sync_meta (key, value) VALUES
+                            ('session_file_mod_%s', '%s'),
+                            ('session_file_size_%s', '%s'),
+                            ('session_id_for_%s', '%s');
+                    """, file, current_mod, file, tostring(file_size), file, sess_id))
                 else
                     seen_ids[sess_id] = true
                 end
@@ -441,7 +460,7 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         end
     end
     
-    all_db_sessions_raw = database.local_query(brain_file, "SELECT id FROM agent_sessions;")
+    all_db_sessions_raw = database.sqlite_query(brain_file, "SELECT id FROM agent_sessions;")
     all_db_sessions = {}
     if all_db_sessions_raw != nil then
         all_db_sessions = all_db_sessions_raw
@@ -452,12 +471,12 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
             id = sess_row.id
         end
         if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
-            database.local_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", id))
-            database.local_update(brain_file, string.format("DELETE FROM agent_sessions WHERE id='%s';", id))
+            database.sqlite_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", id))
+            database.sqlite_update(brain_file, string.format("DELETE FROM agent_sessions WHERE id='%s';", id))
         end
     end
 
-    res_keys_raw = database.local_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';")
+    res_keys_raw = database.sqlite_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';")
     res_keys = {}
     if res_keys_raw != nil then
         res_keys = res_keys_raw
@@ -473,9 +492,9 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         end
         if seen_ids[v] == nil and seen_ids[tostring(v)] == nil then
             f_name = string.sub(k, 16)
-            database.local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_id_for_%s';", f_name))
-            database.local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_mod_%s';", f_name))
-            database.local_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_size_%s';", f_name))
+            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_id_for_%s';", f_name))
+            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_mod_%s';", f_name))
+            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_size_%s';", f_name))
         end
     end
     
@@ -497,11 +516,11 @@ function update_from_vault(brain_file, force)
                     DROP TABLE IF EXISTS agent_messages;
                     DROP TABLE IF EXISTS sync_meta;
                 """
-                database.local_update(brain_file, reset_sql)
+                database.sqlite_update(brain_file, reset_sql)
             end
 
             -- Ensure tables exist
-            status = database.local_update(brain_file, sql_init)
+            status = database.sqlite_update(brain_file, sql_init)
             knowledge_pool.ensure_table(brain_file)
             if status == nil then
                 return nil, "Failed to ensure database tables"
@@ -610,7 +629,7 @@ function update_note_from_file(brain_file, note_path)
 		""", subject, title)
 		
 		num_rows = 0
-		result = database.local_query(brain_file, note_exists_query)
+		result = database.sqlite_query(brain_file, note_exists_query)
 		if result != nil then
 			-- Handle both named and numeric column access
 			num_field = result[1][1]
@@ -640,14 +659,14 @@ function update_note_from_file(brain_file, note_path)
 		end
 
 		-- Execute the statement
-		success = database.local_update(brain_file, stmt)
+		success = database.sqlite_update(brain_file, stmt)
 		if success == nil then
 			return nil, "Failed to update note from file: " .. note_path
 		end
 
 		-- Clear existing connections for this note
         clear_links = string.format("DELETE FROM connections WHERE source_title = '%s' AND source_subject = '%s';", title, subject)
-		success = database.local_update(brain_file, clear_links)
+		success = database.sqlite_update(brain_file, clear_links)
 		if success == nil then
 			return nil, "Failed to clear note links from file: " .. note_path
 		end
@@ -670,7 +689,7 @@ function update_note_from_file(brain_file, note_path)
                 insert_links = insert_links .. statement_value
             end
             insert_links = string.sub(insert_links, 1, -3) .. ";"
-			success = database.local_update(brain_file, insert_links)
+			success = database.sqlite_update(brain_file, insert_links)
 			if success == nil then
                 return nil, "Failed to update note links from file: " .. note_path
             end

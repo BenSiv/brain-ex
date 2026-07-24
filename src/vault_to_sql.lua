@@ -155,12 +155,12 @@ end
 
 function vault_to_sql(vault_path, brain_file)
     -- Ensure size column exists (for upgrade path)
-    pcall(database.local_update, brain_file, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
+    pcall(database.sqlite_update, brain_file, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
     
     -- Load existing note metadata for incremental update
     existing_notes = {}
     query = "SELECT subject, title, time, size FROM notes;"
-    rows_raw = database.local_query(brain_file, query)
+    rows_raw = database.sqlite_query(brain_file, query)
     rows = {}
     if rows_raw != nil then
         rows = rows_raw
@@ -322,7 +322,7 @@ function vault_to_sql(vault_path, brain_file)
         table.insert(sql_statements, 1, "BEGIN TRANSACTION;")
         table.insert(sql_statements, "COMMIT;")
         transaction_sql = table.concat(sql_statements, "\n")
-        status = database.local_update(brain_file, transaction_sql)
+        status = database.sqlite_update(brain_file, transaction_sql)
         if status == nil then
             return nil
         end
