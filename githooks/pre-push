@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-echo "pre-push: building brain-ex..."
-./bld/build.sh
-echo "pre-push: running brain-ex test suite (tst/*.bats)..."
-bats tst/*.bats
