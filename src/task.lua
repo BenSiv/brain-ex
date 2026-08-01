@@ -439,6 +439,12 @@ function list_tasks(brain_file, args)
     
     query = query .. """
      ORDER BY
+        CASE
+            WHEN COALESCE(importance, 1) >= 4 AND active_urgency >= 4 THEN 1
+            WHEN COALESCE(importance, 1) >= 4 AND active_urgency < 4 THEN 2
+            WHEN COALESCE(importance, 1) < 4 AND active_urgency >= 4 THEN 3
+            ELSE 4
+        END ASC,
         (active_urgency * COALESCE(importance, 1)) DESC,
         COALESCE(importance, 1) DESC,
         active_urgency DESC,
