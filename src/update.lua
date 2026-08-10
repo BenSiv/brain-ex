@@ -94,6 +94,47 @@ function escape_field(val)
     return "'" .. string.gsub(val, "'", "''") .. "'"
 end
 
+-- Cheap stat-only fingerprint of every markdown file under the vault
+-- (notes, tasks, agent_sessions): path+mtime+size, no file content read.
+-- Lets update_from_vault skip the expensive parse/diff/resync of every
+-- subsystem when nothing has changed on disk since the last sync.
+function compute_vault_fingerprint(vault_path)
+    file_list_raw = bx_utils.find_markdown_files(vault_path)
+    file_list = {}
+    if file_list_raw != nil then
+        file_list = file_list_raw
+    end
+
+    entries = {}
+    for _, item in ipairs(file_list) do
+        full_path = paths.joinpath(vault_path, item.rel_path)
+        attr = lfs.attributes(full_path)
+        if attr != nil then
+            table.insert(entries, item.rel_path .. ":" .. tostring(attr.modification) .. ":" .. tostring(attr.size))
+        end
+    end
+
+    table.sort(entries)
+    return knowledge_pool.content_hash(table.concat(entries, "|"))
+end
+
+function get_stored_vault_fingerprint(brain_file)
+    rows = database.sqlite_query(brain_file, "SELECT value FROM sync_meta WHERE key='vault_fingerprint';")
+    if rows == nil or #rows == 0 then
+        return nil
+    end
+    value = rows[1][1]
+    if rows[1].value != nil then
+        value = rows[1].value
+    end
+    return value
+end
+
+function store_vault_fingerprint(brain_file, fingerprint)
+    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+    database.sqlite_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('vault_fingerprint', '%s');", fingerprint))
+end
+
 function sync_tasks_from_vault(vault_path, brain_file, force)
     database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     tasks_dir = paths.joinpath(vault_path, "tasks")
@@ -551,18 +592,29 @@ function update_from_vault(brain_file, force)
                 if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then os.remove(messages_file) end
             end
 
+            -- Skip the full resync below entirely if nothing on disk has
+            -- changed since the last sync (cheap path+mtime+size sweep,
+            -- no content read) -- this is what makes it safe to run this
+            -- function unconditionally before every write command.
+            database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+            current_fingerprint = compute_vault_fingerprint(vault_path)
+            if force != true and get_stored_vault_fingerprint(brain_file) == current_fingerprint then
+                return true
+            end
+
             -- vault_to_sql now handles incremental updates
             status = vault_to_sql(vault_path, brain_file)
             if status == nil then
                 return nil, "Failed to update from vault"
             end
-            
+
             knowledge_pool.sync_notes(brain_file)
 
             -- Sync tasks and agent sessions from markdown files
             sync_tasks_from_vault(vault_path, brain_file, force)
             sync_sessions_from_vault(vault_path, brain_file, force)
 
+            store_vault_fingerprint(brain_file, compute_vault_fingerprint(vault_path))
             return true
         end)
     end

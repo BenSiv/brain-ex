@@ -68,12 +68,12 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
     check_session = database.sqlite_query(brain_file, "SELECT id FROM agent_sessions WHERE id='default';")
     if check_session == nil or #check_session == 0 then
         database.sqlite_update(brain_file, "INSERT INTO agent_sessions (id, name) VALUES ('default', 'Default Session');")
-        agent_engine.backup_agent_data(brain_file)
+        agent_engine.backup_agent_data(brain_file, "default")
     end
 
     -- Insert user prompt to DB
     database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'user', '%s', 1);", prompt)
-    agent_engine.backup_agent_data(brain_file)
+    agent_engine.backup_agent_data(brain_file, "default")
 
     -- Context token size estimation and compaction check
     active_messages = database.sqlite_query(brain_file, "SELECT id, role, content FROM agent_messages WHERE session_id='default' AND in_context=1 ORDER BY id ASC;")
@@ -129,7 +129,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
             end
             database.sqlite_update(brain_file, "UPDATE agent_messages SET in_context=0 WHERE id IN (" .. table.concat(ids_to_update, ",") .. ");")
             print("[Compaction] History compacted successfully.")
-            agent_engine.backup_agent_data(brain_file)
+            agent_engine.backup_agent_data(brain_file, "default")
         else
             print("[Compaction Warning] Failed to generate compaction summary: " .. tostring(comp_err))
         end
@@ -176,7 +176,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
 
         -- Record assistant reply in database
         database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'assistant', '%s', 1);", result)
-        agent_engine.backup_agent_data(brain_file)
+        agent_engine.backup_agent_data(brain_file, "default")
 
         done_message = string.match(result, "<done>%s*(.-)%s*</done>")
         if done_message != nil then
@@ -215,7 +215,7 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
 
         -- Record tool result in database
         database.sqlite_update(brain_file, "INSERT INTO agent_messages (session_id, role, content, in_context) VALUES ('default', 'tool_result', '%s', 1);", tool_summary)
-        agent_engine.backup_agent_data(brain_file)
+        agent_engine.backup_agent_data(brain_file, "default")
     end
 
     print("Agent reply:\nUnable to complete tool-assisted run in 10 turns.")
@@ -253,14 +253,19 @@ function agent_engine.process_tasks(brain_file)
     return "success"
 end
 
-function agent_engine.backup_agent_data(brain_file)
+function agent_engine.backup_agent_data(brain_file, session_id)
     vault_path = config.get_vault_path()
     if vault_path != nil then
         paths_mod = require("paths")
         sessions_dir = paths.joinpath(vault_path, "agent_sessions")
         paths_mod.create_dir_if_not_exists(sessions_dir)
-        
-        all_sessions = database.sqlite_query(brain_file, "SELECT id, name, created_at, updated_at FROM agent_sessions;")
+
+        sessions_query = "SELECT id, name, created_at, updated_at FROM agent_sessions;"
+        if session_id != nil then
+            escaped_session_id = string.gsub(session_id, "'", "''")
+            sessions_query = string.format("SELECT id, name, created_at, updated_at FROM agent_sessions WHERE id='%s';", escaped_session_id)
+        end
+        all_sessions = database.sqlite_query(brain_file, sessions_query)
         if all_sessions == nil then
             all_sessions = {}
         end
@@ -331,13 +336,15 @@ function agent_engine.backup_agent_data(brain_file)
             end
         end
         
-        files = utils.readdir(sessions_dir)
-        if files == nil then
-            files = {}
-        end
-        for _, file in ipairs(files) do
-            if string.match(file, "%.md$") != nil and seen_files[file] == nil then
-                os.remove(paths.joinpath(sessions_dir, file))
+        if session_id == nil then
+            files = utils.readdir(sessions_dir)
+            if files == nil then
+                files = {}
+            end
+            for _, file in ipairs(files) do
+                if string.match(file, "%.md$") != nil and seen_files[file] == nil then
+                    os.remove(paths.joinpath(sessions_dir, file))
+                end
             end
         end
     end

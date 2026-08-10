@@ -113,14 +113,19 @@ function update_overdue(brain_file)
     return true
 end
 
-function backup_tasks(brain_file)
+function backup_tasks(brain_file, task_id)
     vault_path = get_vault_path()
     if vault_path != nil then
         paths_mod = require("paths")
         tasks_dir = paths.joinpath(vault_path, "tasks")
         paths_mod.create_dir_if_not_exists(tasks_dir)
-        
-        all_tasks = database.sqlite_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;")
+
+        tasks_query = "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks;"
+        if task_id != nil then
+            escaped_task_id = escape_sql(tostring(task_id))
+            tasks_query = string.format("SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks WHERE id='%s';", escaped_task_id)
+        end
+        all_tasks = database.sqlite_query(brain_file, tasks_query)
         if all_tasks == nil then
             all_tasks = {}
         end
@@ -230,58 +235,76 @@ function backup_tasks(brain_file)
             end
         end
         
-        -- Clean up stale files in tasks_dir
-        file_list = bx_utils.find_markdown_files(tasks_dir)
-        if file_list == nil then
-            file_list = {}
-        end
-        for _, item in ipairs(file_list) do
-            file = item.rel_path
-            if seen_files[file] == nil then
-                os.remove(paths.joinpath(tasks_dir, file))
+        if task_id == nil then
+            -- Clean up stale files in tasks_dir
+            file_list = bx_utils.find_markdown_files(tasks_dir)
+            if file_list == nil then
+                file_list = {}
             end
-        end
-        
-        -- Clean up empty subdirectories
-        lfs_mod = require("lfs")
-        dirs = {}
-        queue = {""}
-        q_index = 1
-        while q_index <= #queue do
-            curr = queue[q_index]
-            q_index = q_index + 1
-            path = tasks_dir .. "/" .. curr
-            if curr == "" then
-                path = tasks_dir
+            for _, item in ipairs(file_list) do
+                file = item.rel_path
+                if seen_files[file] == nil then
+                    os.remove(paths.joinpath(tasks_dir, file))
+                end
             end
-            for f in lfs_mod.dir(path) do
-                if f != "." and f != ".." then
-                    rel = curr .. "/" .. f
-                    if curr == "" then
-                        rel = f
-                    end
-                    full = tasks_dir .. "/" .. rel
-                    attr = lfs_mod.attributes(full)
-                    if attr != nil and attr.mode == "directory" then
-                        table.insert(queue, rel)
-                        table.insert(dirs, rel)
+
+            -- Clean up empty subdirectories
+            lfs_mod = require("lfs")
+            dirs = {}
+            queue = {""}
+            q_index = 1
+            while q_index <= #queue do
+                curr = queue[q_index]
+                q_index = q_index + 1
+                path = tasks_dir .. "/" .. curr
+                if curr == "" then
+                    path = tasks_dir
+                end
+                for f in lfs_mod.dir(path) do
+                    if f != "." and f != ".." then
+                        rel = curr .. "/" .. f
+                        if curr == "" then
+                            rel = f
+                        end
+                        full = tasks_dir .. "/" .. rel
+                        attr = lfs_mod.attributes(full)
+                        if attr != nil and attr.mode == "directory" then
+                            table.insert(queue, rel)
+                            table.insert(dirs, rel)
+                        end
                     end
                 end
             end
-        end
-        for i = #dirs, 1, -1 do
-            lfs_mod.rmdir(tasks_dir .. "/" .. dirs[i])
+            for i = #dirs, 1, -1 do
+                lfs_mod.rmdir(tasks_dir .. "/" .. dirs[i])
+            end
         end
     end
     return true
 end
 
-function persist_tasks(brain_file)
-    status, err = backup_tasks(brain_file)
+function persist_tasks(brain_file, task_id)
+    scoped_id = task_id
+    if task_id == "*" then
+        scoped_id = nil
+    end
+
+    status, err = backup_tasks(brain_file, scoped_id)
     if status == nil then
         return nil, err
     end
-    return sync.refresh(brain_file)
+
+    if scoped_id == nil then
+        -- Wildcard/unscoped write touched an unknown set of tasks -- fall
+        -- back to a full vault resync, same as before this change.
+        return sync.refresh(brain_file)
+    end
+
+    -- A single task's row and its own backing file are already
+    -- consistent with each other, so there is nothing left for a full
+    -- vault resync to reconcile. External hand-edits are still caught by
+    -- the pre-command sync in brex.lua.
+    return true
 end
 
 function escape_sql(str)
@@ -361,7 +384,7 @@ function add_task(brain_file, args)
 		return nil, "Failed to add task"
 	end
 
-    return persist_tasks(brain_file)
+    return persist_tasks(brain_file, id)
 end
 
 function list_tasks(brain_file, args)
@@ -607,7 +630,7 @@ function mark_done(brain_file, args)
     if status == nil then
         return nil, "Failed to mark task as done"
     end
-    return persist_tasks(brain_file)
+    return persist_tasks(brain_file, task_id)
 end
 
 function delay_due(brain_file, args)
@@ -658,7 +681,7 @@ function delay_due(brain_file, args)
     if status == nil then
         return nil, "Failed to delay task due date"
     end
-    return persist_tasks(brain_file)
+    return persist_tasks(brain_file, task_id)
 end
 
 function update_priority(brain_file, args)
@@ -705,7 +728,7 @@ function update_priority(brain_file, args)
     if status == nil then
         return nil, "Failed to update task priority"
     end
-    return persist_tasks(brain_file)
+    return persist_tasks(brain_file, task_id)
 end
 
 function last_done(brain_file, args)
