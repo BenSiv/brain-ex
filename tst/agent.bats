@@ -96,14 +96,14 @@ teardown() {
 }
 
 @test "agent task can write through the tasks sync path" {
-    export BREX_MOCK_RESPONSE_1=$'<tool>task</tool>\n<method>add</method>\n<args>subject=ops\ncontent=Agent task\ndue_to=2026-05-02</args>'
+    export BREX_MOCK_RESPONSE_1=$'<tool>task</tool>\n<method>add</method>\n<args>subject=ops\ntitle=Agent task\ndue_to=2026-05-02</args>'
     export BREX_MOCK_RESPONSE_2="<done>task saved</done>"
     run $BREX mybrain agent task "create a task"
     [ "$status" -eq 0 ]
-    md_files=(tmp_vault/tasks/ops/*.md)
+    md_files=(tmp_vault/ops/*.md)
     [ -f "${md_files[0]}" ]
     grep -q "Agent task" "${md_files[0]}"
-    COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM tasks WHERE content='Agent task' AND subject='ops' AND owner='agent';")
+    COUNT=$(sqlite3 mybrain.db "SELECT COUNT(*) FROM notes JOIN tasks ON tasks.item_id = notes.id WHERE notes.title='Agent task' AND notes.subject='ops' AND tasks.owner='agent';")
     [ "$COUNT" -eq 1 ]
 }
 
@@ -123,7 +123,7 @@ teardown() {
 }
 
 @test "agent can retrieve tasks using task.list" {
-    $BREX mybrain task add --content "Test task 1" --subject "test"
+    $BREX mybrain task add --title "Test task 1" --subject "test"
     
     export BREX_MOCK_RESPONSE_1=$'<tool>task</tool>\n<method>list</method>\n<args></args>'
     export BREX_MOCK_RESPONSE_2="<done>I see your tasks</done>"

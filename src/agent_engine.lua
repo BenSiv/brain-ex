@@ -223,32 +223,24 @@ function agent_engine.run_agent(subagent, prompt, brain_file)
 end
 
 function agent_engine.process_tasks(brain_file)
-    query = "SELECT id, subject, content FROM tasks WHERE owner = 'agent' AND done IS NULL;"
+    query = "SELECT notes.id AS id, notes.subject AS subject, notes.title AS title, notes.content AS content FROM notes JOIN tasks ON tasks.item_id = notes.id WHERE tasks.owner = 'agent' AND tasks.done IS NULL;"
     result = database.sqlite_query(brain_file, query)
     if result == nil or #result == 0 then
         print("No pending tasks for agent.")
         return "success"
     end
     for _, task in ipairs(result) do
-        task_id = task[1]
-        if task.id != nil then
-            task_id = task.id
+        task_id = task.id
+        task_subject = task.subject
+        task_title = task.title
+        task_content = task.content
+        if task_content == nil then
+            task_content = ""
         end
-        task_subject = task[2]
-        if task.subject != nil then
-            task_subject = task.subject
-        end
-        task_content = ""
-        if task[3] != nil then
-            task_content = task[3]
-        end
-        if task.content != nil then
-            task_content = task.content
-        end
-        prompt = "Please handle task. Subject: " .. task_subject .. "\nContent: " .. task_content
+        prompt = "Please handle task. Subject: " .. tostring(task_subject) .. "\nTitle: " .. tostring(task_title) .. "\nContent: " .. task_content
         print("Processing task " .. task_id .. "...")
         agent_engine.run_agent("worker", prompt, brain_file)
-        database.sqlite_update(brain_file, "UPDATE tasks SET done = datetime('now') WHERE id = '" .. task_id .. "';")
+        database.sqlite_update(brain_file, "UPDATE tasks SET done = datetime('now') WHERE item_id = '" .. task_id .. "';")
     end
     return "success"
 end

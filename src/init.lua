@@ -89,7 +89,7 @@ function update_config_file(home_dir, updates)
         sf = io.open(settings_file, "w")
         if sf != nil then
             json_template = """{
-  "task_columns": ["id", "priority", "subject", "content", "due_to"],
+  "task_columns": ["id", "priority", "subject", "title", "due_to"],
   "colors": {
     "Q1": "\u001b[31m",
     "Q2": "\u001b[38;5;208m",
@@ -182,7 +182,6 @@ function init_bx_with_vault(args)
     brain_path = paths.joinpath(current_dir, brain_name .. ".db")
     vault_path = paths.joinpath(current_dir, vault_dir)
     home_dir = os.getenv("HOME")
-    task_file = paths.joinpath(vault_dir, "tasks.tsv")
     default_editor = "nano"
     if args["editor"] != nil then
         default_editor = args["editor"]
@@ -201,14 +200,6 @@ function init_bx_with_vault(args)
 	if success == nil then
 		return nil, "Failed to initialize database"
 	end
-
-    -- optional: import existing tasks if available and migrate to Markdown
-    if paths.file_exists(task_file) != nil and paths.file_exists(task_file) then
-        print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy tasks.tsv to Markdown...")
-        database.import_delimited(brain_path, task_file, "tasks", "\t")    
-        task_mod.backup_tasks(brain_path)
-        os.remove(task_file)
-    end
 
     sessions_file = paths.joinpath(vault_dir, "agent_sessions.tsv")
     messages_file = paths.joinpath(vault_dir, "agent_messages.tsv")
@@ -257,10 +248,11 @@ function init_bx_with_vault(args)
     updates.brains[brain_name] = brain_path
     update_config_file(home_dir, updates)
 
-    -- import existing notes, tasks and agent sessions if any
+    -- import existing notes, tasks (a note is a task once it has a
+    -- tasks row -- vault_to_sql is frontmatter-aware and handles
+    -- both) and agent sessions if any
     vault_to_sql(vault_path, brain_path)
     knowledge_pool.sync_notes(brain_path)
-    update_mod.sync_tasks_from_vault(vault_path, brain_path)
     update_mod.sync_sessions_from_vault(vault_path, brain_path)
     return true
 end

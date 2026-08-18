@@ -72,19 +72,21 @@ teardown() {
     # Insert DB-only record that should disappear after full rebuild
     sqlite3 tmp_vault.db "INSERT INTO notes(subject, title, content) VALUES('tmp', 'db_only', 'should be removed');"
 
-    # Prepare task markdown file to verify task import after rebuild
-    mkdir -p tmp_vault/tasks
-    cat <<EOF > tmp_vault/tasks/101.md
+    # Prepare task markdown file to verify task import after rebuild --
+    # a task's file lives at <subject>/<title>.md, same as any note.
+    mkdir -p tmp_vault/ops
+    cat <<EOF > "tmp_vault/ops/Imported Task.md"
 ---
-id: "101"
+id: 101
+title: "Imported Task"
+is_task: true
 time: "2026-01-01 10:00:00"
-subject: "ops"
 due_to: "2026-01-02 10:00:00"
 overdue: 0
 importance: 1
 urgency: 1
 ---
-Imported Task
+Imported Task body
 EOF
 
     run $BREX update
@@ -99,7 +101,7 @@ EOF
     STALE_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='db_only' AND subject='tmp';")
     [ "$STALE_COUNT" -eq 0 ]
 
-    TASK_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=101 AND content='Imported Task';")
+    TASK_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes JOIN tasks ON tasks.item_id = notes.id WHERE notes.title='Imported Task' AND notes.subject='ops';")
     [ "$TASK_COUNT" -eq 1 ]
 }
 
@@ -121,14 +123,12 @@ EOF
     [ "$COUNT" -eq 1 ]
 }
 
-@test "migrate legacy tasks.tsv, agent_sessions.tsv, agent_messages.tsv to Markdown" {
-    # 1. Create legacy TSV files
-    cat <<EOF > tmp_vault/tasks.tsv
-id	time	content	subject	due_to	overdue	done	comment	owner	importance	urgency
-701	2026-06-05 10:00:00	Legacy task 1	chors	NULL	0	NULL	NULL	NULL	1	1
-702	2026-06-05 11:00:00	Legacy task 2	work	NULL	0	NULL	NULL	NULL	2	3
-EOF
+@test "migrate legacy agent_sessions.tsv, agent_messages.tsv to Markdown" {
+    # tasks.tsv migration was removed along with the flat tasks table
+    # (see doc/unified-items-design.md) -- its column shape no longer
+    # maps onto anything a current brain has.
 
+    # 1. Create legacy TSV files
     cat <<EOF > tmp_vault/agent_sessions.tsv
 id	name	created_at	updated_at
 session-123	Test Session	2026-06-05 10:00:00	2026-06-05 10:00:00
@@ -144,21 +144,13 @@ EOF
     [ "$status" -eq 0 ]
 
     # 3. Verify TSVs are deleted
-    [ ! -f tmp_vault/tasks.tsv ]
     [ ! -f tmp_vault/agent_sessions.tsv ]
     [ ! -f tmp_vault/agent_messages.tsv ]
 
     # 4. Verify Markdown files are generated
-    [ -f tmp_vault/tasks/chors/701.md ]
-    [ -f tmp_vault/tasks/work/702.md ]
     [ -f tmp_vault/agent_sessions/session-123.md ]
 
     # 5. Verify data is preserved in DB
-    TASK_1_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=701 AND subject='chors';")
-    [ "$TASK_1_COUNT" -eq 1 ]
-    TASK_2_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM tasks WHERE id=702 AND subject='work';")
-    [ "$TASK_2_COUNT" -eq 1 ]
-
     SESSION_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM agent_sessions WHERE id='session-123';")
     [ "$SESSION_COUNT" -eq 1 ]
     MSG_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM agent_messages WHERE session_id='session-123' AND content='Hello';")

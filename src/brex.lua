@@ -205,7 +205,7 @@ function is_read_only_command(command, subcommand)
     if command == "note" then
         return subcommand == "last"
     elseif command == "task" then
-        return subcommand == "list" or subcommand == "last"
+        return subcommand == "list" or subcommand == "last" or subcommand == "show"
     elseif command == "knowledge" then
         return subcommand == "search" or subcommand == "browse" or subcommand == "show" or subcommand == "history" or subcommand == "queue" or subcommand == nil or subcommand == ""
     elseif command == "sql" then

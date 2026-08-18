@@ -53,7 +53,7 @@ teardown() {
 
 @test "invalid timestamp format for task due_to" {
     # Invalid timestamp should return an error
-    run brex task add --content "Bad timestamp task" --due_to "invalid-date"
+    run brex task add --title "Bad timestamp task" --due_to "invalid-date"
     [ "$status" -ne 0 ]
     [[ "$output" =~ "Due To must conform to time-stamp format" ]]
 }
@@ -85,5 +85,5 @@ teardown() {
     run brex task foo --help
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Unknown subcommand: foo" ]]
-    [[ "$output" =~ "Available subcommands: add, list, done, delay, prioritize, rank, last" ]]
+    [[ "$output" =~ "Available subcommands: add, list, done, delay, prioritize, comment, show, last" ]]
 }

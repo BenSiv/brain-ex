@@ -20,22 +20,25 @@ teardown() {
     # setup vault and brain
     run brex init --vault tmp_vault_md
     [ "$status" -eq 0 ]
-    
-    # add task
-    run brex task -d add -s "Test Task" -c "Content"
+
+    # add task -- a task's file lives at <subject>/<title>.md, the same
+    # place a plain note with that subject/title would, so promoting an
+    # existing note in place never creates a second, divergent copy.
+    run brex task -d add -s "Test Subject" -t "Test Task" -c "Content"
     [ "$status" -eq 0 ]
-    
-    # Check that individual task markdown file is created in tmp_vault_md/tasks/Test Task/
-    # Let's find the md file
-    md_files=(tmp_vault_md/tasks/Test\ Task/*.md)
+
+    # Check that individual task markdown file is created in tmp_vault_md/Test Subject/
+    md_files=(tmp_vault_md/Test\ Subject/*.md)
     [ -f "${md_files[0]}" ]
-    
+
     # Read the markdown file content
     content=$(cat "${md_files[0]}")
     echo "Content: $content"
-    
+
     # Assert contains frontmatter and body, but no subject field (inferred from dir structure)
     [[ "$content" != *"subject:"* ]]
+    [[ "$content" == *"title: Test Task"* ]]
+    [[ "$content" == *"is_task: true"* ]]
     [[ "$content" == *"importance: 1"* ]]
     [[ "$content" == *"urgency: 1"* ]]
     [[ "$content" == *"Content"* ]]

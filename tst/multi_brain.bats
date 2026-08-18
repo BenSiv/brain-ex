@@ -49,11 +49,11 @@ teardown() {
     run $BREX init --name work
     
     # Add task to default
-    run $BREX task add -c "Default Task"
+    run $BREX task add -t "Default Task"
     [ "$status" -eq 0 ]
-    
+
     # Add task to work
-    run $BREX work task add -c "Work Task"
+    run $BREX work task add -t "Work Task"
     [ "$status" -eq 0 ]
     
     # Verify content via valid command output checks
@@ -92,11 +92,11 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Default brain set to 'work'" ]]
 
-    run $BREX task add -c "Task on switched default"
+    run $BREX task add -t "Task on switched default"
     [ "$status" -eq 0 ]
 
-    DEFAULT_COUNT=$(sqlite3 brain.db "SELECT COUNT(*) FROM tasks WHERE content='Task on switched default';")
-    WORK_COUNT=$(sqlite3 work.db "SELECT COUNT(*) FROM tasks WHERE content='Task on switched default';")
+    DEFAULT_COUNT=$(sqlite3 brain.db "SELECT COUNT(*) FROM notes WHERE title='Task on switched default';")
+    WORK_COUNT=$(sqlite3 work.db "SELECT COUNT(*) FROM notes WHERE title='Task on switched default';")
 
     [ "$DEFAULT_COUNT" -eq 0 ]
     [ "$WORK_COUNT" -eq 1 ]

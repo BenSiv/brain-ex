@@ -135,225 +135,6 @@ function store_vault_fingerprint(brain_file, fingerprint)
     database.sqlite_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('vault_fingerprint', '%s');", fingerprint))
 end
 
-function sync_tasks_from_vault(vault_path, brain_file, force)
-    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-    tasks_dir = paths.joinpath(vault_path, "tasks")
-    
-    attr_dir = lfs.attributes(tasks_dir)
-    if attr_dir == nil or attr_dir.mode != "directory" then
-        return true
-    end
-
-    file_list_raw = bx_utils.find_markdown_files(tasks_dir)
-    file_list = {}
-    if file_list_raw != nil then
-        file_list = file_list_raw
-    end
-    seen_ids = {}
-
-    -- Perf: one query for every file's sync_meta row, up front, instead
-    -- of 3 separate SELECTs per file inside the loop below -- with N
-    -- task files that was 3N+ individual round-trips on every single
-    -- task add/done/list call, regardless of whether anything actually
-    -- changed (the exact same class of bug found and fixed the same
-    -- day in platform-wip's own schema.sync_all, task #118 -- unrelated
-    -- codebase, identical root cause: unconditional per-item DB
-    -- round-trips instead of one batched read).
-    stored_mod_by_file = {}
-    stored_size_by_file = {}
-    task_id_by_file = {}
-    sync_meta_rows_raw = database.sqlite_query(brain_file,
-        "SELECT key, value FROM sync_meta WHERE key LIKE 'task_file_mod_%' OR key LIKE 'task_file_size_%' OR key LIKE 'task_id_for_%';")
-    sync_meta_rows = {}
-    if sync_meta_rows_raw != nil then
-        sync_meta_rows = sync_meta_rows_raw
-    end
-    for _, row in ipairs(sync_meta_rows) do
-        k = row[1]
-        if row.key != nil then
-            k = row.key
-        end
-        v = row[2]
-        if row.value != nil then
-            v = row.value
-        end
-        if string.sub(k, 1, 14) == "task_file_mod_" then
-            stored_mod_by_file[string.sub(k, 15)] = v
-        elseif string.sub(k, 1, 15) == "task_file_size_" then
-            stored_size_by_file[string.sub(k, 16)] = v
-        elseif string.sub(k, 1, 12) == "task_id_for_" then
-            task_id_by_file[string.sub(k, 13)] = v
-        end
-    end
-
-    for _, item in ipairs(file_list) do
-        file = item.rel_path
-        file_path = paths.joinpath(tasks_dir, file)
-        attr = lfs.attributes(file_path)
-        if attr != nil then
-            current_mod = tostring(attr.modification)
-            file_size = attr.size
-
-            stored_mod = stored_mod_by_file[file]
-            stored_size = stored_size_by_file[file]
-            task_id = task_id_by_file[file]
-
-            needs_parse = (force == true) or (stored_mod == nil) or (stored_mod != current_mod) or (stored_size == nil) or (tostring(stored_size) != tostring(file_size)) or (task_id == nil)
-            
-            if needs_parse then
-                file_content_raw = read_raw(file_path)
-                file_content = ""
-                if file_content_raw != nil then
-                    file_content = file_content_raw
-                end
-                metadata, body = bx_utils.parse_frontmatter(file_content)
-
-                id = metadata.id
-                if id == nil or id == "" then
-                    id = bx_utils.generate_id("tasks", nil, nil, brain_file)
-                    metadata.id = id
-                    
-                    new_content = bx_utils.serialize_frontmatter(metadata) .. body
-                    f = io.open(file_path, "w")
-                    if f != nil then
-                        io.write(f, new_content)
-                        io.close(f)
-                    end
-                    fresh_attr = lfs.attributes(file_path)
-                    if fresh_attr != nil then
-                        current_mod = tostring(fresh_attr.modification)
-                        file_size = fresh_attr.size
-                    end
-                end
-                
-                task_id = id
-                seen_ids[task_id] = true
-                seen_ids[tostring(task_id)] = true
-                num_id = tonumber(task_id)
-                if num_id != nil then
-                    seen_ids[num_id] = true
-                end
-                
-                subject = "NULL"
-                if metadata.subject != nil then
-                    subject = metadata.subject
-                end
-                if item.dir_path != "" then
-                    subject = item.dir_path
-                end
-                due_to = "NULL"
-                if metadata.due_to != nil then
-                    due_to = metadata.due_to
-                end
-                overdue_num = tonumber(metadata.overdue)
-                overdue = 0
-                if overdue_num != nil then
-                    overdue = overdue_num
-                end
-                done = "NULL"
-                if metadata.done != nil then
-                    done = metadata.done
-                end
-                comment = "NULL"
-                if metadata.comment != nil then
-                    comment = metadata.comment
-                end
-                owner = "NULL"
-                if metadata.owner != nil then
-                    owner = metadata.owner
-                end
-                importance_num = tonumber(metadata.importance)
-                importance = 1
-                if importance_num != nil then
-                    importance = importance_num
-                end
-                urgency_num = tonumber(metadata.urgency)
-                urgency = 1
-                if urgency_num != nil then
-                    urgency = urgency_num
-                end
-                    time_val = metadata.time
-                    if time_val == nil then
-                        time_val = os.date("%Y-%m-%d %H:%M:%S")
-                    end
-                    
-                    esc_subject = escape_field(subject)
-                    esc_due_to = escape_field(due_to)
-                    esc_done = escape_field(done)
-                    esc_comment = escape_field(comment)
-                    esc_owner = escape_field(owner)
-                    esc_content = string.gsub(bx_utils.strip(body), "'", "''")
-                    esc_time = "'" .. string.gsub(time_val, "'", "''") .. "'"
-                    
-                    check_task = database.sqlite_query(brain_file, string.format("SELECT id FROM tasks WHERE id='%s';", task_id))
-                    if check_task != nil and #check_task > 0 then
-                        database.sqlite_update(brain_file, string.format("""
-                            UPDATE tasks SET time=%s, content='%s', subject=%s, due_to=%s, overdue='%s', done=%s, comment=%s, owner=%s, importance=%d, urgency=%d WHERE id='%s';
-                        """, esc_time, esc_content, esc_subject, esc_due_to, tostring(overdue), esc_done, esc_comment, esc_owner, importance, urgency, task_id))
-                    else
-                        database.sqlite_update(brain_file, string.format("""
-                            INSERT INTO tasks (id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency)
-                            VALUES ('%s', %s, '%s', %s, %s, '%s', %s, %s, %s, %d, %d);
-                        """, task_id, esc_time, esc_content, esc_subject, esc_due_to, tostring(overdue), esc_done, esc_comment, esc_owner, importance, urgency))
-                    end
-                    
-                    database.sqlite_update(brain_file, string.format("""
-                        INSERT OR REPLACE INTO sync_meta (key, value) VALUES
-                            ('task_file_mod_%s', '%s'),
-                            ('task_file_size_%s', '%s'),
-                            ('task_id_for_%s', '%s');
-                    """, file, current_mod, file, tostring(file_size), file, task_id))
-                else
-                    seen_ids[task_id] = true
-                    seen_ids[tostring(task_id)] = true
-                    num_id = tonumber(task_id)
-                    if num_id != nil then
-                        seen_ids[num_id] = true
-                    end
-                end
-            end
-        end
-    
-    all_db_tasks_raw = database.sqlite_query(brain_file, "SELECT id FROM tasks;")
-    all_db_tasks = {}
-    if all_db_tasks_raw != nil then
-        all_db_tasks = all_db_tasks_raw
-    end
-    for _, task_row in ipairs(all_db_tasks) do
-        id = task_row[1]
-        if task_row.id != nil then
-            id = task_row.id
-        end
-        if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
-            database.sqlite_update(brain_file, string.format("DELETE FROM tasks WHERE id='%s';", id))
-        end
-    end
-
-    res_keys_raw = database.sqlite_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'task_id_for_%';")
-    res_keys = {}
-    if res_keys_raw != nil then
-        res_keys = res_keys_raw
-    end
-    for _, r in ipairs(res_keys) do
-        k = r[1]
-        if r.key != nil then
-            k = r.key
-        end
-        v = r[2]
-        if r.value != nil then
-            v = r.value
-        end
-        if seen_ids[v] == nil then
-            f_name = string.sub(k, 13)
-            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_id_for_%s';", f_name))
-            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_file_mod_%s';", f_name))
-            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='task_file_size_%s';", f_name))
-        end
-    end
-    
-    return true
-end
-
 function sync_sessions_from_vault(vault_path, brain_file, force)
     database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     sessions_dir = paths.joinpath(vault_path, "agent_sessions")
@@ -551,8 +332,10 @@ function update_from_vault(brain_file, force)
                 print("Force rebuild: dropping existing data...")
                 reset_sql = """
                     DROP TABLE IF EXISTS connections;
+                    DROP TABLE IF EXISTS tasks;
                     DROP TABLE IF EXISTS notes;
                     DROP TABLE IF EXISTS tasks;
+                    DROP TABLE IF EXISTS tasks_legacy_backup;
                     DROP TABLE IF EXISTS agent_sessions;
                     DROP TABLE IF EXISTS agent_messages;
                     DROP TABLE IF EXISTS sync_meta;
@@ -567,17 +350,12 @@ function update_from_vault(brain_file, force)
                 return nil, "Failed to ensure database tables"
             end
 
-            -- Migrate legacy TSVs if they exist
-            task_file = paths.joinpath(vault_path, "tasks.tsv")
+            -- Migrate legacy TSVs if they exist. tasks.tsv support was
+            -- removed with the notes/tasks unification -- its
+            -- column shape (a flat tasks row) no longer maps onto
+            -- anything a current brain has.
             sessions_file = paths.joinpath(vault_path, "agent_sessions.tsv")
             messages_file = paths.joinpath(vault_path, "agent_messages.tsv")
-            
-            if paths.file_exists(task_file) != nil and paths.file_exists(task_file) then
-                print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy tasks.tsv to Markdown...")
-                database.import_delimited(brain_file, task_file, "tasks", "\t")    
-                task_mod.backup_tasks(brain_file)
-                os.remove(task_file)
-            end
 
             if (paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file)) or (paths.file_exists(messages_file) != nil and paths.file_exists(messages_file)) then
                 print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
@@ -610,8 +388,10 @@ function update_from_vault(brain_file, force)
 
             knowledge_pool.sync_notes(brain_file)
 
-            -- Sync tasks and agent sessions from markdown files
-            sync_tasks_from_vault(vault_path, brain_file, force)
+            -- Tasks are notes with a tasks row attached; vault_to_sql
+            -- above already syncs them (it's frontmatter-aware -- see
+            -- doc/unified-items-design.md). Only agent sessions still
+            -- need their own pass.
             sync_sessions_from_vault(vault_path, brain_file, force)
 
             store_vault_fingerprint(brain_file, compute_vault_fingerprint(vault_path))
@@ -643,10 +423,15 @@ function update_note_from_file(brain_file, note_path)
 	end
 
 	-- Read content from the note file
-	content = utils.read(note_path)
-	if content == nil then
+	raw_content = utils.read(note_path)
+	if raw_content == nil then
 		return nil, "Failed to read note: " .. note_path
 	end
+
+	-- Frontmatter is optional (only task-tracked notes have one); a
+	-- plain note's raw_content passes through parse_frontmatter
+	-- unchanged, same as vault_to_sql.lua's own note sync.
+	metadata, content = bx_utils.parse_frontmatter(raw_content)
 
 	attr = lfs.attributes(note_path)
 	note_time = os.date("%Y-%m-%d %H:%M:%S")
@@ -676,44 +461,48 @@ function update_note_from_file(brain_file, note_path)
 	return with_db_lock(brain_file, function()
 		-- Check if the note already exists
 		note_exists_query = string.format("""
-			SELECT COUNT(*) AS num FROM notes
+			SELECT id FROM notes
 			WHERE subject = '%s' AND title = '%s'
 		""", subject, title)
-		
-		num_rows = 0
+
+		existing_id = nil
 		result = database.sqlite_query(brain_file, note_exists_query)
-		if result != nil then
-			-- Handle both named and numeric column access
-			num_field = result[1][1]
-			if result[1].num != nil then
-				num_field = result[1].num
-			end
-			num_num = tonumber(num_field)
-			num_rows = 0
-			if num_num != nil then
-				num_rows = num_num
+		if result != nil and #result > 0 then
+			existing_id = result[1].id
+			if existing_id == nil then
+				existing_id = result[1][1]
 			end
 		end
 
 		-- Construct INSERT or UPDATE statement
 		stmt = nil
-		if num_rows > 0 then
+		note_id = existing_id
+		if existing_id != nil and existing_id != "" then
 			stmt = string.format("""
 				UPDATE notes
 				SET content = '%s', time = '%s', size = %d
 				WHERE subject = '%s' AND title = '%s';
 			""", content, note_time, note_size, subject, title)
 		else
+			note_id = bx_utils.generate_id("notes", nil, nil, brain_file)
 			stmt = string.format("""
-				INSERT INTO notes (subject, title, content, time, size)
-				VALUES ('%s', '%s', '%s', '%s', %d);
-			""", subject, title, content, note_time, note_size)
+				INSERT INTO notes (id, subject, title, content, time, size)
+				VALUES ('%s', '%s', '%s', '%s', '%s', %d);
+			""", note_id, subject, title, content, note_time, note_size)
 		end
 
 		-- Execute the statement
 		success = database.sqlite_update(brain_file, stmt)
 		if success == nil then
 			return nil, "Failed to update note from file: " .. note_path
+		end
+
+		if metadata != nil and metadata.is_task == "true" then
+			tasks_stmt = require("vault_to_sql").tasks_upsert_sql(note_id, metadata)
+			success = database.sqlite_update(brain_file, tasks_stmt)
+			if success == nil then
+				return nil, "Failed to update task tracking from file: " .. note_path
+			end
 		end
 
 		-- Clear existing connections for this note
@@ -789,7 +578,6 @@ end
 update.update_note_from_file = update_note_from_file
 update.update_from_vault = update_from_vault
 update.do_update = do_update
-update.sync_tasks_from_vault = sync_tasks_from_vault
 update.sync_sessions_from_vault = sync_sessions_from_vault
 
 bx_utils.update_from_vault = update_from_vault

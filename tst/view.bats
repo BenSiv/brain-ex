@@ -19,15 +19,15 @@ teardown() {
 }
 
 @test "view displays NULL values as empty strings" {
-    # Create task with no subject (defaults to NULL)
-    brex task add --content "Task with missing subject"
-    
+    # Create task with no subject (defaults to empty)
+    brex task add --title "Task with missing subject"
+
     run brex task list
     echo "Output: $output"
     [ "$status" -eq 0 ]
-    
+
     # "NULL" string should not appear in output
     [[ ! "$output" =~ "NULL" ]]
-    # Content should appear
+    # Title should appear
     [[ "$output" =~ "Task with missing subject" ]]
 }

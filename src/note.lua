@@ -107,7 +107,12 @@ function get_note_paths(vault_dir, subject, title)
     if subject != nil and subject != "" then
         note_dir = vault_dir .. "/" .. subject
     end
-    note_path = note_dir .. "/" .. title .. ".md"
+    -- A title can be arbitrary free text (this matters for migrated
+    -- tasks especially, whose titles started life as prose, not a
+    -- filename); "/" would otherwise be read as a path separator and
+    -- silently create/require an extra directory level.
+    safe_title = string.gsub(title, "/", "-")
+    note_path = note_dir .. "/" .. safe_title .. ".md"
     return note_dir, note_path
 end
 
@@ -544,6 +549,9 @@ note.log_note = log_note
 note.edit_note = edit_note
 note.last_notes = last_notes
 note.do_note_connect = do_note_connect
+note.append_content = append_content
+note.get_note_paths = get_note_paths
+note.note_exists = note_exists
 
 if string.match(arg[0], "note.lua$") != nil then
     do_note(get_brain_path(), arg)

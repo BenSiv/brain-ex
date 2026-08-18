@@ -25,17 +25,12 @@ function column_exists(brain_file, table_name, column_name)
     return false
 end
 
--- Ensure 'owner' column exists in tasks table
+-- Ensures notes/tasks (and, if a pre-unification brain still has
+-- one, the legacy tasks table) are all in place -- see task.lua's
+-- ensure_schema, the single source of truth for this now.
 function ensure_owner_column(brain_file)
-    -- Check if table exists first
-    check_table = "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks';"
-    if database.sqlite_query(brain_file, check_table) == nil or #database.sqlite_query(brain_file, check_table) == 0 then
-        return
-    end
-
-    if not column_exists(brain_file, "tasks", "owner") then
-        database.sqlite_update(brain_file, "ALTER TABLE tasks ADD COLUMN owner TEXT;")
-    end
+    task_mod = require("task")
+    task_mod.ensure_schema(brain_file)
 end
 
 function do_agent(brain_file, cmd_args)

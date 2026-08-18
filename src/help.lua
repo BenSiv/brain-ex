@@ -9,7 +9,7 @@ Usage: brex [brain] <command> [subcommand] [arguments]
 brex init
 brex brain < list | use >
 brex [brain] note < add | edit | connect | last >
-brex [brain] task < add | list | done | delay | prioritize | last >
+brex [brain] task < add | list | done | delay | prioritize | comment | show | last >
 brex [brain] update < file >
 brex [brain] sql
 brex [brain] agent < view | ask | note | task | process_tasks >
@@ -151,47 +151,57 @@ brex note connect --links "todo,review"
         """,
         ["brex task"] = """
 Description:
-Adds a new task. The due date can be specified in the format yyyy-mm-dd HH:MM:SS, or part of it.
+Adds a new task -- a note with tracking (due date, priority, done state)
+attached. If a note with the same subject/title already exists, this
+promotes it into a task instead of creating a duplicate. The due date
+can be specified in the format yyyy-mm-dd HH:MM:SS, or part of it.
 
 Required:
--c --content <content> Task's content.
+-t --title <title> Task's title (shown in `task list`).
 
 Optional:
--s --subject <subject>      Task's subject, defaults to NULL.
--t --due_to <due_to>        Task's due date, defaults to 24 hours from now.
+-s --subject <subject>      Task's subject, defaults to none.
+-c --content <content>      Optional initial body -- seeds a new note, or is
+                             appended as a comment to an existing one.
+-e --due_to <due_to>        Task's due date, defaults to 24 hours from now.
 -o --owner <owner>          Task owner, such as "agent".
 -p --importance <1-5>       Task importance (1-5), default 1.
 -u --urgency <1-5>          Task urgency (1-5), default 1.
 
 Examples:
-brex task add --content "This is a new task"
-brex task --content "This is a work task" --subject "work" --due_to "2024-12-31" --importance 5
+brex task add --title "This is a new task"
+brex task --title "This is a work task" --subject "work" --due_to "2024-12-31" --importance 5
         """,
         ["brex task add"] = """
 Description:
-Adds a new task.
+Adds a new task -- a note with tracking (due date, priority, done state)
+attached. If a note with the same subject/title already exists, this
+promotes it into a task instead of creating a duplicate.
 
 Required:
--c --content <content> Task's content.
+-t --title <title> Task's title (shown in `task list`).
 
 Optional:
--s --subject <subject>      Task's subject, defaults to NULL.
--t --due_to <due_to>        Task's due date, defaults to 24 hours from now.
+-s --subject <subject>      Task's subject, defaults to none.
+-c --content <content>      Optional initial body -- seeds a new note, or is
+                             appended as a comment to an existing one.
+-e --due_to <due_to>        Task's due date, defaults to 24 hours from now.
 -o --owner <owner>          Task owner, such as "agent".
 -p --importance <1-5>       Task importance (1-5), default 1.
 -u --urgency <1-5>          Task urgency (1-5), default 1.
 
 Examples:
-brex task add --content "This is a new task"
-brex task add --content "This is a work task" --subject "work" --due_to "2024-12-31" --importance 5
+brex task add --title "This is a new task"
+brex task add --title "This is a work task" --subject "work" --due_to "2024-12-31" --importance 5
         """,
         ["brex task list"] = """
 Description:
-Lists all tasks that are not done yet.
+Lists all tasks that are not done yet. Only shows the title -- use
+`brex task show --id <id>` for the full comment history.
 
-Optional: 
+Optional:
 -s --subject <subject> Filter tasks by subject.
--t --due_to <due_to>   Filter tasks by due date.
+-e --due_to <due_to>   Filter tasks by due date.
 -o --owner <owner>     Filter tasks by owner, for example "agent".
 
 Example:
@@ -202,17 +212,17 @@ brex task list --owner "agent"
         """,
         ["brex task done"] = """
 Description:
-Marks a task as done by its ID and optionally adds a comment.
+Marks a task as done by its ID and optionally adds a final comment.
 
 Required:
 -i --id <id> ID of the task to mark as done.
 
 Optional:
--m --comment <comment> Comment to add when marking the task as done.
+-m --comment <comment> Comment to append when marking the task as done.
 
 Example:
 brex task done --id 12345678
-brex task done --id 12345678 --comment "This task is completed"            
+brex task done --id 12345678 --comment "This task is completed"
         """,
         ["brex task delay"] = """
 Description:
@@ -222,7 +232,7 @@ Required:
 -i --id <id> ID of the task to delay, or * to delay all tasks.
 
 Optional:
--t --due_to <due_to> New due date. If not provided, defaults to 24 hours from now. Pass "indefinitely" to remove the due date.
+-e --due_to <due_to> New due date. If not provided, defaults to 24 hours from now. Pass "indefinitely" to remove the due date.
 
 Example:
 brex task delay --id "85560914" --due_to "2024-12-31"
@@ -243,6 +253,30 @@ Optional:
 Examples:
 brex task prioritize --id 12345678 --importance 5 --urgency 4
 brex task rank --id "*" --importance 3
+        """,
+        ["brex task comment"] = """
+Description:
+Appends a timestamped comment to a task at any point in its life, not
+just at done time -- the comment is stored in the task's own note
+content, viewable with `brex task show`.
+
+Required:
+-i --id <id>            ID of the task to comment on.
+-m --comment <comment>  Comment text to append.
+
+Example:
+brex task comment --id 12345678 --comment "Backlog check re-run, 340 failing records"
+        """,
+        ["brex task show"] = """
+Description:
+Shows one task's full detail: title, subject, priority, due date, done
+state, and its full comment/content log.
+
+Required:
+-i --id <id> ID of the task to show.
+
+Example:
+brex task show --id 12345678
         """,
         ["brex task last"] = """
 Description:
@@ -279,7 +313,7 @@ Optional:
 
 Examples:
 brex sql
-brex sql --query "SELECT * FROM tasks;"
+brex sql --query "SELECT notes.title, tasks.due_to FROM notes JOIN tasks ON tasks.item_id = notes.id;"
         """,
         ["brex agent"] = """
 Description:

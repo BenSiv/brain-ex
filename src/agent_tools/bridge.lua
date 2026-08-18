@@ -79,8 +79,8 @@ function bridge.dispatch(brain_file, tool_name, method, args)
         elseif method == "delay" then
             return task.delay_due(brain_file, args)
         elseif method == "list" then
-            rows = database.sqlite_query(brain_file, "SELECT id, subject, content, due_to, overdue FROM tasks WHERE done IS NULL ORDER BY due_to, subject;")
-            return normalize_rows(rows, {"id", "subject", "content", "due_to", "overdue"})
+            rows = database.sqlite_query(brain_file, "SELECT notes.id AS id, notes.subject AS subject, notes.title AS title, tasks.due_to AS due_to, tasks.overdue AS overdue FROM notes JOIN tasks ON tasks.item_id = notes.id WHERE tasks.done IS NULL ORDER BY tasks.due_to, notes.subject;")
+            return normalize_rows(rows, {"id", "subject", "title", "due_to", "overdue"})
         end
     elseif tool_name == "note" then
         if method == "add" then
