@@ -294,7 +294,7 @@ function vault_to_sql(vault_path, brain_file)
 
     function next_note_id()
         candidate = bx_utils.generate_id("notes", nil, nil, brain_file)
-        while ids_used_this_pass[candidate] != nil or is_id_unique("notes", candidate, brain_file) == false do
+        while ids_used_this_pass[candidate] != nil or bx_utils.is_id_unique("notes", candidate, brain_file) == false do
             candidate = string.format("%010d", math.random(10 ^ 9))
         end
         ids_used_this_pass[candidate] = true

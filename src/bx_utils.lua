@@ -296,6 +296,7 @@ function serialize_session(session_meta, messages)
     return table.concat(sb, "\n")
 end
 
+bx_utils.is_id_unique = is_id_unique
 bx_utils.generate_id = generate_id
 bx_utils.is_sqlite_empty = is_sqlite_empty
 bx_utils.is_timestamp = is_timestamp
