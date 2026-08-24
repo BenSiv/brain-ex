@@ -43,6 +43,10 @@ agent = require("agent")
 do_agent = agent.do_agent
 sync = require("sync")
 
+-- is_read_only_command used before its own definition below --
+-- pre-declared, see ../../luam/doc/forward_references.md
+is_read_only_command = nil
+
 function main()
     knowledge = require("knowledge")
     do_knowledge = knowledge.do_knowledge

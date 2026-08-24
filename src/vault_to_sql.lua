@@ -6,6 +6,7 @@ joinpath = require("paths").joinpath
 database = require("database")
 lfs = require("lfs")
 bx_utils = require("bx_utils")
+strip = bx_utils.strip
 
 -- parse links string like "daily/note1,backend/note2,note3"
 function parse_links_str(links_str)
