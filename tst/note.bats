@@ -135,6 +135,21 @@ teardown() {
     [[ "$DB_CONTENT" =~ "Appended line" ]]
 }
 
+@test "add with --update flag prefixes the appended entry with a timestamp" {
+    run brex note add --title "timestamped-note" --content "Initial line" --subject "brain-ex"
+    [ "$status" -eq 0 ]
+
+    run brex note add --title "timestamped-note" --content "Appended line" --subject "brain-ex" --update
+    [ "$status" -eq 0 ]
+
+    DB_CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='timestamped-note' AND subject='brain-ex';")
+    # Only the appended entry gets a timestamp line ahead of it -- the
+    # initial content is the note's body, not a log entry.
+    [[ "$DB_CONTENT" =~ [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\ [0-9][0-9]:[0-9][0-9]:[0-9][0-9]$'\n'"Appended line" ]]
+    FIRST_LINE=$(echo "$DB_CONTENT" | head -n1)
+    [ "$FIRST_LINE" = "Initial line" ]
+}
+
 
 @test "note last shows most recent notes" {
     brex note add --title "old-note" --content "Old content" --subject "test"

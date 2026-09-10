@@ -410,9 +410,30 @@ function update_note_from_file(brain_file, note_path)
 	vault_path = get_vault_path()
 
 	if vault_path != nil then
-		-- Extract subject and title from the note path
-		title = string.match(note_path, "([^/]+)%.md$")
-		subject_match = string.match(note_path, ".*/([^/]+)/[^/]+%.md$")
+		-- Extract subject and title from the note path, relative to
+		-- the vault root -- matching against the full path directly
+		-- would capture the vault folder's own name as "subject" for
+		-- any root-level note (no subject), since ".*/(x)/y.md" matches
+		-- just as well when x is the vault root itself as when it's a
+		-- real subject subdirectory. note_path isn't always prefixed
+		-- with vault_path as a literal string (callers pass paths
+		-- relative to cwd, e.g. `update --file`, as well as the
+		-- vault_path-prefixed paths note.lua's own sync builds), so
+		-- anchor on the vault directory's own basename appearing as a
+		-- path segment rather than requiring an exact prefix match.
+		vault_basename = string.match(vault_path, "([^/]+)/?$")
+		if vault_basename == nil then
+			vault_basename = vault_path
+		end
+		relative_path = note_path
+		anchor_start, anchor_end = string.find(note_path, "/" .. vault_basename .. "/", 1, true)
+		if anchor_start != nil then
+			relative_path = string.sub(note_path, anchor_end + 1)
+		elseif string.sub(note_path, 1, string.len(vault_basename) + 1) == vault_basename .. "/" then
+			relative_path = string.sub(note_path, string.len(vault_basename) + 2)
+		end
+		title = string.match(relative_path, "([^/]+)%.md$")
+		subject_match = string.match(relative_path, "^([^/]+)/[^/]+%.md$")
 		subject = ""
 		if subject_match != nil then
 			subject = subject_match
@@ -432,6 +453,18 @@ function update_note_from_file(brain_file, note_path)
 	-- plain note's raw_content passes through parse_frontmatter
 	-- unchanged, same as vault_to_sql.lua's own note sync.
 	metadata, content = bx_utils.parse_frontmatter(raw_content)
+
+	-- A task-tracked file's frontmatter carries the note's real title
+	-- verbatim (task.lua writes it there), unlike the filename, which
+	-- is necessarily lossy for a title containing "/" -- get_note_paths
+	-- sanitizes that to "-" so it doesn't get read as a path separator
+	-- (see doc/unified-items-design.md). Deriving title from the
+	-- filename alone would then never find the note's actual (slash-
+	-- containing) row by subject+title, silently creating a duplicate
+	-- under the hyphenated title instead of updating the real one.
+	if metadata != nil and metadata.title != nil and metadata.title != "" then
+		title = metadata.title
+	end
 
 	attr = lfs.attributes(note_path)
 	note_time = os.date("%Y-%m-%d %H:%M:%S")

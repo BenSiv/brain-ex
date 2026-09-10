@@ -30,7 +30,7 @@ teardown() {
     brex task add --title "Deploy new patch" --subject "backend"
     TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='Deploy new patch';")
 
-    run brex task done --id "$TASK_ID" --comment "Done"
+    run brex task done --id "$TASK_ID"
     [ "$status" -eq 0 ]
 
     # Now check the open task list
@@ -82,16 +82,19 @@ teardown() {
     [[ "$output" =~ "Default add task" ]]
 }
 
-@test "task done with comment stores comment" {
+@test "note add --update closes out a task with a comment" {
     brex task add --title "Task with comment"
-    TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='Task with comment';")
 
-    run brex task done --id "$TASK_ID" --comment "Completed successfully"
+    run brex task done --id "$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='Task with comment';")"
     [ "$status" -eq 0 ]
 
-    # There is no separate comment column any more -- the done comment
-    # is just the last entry appended to the task's own note content.
-    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE id='$TASK_ID';")
+    # Closing note is just a normal note append -- there is no
+    # task-specific comment verb any more, and no separate comment
+    # column; it's the last entry in the task's own note content.
+    run brex note add --title "Task with comment" --content "Completed successfully" --update
+    [ "$status" -eq 0 ]
+
+    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='Task with comment';")
     [[ "$CONTENT" =~ "Completed successfully" ]]
 }
 
@@ -197,25 +200,44 @@ EOF
     [[ "$output" =~ "Due To must conform to time-stamp format" ]]
 }
 
-@test "task comment appends without marking done" {
+@test "note add --update on a task appends without marking done" {
     brex task add --title "Ongoing investigation"
     TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='Ongoing investigation';")
 
-    run brex task comment --id "$TASK_ID" --comment "Found the root cause"
+    run brex note add --title "Ongoing investigation" --content "Found the root cause" --update
     [ "$status" -eq 0 ]
 
     CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE id='$TASK_ID';")
     [[ "$CONTENT" =~ "Found the root cause" ]]
 
-    # Still pending -- a comment must not mark it done
+    # Still pending -- appending a note must not mark it done
     run brex task list
     [[ "$output" =~ "Ongoing investigation" ]]
+}
+
+@test "note add --update on a task whose title contains a slash updates the real row" {
+    # get_note_paths sanitizes "/" to "-" for the filename, so the
+    # note's own frontmatter title (not the filename) has to be what
+    # a single-file resync trusts -- otherwise this creates a second,
+    # spurious row under the hyphenated title instead of updating the
+    # original one (see doc/comments-as-content-design.md).
+    brex task add --title "fix parsing of a/b paths" --subject "backend"
+    TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='fix parsing of a/b paths';")
+
+    run brex note add --title "fix parsing of a/b paths" --subject "backend" --content "Root cause: split on the wrong separator" --update
+    [ "$status" -eq 0 ]
+
+    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE id='$TASK_ID';")
+    [[ "$CONTENT" =~ "Root cause: split on the wrong separator" ]]
+
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title LIKE '%a/b paths%' OR title LIKE '%a-b paths%';")
+    [ "$COUNT" -eq 1 ]
 }
 
 @test "task show displays title and full content log" {
     brex task add --title "Show me" --content "initial body"
     TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='Show me';")
-    brex task comment --id "$TASK_ID" --comment "a later update"
+    brex note add --title "Show me" --content "a later update" --update
 
     run brex task show --id "$TASK_ID"
     [ "$status" -eq 0 ]

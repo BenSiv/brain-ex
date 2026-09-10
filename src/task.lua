@@ -249,7 +249,7 @@ function find_or_create_note(brain_file, subject, title, initial_content)
     existing_id = get_note_id(brain_file, subject, title)
     if existing_id != nil then
         if initial_content != nil and initial_content != "" then
-            note.append_content(brain_file, subject, title, initial_content)
+            note.append_content(brain_file, subject, title, note.timestamped_entry(initial_content))
         end
         return existing_id
     end
@@ -715,10 +715,6 @@ function mark_done(brain_file, args)
     if args["id"] != nil then
         task_id = args["id"]
     end
-    comment = ""
-    if args["comment"] != nil then
-        comment = args["comment"]
-    end
 
     if task_id == "" then
         return nil, "Must provide task id"
@@ -728,46 +724,6 @@ function mark_done(brain_file, args)
     status = database.sqlite_update(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to mark task as done"
-    end
-
-    if comment != "" then
-        subject, title = get_item_subject_title(brain_file, task_id)
-        if title != nil then
-            note.append_content(brain_file, subject, title, os.date("%Y-%m-%d %H:%M:%S") .. "\nDONE: " .. comment)
-        end
-    end
-
-    return persist_task(brain_file, task_id)
-end
-
--- Ongoing comments, not just at done time: appends a timestamped
--- entry to the task's own note content -- the same append_content
--- notes have always had, just newly reachable for tasks too.
-function comment_task(brain_file, args)
-    task_id = ""
-    if args["id"] != nil then
-        task_id = args["id"]
-    end
-    comment = ""
-    if args["comment"] != nil then
-        comment = args["comment"]
-    end
-
-    if task_id == "" then
-        return nil, "Must provide task id"
-    end
-    if comment == "" then
-        return nil, "Must provide comment content"
-    end
-
-    subject, title = get_item_subject_title(brain_file, task_id)
-    if title == nil then
-        return nil, "No such task: " .. tostring(task_id)
-    end
-
-    status, err = note.append_content(brain_file, subject, title, os.date("%Y-%m-%d %H:%M:%S") .. "\n" .. comment)
-    if status == nil then
-        return nil, err
     end
 
     return persist_task(brain_file, task_id)
@@ -974,13 +930,12 @@ function do_task(brain_file, cmd_args)
             ["delay"] = true,
             ["prioritize"] = true,
             ["rank"] = true,
-            ["comment"] = true,
             ["show"] = true,
             ["last"] = true
         }
         if valid_subs[subcommand] == nil then
             print("Unknown subcommand: " .. subcommand)
-            print("Available subcommands: add, list, done, delay, prioritize, comment, show, last")
+            print("Available subcommands: add, list, done, delay, prioritize, show, last")
             return "success"
         end
         table.insert(cmd_args, 1, "-d")
@@ -994,7 +949,6 @@ function do_task(brain_file, cmd_args)
         -t --title arg string false
         -e --due_to arg string false
         -i --id arg string false
-        -m --comment arg string false
         -c --content arg string false
         -n --number arg number false
         -o --owner arg string false
@@ -1021,8 +975,6 @@ function do_task(brain_file, cmd_args)
             status, err = delay_due(brain_file, args)
         elseif args["do"] == "prioritize" or args["do"] == "rank" then
             status, err = update_priority(brain_file, args)
-        elseif args["do"] == "comment" then
-            status, err = comment_task(brain_file, args)
         elseif args["do"] == "show" then
             status, err = show_task(brain_file, args)
         elseif args["do"] == "last" then
@@ -1031,7 +983,7 @@ function do_task(brain_file, cmd_args)
             status, err = add_task(brain_file, args)
         else
             print("Unknown subcommand: " .. args["do"])
-            print("Available subcommands: add, list, done, delay, prioritize, comment, show, last")
+            print("Available subcommands: add, list, done, delay, prioritize, show, last")
             return "success" -- Help printed
         end
     end
@@ -1050,7 +1002,6 @@ task.do_task = do_task
 task.add_task = add_task
 task.list_tasks = list_tasks
 task.mark_done = mark_done
-task.comment_task = comment_task
 task.show_task = show_task
 task.delay_due = delay_due
 task.update_priority = update_priority

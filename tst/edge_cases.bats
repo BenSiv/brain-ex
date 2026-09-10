@@ -85,5 +85,5 @@ teardown() {
     run brex task foo --help
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Unknown subcommand: foo" ]]
-    [[ "$output" =~ "Available subcommands: add, list, done, delay, prioritize, comment, show, last" ]]
+    [[ "$output" =~ "Available subcommands: add, list, done, delay, prioritize, show, last" ]]
 }

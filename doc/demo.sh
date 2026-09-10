@@ -109,7 +109,10 @@ pe 'brex task list'
 # Get an ID for marking done
 TASK_ID=$(sqlite3 personal.db "SELECT id FROM tasks LIMIT 1;")
 comment "# Mark a task as done"
-pe "brex task done --id $TASK_ID --comment 'Done!'"
+pe "brex task done --id $TASK_ID"
+
+comment "# Leave a closing note -- same as commenting on any note"
+pe "brex note add --title 'Organize digital photos' --content 'Done!' --update"
 
 comment "# Show recently completed tasks"
 pe 'brex task last --number 3'

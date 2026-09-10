@@ -9,7 +9,7 @@ Usage: brex [brain] <command> [subcommand] [arguments]
 brex init
 brex brain < list | use >
 brex [brain] note < add | edit | connect | last >
-brex [brain] task < add | list | done | delay | prioritize | comment | show | last >
+brex [brain] task < add | list | done | delay | prioritize | show | last >
 brex [brain] update < file >
 brex [brain] sql
 brex [brain] agent < view | ask | note | task | process_tasks >
@@ -212,17 +212,16 @@ brex task list --owner "agent"
         """,
         ["brex task done"] = """
 Description:
-Marks a task as done by its ID and optionally adds a final comment.
+Marks a task as done by its ID. To leave a closing note, follow up
+with `brex note add` (see below) -- a task is just a note, so adding
+one appends to its content the same way as for any other note.
 
 Required:
 -i --id <id> ID of the task to mark as done.
 
-Optional:
--m --comment <comment> Comment to append when marking the task as done.
-
 Example:
 brex task done --id 12345678
-brex task done --id 12345678 --comment "This task is completed"
+brex note add --subject "work" --title "the task's title" --content "This task is completed" --update
         """,
         ["brex task delay"] = """
 Description:
@@ -253,19 +252,6 @@ Optional:
 Examples:
 brex task prioritize --id 12345678 --importance 5 --urgency 4
 brex task rank --id "*" --importance 3
-        """,
-        ["brex task comment"] = """
-Description:
-Appends a timestamped comment to a task at any point in its life, not
-just at done time -- the comment is stored in the task's own note
-content, viewable with `brex task show`.
-
-Required:
--i --id <id>            ID of the task to comment on.
--m --comment <comment>  Comment text to append.
-
-Example:
-brex task comment --id 12345678 --comment "Backlog check re-run, 340 failing records"
         """,
         ["brex task show"] = """
 Description:

@@ -32,6 +32,16 @@ function insert_note(brain_file, subject, title, content)
     return true
 end
 
+-- The one shared "add a log entry" formatting: every real append to an
+-- existing item's content (a comment on a task, a follow-up on a
+-- plain note -- same operation either way) goes through this, so a
+-- task's comment log and a plain note's appended history look
+-- identical. Not used for an item's initial content -- that's the
+-- body, not a log entry appended to it.
+function timestamped_entry(content)
+    return os.date("%Y-%m-%d %H:%M:%S") .. "\n" .. content
+end
+
 function append_content(brain_file, subject, title, content)
     -- subject and title used in query must be escaped
     esc_subject = escape_sql(subject)
@@ -214,14 +224,15 @@ function take_note(brain_file, args)
     end
 
     if args["update"] == true then
+        entry = timestamped_entry(content)
         if vault_path != nil then
-            status, err = write_note(vault_path, subject, title, content, links, "a")
+            status, err = write_note(vault_path, subject, title, entry, links, "a")
             if status == nil then
                 return nil, err
             end
             return sync_note_from_vault(brain_file, vault_path, subject, title)
         else
-            status, err = append_content(brain_file, subject, title, content)
+            status, err = append_content(brain_file, subject, title, entry)
             if status == nil then
                  return nil, err
             end
@@ -387,11 +398,13 @@ function log_note(brain_file, args)
 
     if vault_path != nil then
         write_mode = "w"
+        write_content = content
         if note_exists then
             write_mode = "a"
+            write_content = timestamped_entry(content)
         end
 
-        status, err = write_note(vault_path, subject, title, content, links, write_mode)
+        status, err = write_note(vault_path, subject, title, write_content, links, write_mode)
         if status == nil then
             return nil, err
         end
@@ -401,7 +414,7 @@ function log_note(brain_file, args)
     -- Insert or append content
     if utils.isempty(content) == false then
         if note_exists then
-            status, err = append_content(brain_file, subject, title, content)
+            status, err = append_content(brain_file, subject, title, timestamped_entry(content))
             if status == nil then
                 return nil, err
             end
@@ -550,6 +563,7 @@ note.edit_note = edit_note
 note.last_notes = last_notes
 note.do_note_connect = do_note_connect
 note.append_content = append_content
+note.timestamped_entry = timestamped_entry
 note.get_note_paths = get_note_paths
 note.note_exists = note_exists
 

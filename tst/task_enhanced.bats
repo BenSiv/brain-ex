@@ -36,15 +36,19 @@ teardown() {
     [[ "$output" =~ "Default add task" ]]
 }
 
-@test "task done with comment stores comment" {
+@test "note add --update closes out a task with a comment" {
     brex task add --title "Task with comment"
     TASK_ID=$(sqlite3 tmp_vault.db "SELECT id FROM notes WHERE title='Task with comment';")
 
-    run brex task done --id "$TASK_ID" --comment "Completed successfully"
+    run brex task done --id "$TASK_ID"
     [ "$status" -eq 0 ]
 
-    # There is no separate comment column any more -- the done comment
-    # is just the last entry appended to the task's own note content.
+    # Closing note is just a normal note append -- there is no
+    # task-specific comment verb any more, and no separate comment
+    # column; it's the last entry in the task's own note content.
+    run brex note add --title "Task with comment" --content "Completed successfully" --update
+    [ "$status" -eq 0 ]
+
     CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE id='$TASK_ID';")
     [[ "$CONTENT" =~ "Completed successfully" ]]
 }
