@@ -105,6 +105,76 @@ EOF
     [ "$TASK_COUNT" -eq 1 ]
 }
 
+@test "update without --file preserves a slash in a note's title from frontmatter, not the filename" {
+    # get_note_paths sanitizes "/" to "-" in the filename (a filesystem
+    # constraint), but the frontmatter title field carries the real,
+    # unsanitized text. The bulk vault_to_sql path used to derive a
+    # brand-new note's title straight from the filename instead of
+    # honoring frontmatter here -- unlike update_note_from_file (the
+    # --file / note-add--update path), which already did this
+    # correctly. That mismatch only showed up once a note was new to
+    # the DB (e.g. after `update --force`, or a hand-added vault file),
+    # since an existing row's title is left untouched on every other
+    # sync.
+    mkdir -p tmp_vault/backend
+    cat <<EOF > "tmp_vault/backend/fix parsing of a-b paths.md"
+---
+title: "fix parsing of a/b paths"
+---
+Root cause: split on the wrong separator
+EOF
+
+    run $BREX update
+    [ "$status" -eq 0 ]
+
+    REAL_TITLE_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='fix parsing of a/b paths' AND subject='backend';")
+    [ "$REAL_TITLE_COUNT" -eq 1 ]
+
+    MANGLED_TITLE_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='fix parsing of a-b paths' AND subject='backend';")
+    [ "$MANGLED_TITLE_COUNT" -eq 0 ]
+}
+
+@test "update with --file on a note whose title contains a single quote doesn't break" {
+    # update_note_from_file interpolates subject/title straight into
+    # several hand-built SQL statements; unlike content (escaped
+    # earlier in the same function), they went in unescaped, so a title
+    # as ordinary as "admin 'refresh snapshot' action" broke every one
+    # of those statements with a syntax error instead of updating the
+    # row.
+    mkdir -p tmp_vault/daat
+    cat <<EOF > "tmp_vault/daat/admin refresh snapshot action.md"
+---
+title: "Build the admin 'refresh snapshot now' action"
+---
+Initial scoping notes
+EOF
+
+    run $BREX update --file "tmp_vault/daat/admin refresh snapshot action.md"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Updated note" ]]
+
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title=\"Build the admin 'refresh snapshot now' action\" AND subject='daat';")
+    [ "$COUNT" -eq 1 ]
+
+    # Re-running against the same file must update the existing row,
+    # not fail the lookup and insert a duplicate.
+    cat <<EOF > "tmp_vault/daat/admin refresh snapshot action.md"
+---
+title: "Build the admin 'refresh snapshot now' action"
+---
+Initial scoping notes
+Follow-up: both blockers cleared
+EOF
+    run $BREX update --file "tmp_vault/daat/admin refresh snapshot action.md"
+    [ "$status" -eq 0 ]
+
+    COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title=\"Build the admin 'refresh snapshot now' action\" AND subject='daat';")
+    [ "$COUNT" -eq 1 ]
+
+    CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title=\"Build the admin 'refresh snapshot now' action\" AND subject='daat';")
+    [[ "$CONTENT" =~ "Follow-up: both blockers cleared" ]]
+}
+
 @test "update with invalid file path shows error" {
     # Create a directory instead of a file
     mkdir -p tmp_vault/test/notafile

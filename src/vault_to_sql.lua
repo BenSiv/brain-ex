@@ -3,7 +3,8 @@ vault_update = {}
 
 utils = require("utils")
 joinpath = require("paths").joinpath
-database = require("database")
+database = require("database_adapter")
+db = require("database")
 lfs = require("lfs")
 bx_utils = require("bx_utils")
 strip = bx_utils.strip
@@ -164,21 +165,28 @@ function is_task_frontmatter(metadata)
 end
 
 function tasks_upsert_sql(item_id, metadata)
-    esc_due_to = "NULL"
-    if metadata.due_to != nil and metadata.due_to != "" then
-        esc_due_to = "'" .. database.escape_sqlite(metadata.due_to) .. "'"
+    -- db.literal renders nil as NULL and anything else as a safely
+    -- quoted string (see luam/lib/db.lua) -- the same helper daat's
+    -- own document.lua uses for exactly this shape of INSERT, rather
+    -- than a locally hand-rolled quote-or-NULL branch per field. An
+    -- empty string is treated the same as "not set" here, same as the
+    -- original behavior.
+    due_to = metadata.due_to
+    if due_to == "" then
+        due_to = nil
     end
+    done = metadata.done
+    if done == "" then
+        done = nil
+    end
+    owner = metadata.owner
+    if owner == "" then
+        owner = nil
+    end
+
     overdue_num = tonumber(metadata.overdue)
     if overdue_num == nil then
         overdue_num = 0
-    end
-    esc_done = "NULL"
-    if metadata.done != nil and metadata.done != "" then
-        esc_done = "'" .. database.escape_sqlite(metadata.done) .. "'"
-    end
-    esc_owner = "NULL"
-    if metadata.owner != nil and metadata.owner != "" then
-        esc_owner = "'" .. database.escape_sqlite(metadata.owner) .. "'"
     end
     importance_num = tonumber(metadata.importance)
     if importance_num == nil then
@@ -191,7 +199,7 @@ function tasks_upsert_sql(item_id, metadata)
 
     return string.format("""
         INSERT INTO tasks (item_id, due_to, overdue, done, owner, importance, urgency)
-        VALUES ('%s', %s, %d, %s, %s, %d, %d)
+        VALUES (%s, %s, %d, %s, %s, %d, %d)
         ON CONFLICT(item_id) DO UPDATE SET
             due_to = excluded.due_to,
             overdue = excluded.overdue,
@@ -199,7 +207,7 @@ function tasks_upsert_sql(item_id, metadata)
             owner = excluded.owner,
             importance = excluded.importance,
             urgency = excluded.urgency;
-    """, item_id, esc_due_to, overdue_num, esc_done, esc_owner, importance_num, urgency_num)
+    """, db.literal(item_id), db.literal(due_to), overdue_num, db.literal(done), db.literal(owner), importance_num, urgency_num)
 end
 
 function vault_to_sql(vault_path, brain_file)
@@ -310,17 +318,6 @@ function vault_to_sql(vault_path, brain_file)
 
         for _, note_file in pairs(notes) do
             note_name = string.gsub(note_file, "%.md$", "")
-            -- note_name/actual_subject come straight off the filesystem
-            -- (a filename, a directory name) and can contain anything a
-            -- title can -- including a plain English apostrophe, which
-            -- is extremely common in free-text titles. Every SQL literal
-            -- built from either below must go through this escape, or a
-            -- title as ordinary as "job's integrity" breaks the
-            -- statement (confirmed live: this exact bug deleted nothing
-            -- only because a batched multi-statement transaction rolls
-            -- back whole on a syntax error, not because it was harmless).
-            esc_note_name = database.escape_sqlite(note_name)
-            esc_actual_subject = database.escape_sqlite(actual_subject)
             note_key = actual_subject .. "||" .. note_name
             seen_notes[note_key] = true
             
@@ -349,6 +346,21 @@ function vault_to_sql(vault_path, brain_file)
                 metadata, raw_body = bx_utils.parse_frontmatter(raw_content)
                 content, links = process_content(raw_body)
 
+                -- A task-tracked file's frontmatter carries the note's
+                -- real title verbatim (task.lua writes it there),
+                -- unlike the filename, which is necessarily lossy for
+                -- a title containing "/" -- get_note_paths sanitizes
+                -- that to "-" so it doesn't get read as a path
+                -- separator (see doc/unified-items-design.md and
+                -- update.lua's update_note_from_file, which already
+                -- does this same fallback for the single-file path).
+                -- Falling back to the filename-derived note_name here
+                -- keeps plain notes (no frontmatter) working as before.
+                real_title = note_name
+                if metadata != nil and metadata.title != nil and metadata.title != "" then
+                    real_title = metadata.title
+                end
+
                 note_id = nil
                 if existing != nil then
                     note_id = existing.id
@@ -358,33 +370,31 @@ function vault_to_sql(vault_path, brain_file)
                     -- Target the row by its real stored (subject, title)
                     -- -- not the sanitized filename text, which only
                     -- matches when the title had no "/" to begin with.
-                    esc_existing_subject = database.escape_sqlite(existing.subject)
-                    esc_existing_title = database.escape_sqlite(existing.title)
                     -- Update existing note
                     update_note = string.format(
-                        "UPDATE notes SET time='%s', size=%d, content='%s', id='%s' WHERE subject='%s' AND title='%s';",
-                        last_update_time,
+                        "UPDATE notes SET time=%s, size=%d, content=%s, id=%s WHERE subject=%s AND title=%s;",
+                        db.quote(last_update_time),
                         file_size,
-                        content,
-                        note_id,
-                        esc_existing_subject,
-                        esc_existing_title
+                        db.quote(content),
+                        db.quote(note_id),
+                        db.quote(existing.subject),
+                        db.quote(existing.title)
                     )
                     table.insert(sql_statements, update_note)
                     -- Clear old connections
-                    table.insert(sql_statements, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", esc_existing_title, esc_existing_subject))
+                    table.insert(sql_statements, string.format("DELETE FROM connections WHERE source_title=%s AND source_subject=%s;", db.quote(existing.title), db.quote(existing.subject)))
                     updates_count = updates_count + 1
                 else
                     note_id = next_note_id()
                     -- Insert new note
                     insert_note = string.format(
-                        "INSERT INTO notes (id, time, size, subject, title, content) VALUES ('%s', '%s', %d, '%s', '%s', '%s');",
-                        note_id,
-                        last_update_time,
+                        "INSERT INTO notes (id, time, size, subject, title, content) VALUES (%s, %s, %d, %s, %s, %s);",
+                        db.quote(note_id),
+                        db.quote(last_update_time),
                         file_size,
-                        esc_actual_subject,
-                        esc_note_name,
-                        content
+                        db.quote(actual_subject),
+                        db.quote(real_title),
+                        db.quote(content)
                     )
                     table.insert(sql_statements, insert_note)
                     inserts_count = inserts_count + 1
@@ -404,11 +414,11 @@ function vault_to_sql(vault_path, brain_file)
                             link_subject = link.subject
                         end
                         statement_value = string.format(
-                            "('%s','%s','%s','%s'), ",
-                            esc_note_name,
-                            esc_actual_subject,
-                            database.escape_sqlite(link.title),
-                            database.escape_sqlite(link_subject)
+                            "(%s,%s,%s,%s), ",
+                            db.quote(real_title),
+                            db.quote(actual_subject),
+                            db.quote(link.title),
+                            db.quote(link_subject)
                         )
                         insert_connections = insert_connections .. statement_value
                     end
@@ -432,13 +442,11 @@ function vault_to_sql(vault_path, brain_file)
             subject = existing_removed.subject
             title = existing_removed.title
 
-            esc_subject = database.escape_sqlite(subject)
-            esc_title = database.escape_sqlite(title)
             if existing_removed.id != nil and existing_removed.id != "" then
-                table.insert(sql_statements, string.format("DELETE FROM tasks WHERE item_id='%s';", existing_removed.id))
+                table.insert(sql_statements, string.format("DELETE FROM tasks WHERE item_id=%s;", db.quote(existing_removed.id)))
             end
-            table.insert(sql_statements, string.format("DELETE FROM notes WHERE subject='%s' AND title='%s';", esc_subject, esc_title))
-            table.insert(sql_statements, string.format("DELETE FROM connections WHERE source_title='%s' AND source_subject='%s';", esc_title, esc_subject))
+            table.insert(sql_statements, string.format("DELETE FROM notes WHERE subject=%s AND title=%s;", db.quote(subject), db.quote(title)))
+            table.insert(sql_statements, string.format("DELETE FROM connections WHERE source_title=%s AND source_subject=%s;", db.quote(title), db.quote(subject)))
             deletes_count = deletes_count + 1
         end
     end

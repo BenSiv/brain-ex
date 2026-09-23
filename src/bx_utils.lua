@@ -1,7 +1,7 @@
 -- Define a module table
 bx_utils = {}
 
-database = require("database")
+database = require("database_adapter")
 config = require("config")
 get_brain_path = config.get_brain_path
 lfs = require("lfs")

@@ -3,7 +3,8 @@ note = {}
 
 utils = require("utils")
 argparse = require("argparse")
-database = require("database")
+database = require("database_adapter")
+db = require("database")
 local_update = database.sqlite_update
 local_query = database.sqlite_query
 config = require("config")
@@ -16,15 +17,8 @@ help = require("help")
 bx_utils = require("bx_utils")
 prettyprint = require("prettyprint")
 
-function escape_sql(str)
-    return string.gsub(str, "'", "''")
-end
-
 function insert_note(brain_file, subject, title, content)
-    subject = escape_sql(subject)
-    title = escape_sql(title)
-    content = escape_sql(content)
-    insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES ('" .. subject .. "', '" .. title .. "', '" .. content .. "');"
+    insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES (" .. db.quote(subject) .. ", " .. db.quote(title) .. ", " .. db.quote(content) .. ");"
     status = database.sqlite_update(brain_file, insert_statement)
     if status == nil then
         return nil, "Failed to update database"
@@ -43,11 +37,7 @@ function timestamped_entry(content)
 end
 
 function append_content(brain_file, subject, title, content)
-    -- subject and title used in query must be escaped
-    esc_subject = escape_sql(subject)
-    esc_title = escape_sql(title)
-
-    query = string.format("SELECT content FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
+    query = string.format("SELECT content FROM notes WHERE title=%s AND subject=%s;", db.quote(title), db.quote(subject))
     result = database.sqlite_query(brain_file, query)
     if result == nil or #result == 0 then
         return nil, "Failed to find note for append: " .. title
@@ -61,9 +51,8 @@ function append_content(brain_file, subject, title, content)
         old_content = result[1].content
     end
     new_content = old_content .. "\n" .. content
-    esc_content = escape_sql(new_content)
 
-    update_statement = string.format("UPDATE notes SET content='%s' WHERE title='%s' AND subject='%s';", esc_content, esc_title, esc_subject)
+    update_statement = string.format("UPDATE notes SET content=%s WHERE title=%s AND subject=%s;", db.quote(new_content), db.quote(title), db.quote(subject))
 
     status = database.sqlite_update(brain_file, update_statement)
     if status == nil then
@@ -93,11 +82,11 @@ function connect_notes(brain_file, source_title, source_subject, links)
         end
 
         statement_value = string.format(
-            "('%s','%s','%s','%s'), ",
-            source_title,
-            safe_source_subject,
-            target_title,
-            target_subject
+            "(%s,%s,%s,%s), ",
+            db.quote(source_title),
+            db.quote(safe_source_subject),
+            db.quote(target_title),
+            db.quote(target_subject)
         )
         insert_statement = insert_statement .. statement_value
     end
@@ -135,9 +124,7 @@ function note_exists(brain_file, subject, title)
     if title != nil then
         safe_title = title
     end
-    esc_subject = escape_sql(safe_subject)
-    esc_title = escape_sql(safe_title)
-    query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
+    query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title=%s AND subject=%s;", db.quote(safe_title), db.quote(safe_subject))
     result = database.sqlite_query(brain_file, query)
     if result == nil or result[1] == nil then
         return false
@@ -327,7 +314,11 @@ function last_notes(brain_file, args)
         num = args["number"]
     end
 
-    query = string.format("SELECT title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s", subject, num)
+    num_val = tonumber(num)
+    if num_val == nil then
+        num_val = 5
+    end
+    query = string.format("SELECT title, content FROM notes WHERE subject=%s ORDER BY title DESC LIMIT %d", db.quote(subject), num_val)
     result = database.sqlite_query(brain_file, query)
 
     if result != nil and utils.length(result) > 0 then
@@ -379,9 +370,7 @@ function log_note(brain_file, args)
     end
 
     -- Check if the note exists
-    esc_subject = escape_sql(subject)
-    esc_title = escape_sql(title) -- title comes from os.date usually but good practice to escape if it ever changes
-    query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title='%s' AND subject='%s';", esc_title, esc_subject)
+    query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title=%s AND subject=%s;", db.quote(title), db.quote(subject))
     result = database.sqlite_query(brain_file, query)
     if result == nil then
         return nil, "Failed to query note database"

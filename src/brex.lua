@@ -1,7 +1,7 @@
 
 utils = require("utils")
 starts_with = utils.starts_with
-database = require("database")
+database = require("database_adapter")
 prettyprint = require("prettyprint")
 argparse = require("argparse")
 paths = require("paths")

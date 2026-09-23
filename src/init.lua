@@ -7,7 +7,7 @@ init.sql_init = sql_init
 
 utils = require("utils")
 argparse = require("argparse")
-database = require("database")
+database = require("database_adapter")
 knowledge_pool = require("knowledge_pool")
 local_update = database.sqlite_update
 local_query = database.sqlite_query

@@ -3,7 +3,7 @@ sql = {}
 
 utils = require("utils")
 argparse = require("argparse")
-database = require("database")
+database = require("database_adapter")
 local_query = database.sqlite_query
 config = require("config")
 get_brain_path = config.get_brain_path

@@ -62,3 +62,14 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "No notes" || "$output" =~ "Error" ]]
 }
+
+@test "note last with a subject containing a single quote doesn't break" {
+    # last_notes built its query with the raw subject, unescaped --
+    # unlike every sibling note.lua function, which at least went
+    # through the (project-local, since replaced by db.quote) escape_sql.
+    brex note add --title "finding" --content "root cause found" --subject "job's integrity"
+
+    run brex note last --subject "job's integrity"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "finding" || "$output" =~ "root cause found" ]]
+}

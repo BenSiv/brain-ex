@@ -7,7 +7,8 @@ config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
 lfs = require("lfs")
-database = require("database")
+database = require("database_adapter")
+db = require("database")
 knowledge_pool = require("knowledge_pool")
 local_update = database.sqlite_update
 local_query = database.sqlite_query
@@ -26,13 +27,6 @@ function read_raw(path)
     content = io.read(f, "*all")
     io.close(f)
     return content
-end
-
-function escape_sql(str)
-    if str == nil then
-        str = ""
-    end
-    return string.gsub(str, "'", "''")
 end
 
 function get_db_lock_path(brain_file)
@@ -85,13 +79,6 @@ function with_db_lock(brain_file, callback)
     end
 
     return status, callback_err
-end
-
-function escape_field(val)
-    if val == nil or val == "NULL" then
-        return "NULL"
-    end
-    return "'" .. string.gsub(val, "'", "''") .. "'"
 end
 
 -- Cheap stat-only fingerprint of every markdown file under the vault
@@ -485,18 +472,24 @@ function update_note_from_file(brain_file, note_path)
         end
 	end
 
-	-- Escape single quotes for SQL
-    if content == nil then
-        content = ""
-    end
-    content = string.gsub(content, "'", "''")
+	if content == nil then
+		content = ""
+	end
 
 	return with_db_lock(brain_file, function()
+		-- subject/title/content are free text off the filesystem/
+		-- frontmatter (see the title derivation above) and can contain
+		-- a plain English apostrophe. db.quote/db.literal (luam/lib/
+		-- db.lua) is the shared, already-upstream helper for this --
+		-- the same one daat's own document.lua uses -- rather than a
+		-- project-local escape reimplementation; every SQL literal
+		-- built below goes through it inline, or a title as ordinary
+		-- as "admin 'refresh snapshot' action" breaks these statements.
 		-- Check if the note already exists
 		note_exists_query = string.format("""
 			SELECT id FROM notes
-			WHERE subject = '%s' AND title = '%s'
-		""", subject, title)
+			WHERE subject = %s AND title = %s
+		""", db.quote(subject), db.quote(title))
 
 		existing_id = nil
 		result = database.sqlite_query(brain_file, note_exists_query)
@@ -513,15 +506,15 @@ function update_note_from_file(brain_file, note_path)
 		if existing_id != nil and existing_id != "" then
 			stmt = string.format("""
 				UPDATE notes
-				SET content = '%s', time = '%s', size = %d
-				WHERE subject = '%s' AND title = '%s';
-			""", content, note_time, note_size, subject, title)
+				SET content = %s, time = %s, size = %d
+				WHERE subject = %s AND title = %s;
+			""", db.quote(content), db.quote(note_time), note_size, db.quote(subject), db.quote(title))
 		else
 			note_id = bx_utils.generate_id("notes", nil, nil, brain_file)
 			stmt = string.format("""
 				INSERT INTO notes (id, subject, title, content, time, size)
-				VALUES ('%s', '%s', '%s', '%s', '%s', %d);
-			""", note_id, subject, title, content, note_time, note_size)
+				VALUES (%s, %s, %s, %s, %s, %d);
+			""", db.quote(note_id), db.quote(subject), db.quote(title), db.quote(content), db.quote(note_time), note_size)
 		end
 
 		-- Execute the statement
@@ -539,7 +532,7 @@ function update_note_from_file(brain_file, note_path)
 		end
 
 		-- Clear existing connections for this note
-        clear_links = string.format("DELETE FROM connections WHERE source_title = '%s' AND source_subject = '%s';", title, subject)
+        clear_links = string.format("DELETE FROM connections WHERE source_title = %s AND source_subject = %s;", db.quote(title), db.quote(subject))
 		success = database.sqlite_update(brain_file, clear_links)
 		if success == nil then
 			return nil, "Failed to clear note links from file: " .. note_path
@@ -554,11 +547,11 @@ function update_note_from_file(brain_file, note_path)
                     link_subject = link.subject
                 end
                 statement_value = string.format(
-                    "('%s', '%s', '%s', '%s'), ",
-                    escape_sql(title),
-                    escape_sql(subject),
-                    escape_sql(link.title),
-                    escape_sql(link_subject)
+                    "(%s, %s, %s, %s), ",
+                    db.quote(title),
+                    db.quote(subject),
+                    db.quote(link.title),
+                    db.quote(link_subject)
                 )
                 insert_links = insert_links .. statement_value
             end

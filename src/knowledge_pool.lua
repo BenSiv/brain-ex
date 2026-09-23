@@ -1,7 +1,7 @@
 -- src/knowledge_pool.lua
 knowledge_pool = {}
 
-database = require("database")
+database = require("database_adapter")
 local_query = database.sqlite_query
 local_update = database.sqlite_update
 config = require("config")

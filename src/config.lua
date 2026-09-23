@@ -5,7 +5,7 @@ config = {}
 paths = require("paths")
 joinpath = paths.joinpath
 utils = require("utils")
-database = require("database")
+database = require("database_adapter")
 file_exists = paths.file_exists
 read_yaml = utils.read_yaml
 
