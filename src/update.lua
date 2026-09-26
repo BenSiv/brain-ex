@@ -540,7 +540,7 @@ function update_note_from_file(brain_file, note_path)
 
 		-- Insert updated links
         if #links > 0 then
-            insert_links = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
+            insert_links = "INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
             for i, link in ipairs(links) do
                 link_subject = ""
                 if link.subject != nil then

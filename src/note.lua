@@ -181,6 +181,46 @@ function write_note(vault_dir, subject, title, content, links, mode)
     return true
 end
 
+-- Writes the vault file, then syncs the database from it. The file is
+-- the source of truth, so a failed sync would otherwise leave it
+-- changed while the database isn't -- and every retry of the same
+-- command would append the entry again. On failure the file is put
+-- back as it was (or removed, if this call created it) and re-synced,
+-- so the database matches it again too.
+function write_and_sync_note(brain_file, vault_dir, subject, title, content, links, mode)
+    _, note_path = get_note_paths(vault_dir, subject, title)
+    previous = nil
+    existing_file = io.open(note_path, "r")
+    if existing_file != nil then
+        previous = io.read(existing_file, "*all")
+        io.close(existing_file)
+    end
+
+    status, err = write_note(vault_dir, subject, title, content, links, mode)
+    if status == nil then
+        return nil, err
+    end
+    status, err = sync_note_from_vault(brain_file, vault_dir, subject, title)
+    if status != nil then
+        return status
+    end
+
+    if previous == nil then
+        os.remove(note_path)
+    else
+        restore_file = io.open(note_path, "w")
+        if restore_file != nil then
+            io.write(restore_file, previous)
+            io.close(restore_file)
+            sync_note_from_vault(brain_file, vault_dir, subject, title)
+        end
+    end
+    if err == nil then
+        err = "Failed to update database"
+    end
+    return nil, err .. " (note file left unchanged)"
+end
+
 function take_note(brain_file, args)
     subject = ""
     if args["subject"] != nil then
@@ -213,11 +253,7 @@ function take_note(brain_file, args)
     if args["update"] == true then
         entry = timestamped_entry(content)
         if vault_path != nil then
-            status, err = write_note(vault_path, subject, title, entry, links, "a")
-            if status == nil then
-                return nil, err
-            end
-            return sync_note_from_vault(brain_file, vault_path, subject, title)
+            return write_and_sync_note(brain_file, vault_path, subject, title, entry, links, "a")
         else
             status, err = append_content(brain_file, subject, title, entry)
             if status == nil then
@@ -229,11 +265,7 @@ function take_note(brain_file, args)
             if note_exists(brain_file, subject, title) then
                 return nil, "Failed to update database"
             end
-            status, err = write_note(vault_path, subject, title, content, links, "w")
-            if status == nil then
-                return nil, err
-            end
-            return sync_note_from_vault(brain_file, vault_path, subject, title)
+            return write_and_sync_note(brain_file, vault_path, subject, title, content, links, "w")
         else
             status, err = insert_note(brain_file, subject, title, content)
             if status == nil then
@@ -393,11 +425,7 @@ function log_note(brain_file, args)
             write_content = timestamped_entry(content)
         end
 
-        status, err = write_note(vault_path, subject, title, write_content, links, write_mode)
-        if status == nil then
-            return nil, err
-        end
-        return sync_note_from_vault(brain_file, vault_path, subject, title)
+        return write_and_sync_note(brain_file, vault_path, subject, title, write_content, links, write_mode)
     end
 
     -- Insert or append content

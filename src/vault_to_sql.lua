@@ -406,7 +406,7 @@ function vault_to_sql(vault_path, brain_file)
 
                 -- Insert connections if any
                 if utils.length(links) > 0 then
-                    insert_connections = "INSERT INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
+                    insert_connections = "INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
 
                     for _, link in pairs(links) do
                         link_subject = ""

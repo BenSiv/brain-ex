@@ -150,6 +150,34 @@ teardown() {
     [ "$FIRST_LINE" = "Initial line" ]
 }
 
+@test "add with --update flag tolerates a link the note already contains" {
+    run brex note add --title "linked-note" --content "See [[other-note]] for context" --subject "brain-ex"
+    [ "$status" -eq 0 ]
+
+    run brex note add --title "linked-note" --content "Still relevant: [[other-note]]" --subject "brain-ex" --update
+    [ "$status" -eq 0 ]
+
+    LINKCOUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_title='linked-note' AND source_subject='brain-ex' AND target_title='other-note';")
+    [ "$LINKCOUNT" -eq 1 ]
+    DB_CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='linked-note' AND subject='brain-ex';")
+    [[ "$DB_CONTENT" == *"Still relevant"* ]]
+}
+
+@test "add with --update flag leaves the file untouched when the database step fails" {
+    run brex note add --title "rollback-note" --content "Initial line" --subject "brain-ex"
+    [ "$status" -eq 0 ]
+    BEFORE=$(cat tmp_vault/brain-ex/rollback-note.md)
+
+    # A trigger that rejects every connection insert makes the sync fail
+    # after the file has been appended to.
+    sqlite3 tmp_vault.db "CREATE TRIGGER reject_links BEFORE INSERT ON connections BEGIN SELECT RAISE(ABORT, 'rejected'); END;"
+    run brex note add --title "rollback-note" --content "Appended [[x]]" --subject "brain-ex" --update
+    [ "$status" -ne 0 ]
+
+    AFTER=$(cat tmp_vault/brain-ex/rollback-note.md)
+    [ "$BEFORE" = "$AFTER" ]
+}
+
 
 @test "note last shows most recent notes" {
     brex note add --title "old-note" --content "Old content" --subject "test"
