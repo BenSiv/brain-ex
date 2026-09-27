@@ -4,7 +4,7 @@ bridge = {}
 task = require("task")
 note = require("note")
 sql = require("sql")
-database = require("database")
+database = require("database_adapter")
 local_query = database.sqlite_query
 
 function normalize_rows(rows, columns)
