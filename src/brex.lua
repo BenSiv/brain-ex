@@ -7,6 +7,17 @@ argparse = require("argparse")
 paths = require("paths")
 dates = require("dates")
 
+-- One SQLite connection per brex process instead of one per query: the
+-- brain may live on a slow filesystem where each open costs seconds.
+-- Statements still autocommit, so the open connection holds no lock
+-- between queries. exit_brex closes it so the last close checkpoints WAL.
+database.sqlite_keep_open(true)
+
+function exit_brex(code)
+    database.sqlite_close_all()
+    os.exit(code)
+end
+
 if package.preload["bx_utils"] == nil then
     package.path = "src/?.lua;" .. package.path
 end
@@ -84,7 +95,7 @@ function main()
         
         if command == "init" or command == "brain" then
              print("Error: '" .. command .. "' command does not accept a positional brain name.")
-             os.exit(1)
+             exit_brex(1)
         end
     end
 
@@ -137,7 +148,7 @@ function main()
         status = func(cmd_args)
         arg[0] = old_arg0
         if status  !=  "success" then
-            os.exit(1)
+            exit_brex(1)
         end
         return
     end
@@ -146,7 +157,7 @@ function main()
         status = func(cmd_args)
         arg[0] = old_arg0
         if status  !=  "success" then
-            os.exit(1)
+            exit_brex(1)
         end
         return
     end
@@ -164,7 +175,7 @@ function main()
         status = func(brain_file, cmd_args)
         arg[0] = old_arg0
         if status != "success" then
-            os.exit(1)
+            exit_brex(1)
         end
         return
     end
@@ -179,13 +190,13 @@ function main()
                     msg = sync_err
                 end
                 print(msg)
-                os.exit(1)
+                exit_brex(1)
             end
         end
         status = func(brain_file, cmd_args)
         arg[0] = old_arg0
         if status  !=  "success" then
-            os.exit(1)
+            exit_brex(1)
         end
     else
         if target_brain  !=  nil then
@@ -193,7 +204,7 @@ function main()
         else
             print("Error: Default brain not configured.")
         end
-        os.exit(1)
+        exit_brex(1)
     end
 
     if is_git() then
@@ -222,3 +233,4 @@ end
 
 -- run program
 main()
+database.sqlite_close_all()
