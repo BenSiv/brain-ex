@@ -488,6 +488,58 @@ function add_task(brain_file, args)
     return persist_task(brain_file, item_id)
 end
 
+-- Counts over the already-filtered task rows from list_tasks.
+function print_task_summary(rows)
+    quadrant_counts = {0, 0, 0, 0}
+    overdue = 0
+    due_week = 0
+    undated = 0
+    subject_counts = {}
+    subject_names = {}
+    for _, task_row in ipairs(rows) do
+        quadrant_counts[task_row.quadrant] = quadrant_counts[task_row.quadrant] + 1
+        days_left = tonumber(task_row.days_left)
+        if task_row.due_to == nil or task_row.due_to == "" then
+            undated = undated + 1
+        elseif task_row.overdue == 1 or task_row.overdue == "1" then
+            overdue = overdue + 1
+        elseif days_left != nil and days_left <= 7 then
+            due_week = due_week + 1
+        end
+        subj = task_row.subject
+        if subj == nil or subj == "" then
+            subj = "(none)"
+        end
+        if subject_counts[subj] == nil then
+            subject_counts[subj] = 0
+            table.insert(subject_names, subj)
+        end
+        subject_counts[subj] = subject_counts[subj] + 1
+    end
+
+    print("Open tasks: " .. #rows)
+    labels = {"important, urgent", "important", "urgent", "neither"}
+    for q = 1, 4 do
+        print(string.format("  Q%d  %4d  %s", q, quadrant_counts[q], labels[q]))
+    end
+    print(string.format("Overdue:           %d", overdue))
+    print(string.format("Due within 7 days: %d", due_week))
+    print(string.format("No due date:       %d", undated))
+
+    if #subject_names > 0 then
+        table.sort(subject_names, function(a, b)
+            if subject_counts[a] != subject_counts[b] then
+                return subject_counts[a] > subject_counts[b]
+            end
+            return a < b
+        end)
+        print("By subject:")
+        for _, subj in ipairs(subject_names) do
+            print(string.format("  %4d  %s", subject_counts[subj], subj))
+        end
+    end
+end
+
 function list_tasks(brain_file, args)
     ensure_schema(brain_file)
     tasks_empty = bx_utils.is_sqlite_empty(brain_file, "tasks")
@@ -519,6 +571,19 @@ function list_tasks(brain_file, args)
         end
     end
 
+    -- "1", "Q2" or a list like "q1,q3"
+    quadrants = nil
+    if args["quadrant"] != nil then
+        quadrants = {}
+        for part in string.gmatch(args["quadrant"], "[^,]+") do
+            digit = string.match(part, "^%s*[Qq]?([1-4])%s*$")
+            if digit == nil then
+                return nil, "Quadrant must be 1-4 or Q1-Q4, optionally comma separated"
+            end
+            quadrants[tonumber(digit)] = true
+        end
+    end
+
     query = """
     SELECT
         notes.id AS id,
@@ -545,7 +610,8 @@ function list_tasks(brain_file, args)
                 END
             END,
             1
-        ) AS active_urgency
+        ) AS active_urgency,
+        julianday(tasks.due_to) - julianday('now', 'localtime') AS days_left
     FROM notes
     JOIN tasks ON tasks.item_id = notes.id
     WHERE tasks.done IS NULL
@@ -580,7 +646,44 @@ function list_tasks(brain_file, args)
     """
 
     result = database.sqlite_query(brain_file, query)
-    if result  !=  nil and utils.length(result) > 0 then
+    if result == nil then
+        result = {}
+    end
+
+    -- quadrant per row, then the --quadrant filter
+    rows = {}
+    for _, task_row in ipairs(result) do
+        imp = 1
+        if tonumber(task_row.importance) != nil then
+            imp = tonumber(task_row.importance)
+        end
+        urg = 1
+        if tonumber(task_row.active_urgency) != nil then
+            urg = tonumber(task_row.active_urgency)
+        end
+        quadrant = 4
+        if imp >= 4 and urg >= 4 then
+            quadrant = 1
+        elseif imp >= 4 and urg < 4 then
+            quadrant = 2
+        elseif imp < 4 and urg >= 4 then
+            quadrant = 3
+        end
+        task_row.imp = imp
+        task_row.urg = urg
+        task_row.quadrant = quadrant
+        if quadrants == nil or quadrants[quadrant] == true then
+            table.insert(rows, task_row)
+        end
+    end
+    result = rows
+
+    if args["summary"] == true then
+        print_task_summary(result)
+        return true
+    end
+
+    if utils.length(result) > 0 then
         -- Load settings
         settings = config.load_settings()
 
@@ -656,27 +759,10 @@ function list_tasks(brain_file, args)
         end
 
         for _, task_row in ipairs(result) do
-            imp = 1
-            if tonumber(task_row.importance) != nil then
-                imp = tonumber(task_row.importance)
-            end
-            urg = 1
-            if tonumber(task_row.active_urgency) != nil then
-                urg = tonumber(task_row.active_urgency)
-            end
-
-            quadrant = 4
-            color_code = colors.Q4
-            if imp >= 4 and urg >= 4 then
-                quadrant = 1
-                color_code = colors.Q1
-            elseif imp >= 4 and urg < 4 then
-                quadrant = 2
-                color_code = colors.Q2
-            elseif imp < 4 and urg >= 4 then
-                quadrant = 3
-                color_code = colors.Q3
-            end
+            imp = task_row.imp
+            urg = task_row.urg
+            quadrant = task_row.quadrant
+            color_code = colors["Q" .. quadrant]
 
             reset_code = colors.reset
             priority_text = "Q" .. quadrant .. " (I:" .. imp .. " U:" .. urg .. ")"
@@ -958,6 +1044,8 @@ function do_task(brain_file, cmd_args)
         -o --owner arg string false
         -p --importance arg string false
         -u --urgency arg string false
+        -q --quadrant arg string false
+        -m --summary flag boolean false
     """
 
     help_string = help.get_help_string(arg[0])

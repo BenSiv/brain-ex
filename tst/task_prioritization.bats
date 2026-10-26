@@ -155,3 +155,56 @@ EOF
     [ "$status" -ne 0 ]
     [[ "$output" =~ "Urgency must be an integer between 1 and 5" ]]
 }
+
+@test "prioritization: list --quadrant filters by quadrant" {
+    brex tmp_vault task add --title "Task Q1" --subject "work" --importance 5 --urgency 5
+    brex tmp_vault task add --title "Task Q2" --subject "work" --importance 5 --urgency 1
+    brex tmp_vault task add --title "Task Q3" --subject "home" --importance 1 --urgency 5
+    brex tmp_vault task add --title "Task Q4" --subject "home" --importance 1 --urgency 1
+
+    run brex tmp_vault task list --quadrant "Q2"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Task Q2" ]]
+    [[ ! "$output" =~ "Task Q1" ]]
+    [[ ! "$output" =~ "Task Q3" ]]
+    [[ ! "$output" =~ "Task Q4" ]]
+
+    run brex tmp_vault task list --quadrant "1,q3"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Task Q1" ]]
+    [[ "$output" =~ "Task Q3" ]]
+    [[ ! "$output" =~ "Task Q2" ]]
+    [[ ! "$output" =~ "Task Q4" ]]
+
+    run brex tmp_vault task list --quadrant "Q4" --subject "work"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "No pending tasks" ]]
+}
+
+@test "prioritization: list --quadrant rejects invalid values" {
+    brex tmp_vault task add --title "Some task"
+    run brex tmp_vault task list --quadrant "Q5"
+    [ "$status" -ne 0 ]
+    [[ "$output" =~ "Quadrant must be 1-4 or Q1-Q4" ]]
+}
+
+@test "prioritization: list --summary prints counts instead of tasks" {
+    brex tmp_vault task add --title "Task Q1" --subject "work" --importance 5 --urgency 5
+    brex tmp_vault task add --title "Task Q2" --subject "work" --importance 5 --urgency 1
+    brex tmp_vault task add --title "Overdue Q4" --subject "home" --importance 1 --urgency 1 --due_to "2025-01-01"
+
+    run brex tmp_vault task list --summary
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Open tasks: 3" ]]
+    [[ "$output" =~ "Q1     1" ]]
+    [[ "$output" =~ "Q2     1" ]]
+    [[ "$output" =~ "Overdue:           1" ]]
+    [[ "$output" =~ "No due date:       2" ]]
+    [[ "$output" =~ "2  work" ]]
+    [[ ! "$output" =~ "Task Q1" ]]
+
+    run brex tmp_vault task list --summary --subject "work"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Open tasks: 2" ]]
+    [[ ! "$output" =~ "home" ]]
+}

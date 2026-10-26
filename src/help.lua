@@ -203,12 +203,19 @@ Optional:
 -s --subject <subject> Filter tasks by subject.
 -e --due_to <due_to>   Show only tasks due on or before this date.
 -o --owner <owner>     Filter tasks by owner, for example "agent".
+-q --quadrant <Q>      Filter by priority quadrant: 1-4 or Q1-Q4, comma
+                       separated for several (e.g. "1,2").
+-m --summary           Print counts (per quadrant, overdue, due within
+                       7 days, undated, per subject) instead of the list.
+                       Respects the other filters.
 
 Example:
 brex task list
 brex task list --subject "work"
 brex task list --due_to "2024-12-31"
 brex task list --owner "agent"
+brex task list --quadrant "Q1,Q2"
+brex task list --summary --subject "work"
         """,
         ["brex task done"] = """
 Description:
