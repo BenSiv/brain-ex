@@ -131,14 +131,18 @@ teardown() {
     [ -z "$DUE_TO" ]
 }
 
-@test "task list with --due_to shows only tasks after date" {
+@test "task list with --due_to shows only tasks due on or before date" {
     brex task add --title "Early task" --due_to "2025-01-15"
+    brex task add --title "Same day task" --due_to "2025-06-01 15:00"
     brex task add --title "Late task" --due_to "2025-12-31"
+    brex task add --title "Undated task"
 
     run brex task list --due_to "2025-06-01"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Late task" ]]
-    [[ ! "$output" =~ "Early task" ]]
+    [[ "$output" =~ "Early task" ]]
+    [[ "$output" =~ "Same day task" ]]
+    [[ ! "$output" =~ "Late task" ]]
+    [[ ! "$output" =~ "Undated task" ]]
 }
 
 @test "tasks markdown edits are synchronized before the next task command" {

@@ -513,6 +513,10 @@ function list_tasks(brain_file, args)
         if due_to == nil then
             return nil, "Due To must conform to time-stamp format yyyy-mm-dd HH:MM:SS or a part of it"
         end
+        -- a bare date means "due by the end of that day"
+        if #args["due_to"] == 10 then
+            due_to = string.sub(due_to, 1, 10) .. " 23:59:59"
+        end
     end
 
     query = """
@@ -556,7 +560,7 @@ function list_tasks(brain_file, args)
     end
 
     if due_to  !=  nil then
-        query = query .. string.format(" AND tasks.due_to > '%s'", due_to)
+        query = query .. string.format(" AND tasks.due_to <= '%s'", due_to)
     end
 
     query = query .. """

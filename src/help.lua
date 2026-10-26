@@ -201,7 +201,7 @@ Lists all tasks that are not done yet. Only shows the title -- use
 
 Optional:
 -s --subject <subject> Filter tasks by subject.
--e --due_to <due_to>   Filter tasks by due date.
+-e --due_to <due_to>   Show only tasks due on or before this date.
 -o --owner <owner>     Filter tasks by owner, for example "agent".
 
 Example:
