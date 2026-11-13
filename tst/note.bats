@@ -268,3 +268,31 @@ teardown() {
     CONTENT=$(sqlite3 tmp_vault.db "SELECT content FROM notes WHERE title='sync-test' AND subject='work';")
     [[ "$CONTENT" =~ "Edited from vault" ]]
 }
+
+@test "note connect handles slashes, parentheses, and commas in target titles" {
+    run brex note add --title "source-note" --content "Source body" --subject "daat"
+    [ "$status" -eq 0 ]
+
+    run brex note connect --subject "daat" --title "source-note" --links "celleste-lims/Merge/archive duplicate documents (same title, same folder) in prod"
+    [ "$status" -eq 0 ]
+
+    LINKCOUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_subject='daat' AND source_title='source-note' AND target_subject='celleste-lims' AND target_title='Merge/archive duplicate documents (same title, same folder) in prod';")
+    [ "$LINKCOUNT" -eq 1 ]
+
+    # Subsequent write commands must also synchronize cleanly
+    run brex note add --title "source-note" --content "Follow-up" --subject "daat" --update
+    [ "$status" -eq 0 ]
+}
+
+@test "note connect rolls back file when database sync fails" {
+    run brex note add --title "connect-rollback" --content "Initial body" --subject "daat"
+    [ "$status" -eq 0 ]
+    BEFORE=$(cat tmp_vault/daat/connect-rollback.md)
+
+    sqlite3 tmp_vault.db "CREATE TRIGGER reject_connect BEFORE INSERT ON connections BEGIN SELECT RAISE(ABORT, 'rejected'); END;"
+    run brex note connect --subject "daat" --title "connect-rollback" --links "other/target"
+    [ "$status" -ne 0 ]
+
+    AFTER=$(cat tmp_vault/daat/connect-rollback.md)
+    [ "$BEFORE" = "$AFTER" ]
+}

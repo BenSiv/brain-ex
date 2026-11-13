@@ -477,6 +477,13 @@ function do_note_connect(brain_file, args)
     if vault_path != nil then
         note_dir, note_path = get_note_paths(vault_path, subject, title)
 
+        previous = nil
+        existing_file = io.open(note_path, "r")
+        if existing_file != nil then
+            previous = io.read(existing_file, "*all")
+            io.close(existing_file)
+        end
+
         -- Ensure directory exists
         if lfs.attributes(note_dir, "mode") == nil then
             lfs.mkdir(note_dir)
@@ -495,10 +502,28 @@ function do_note_connect(brain_file, args)
             io.write(note_file, table.concat(obsidian_links, " ") .. "\n")
             io.close(note_file)
         else
-            print("Failed to open note file: " .. note_path)
+            return nil, "Failed to open note file: " .. note_path
         end
 
-        return sync_note_from_vault(brain_file, vault_path, subject, title)
+        status, err = sync_note_from_vault(brain_file, vault_path, subject, title)
+        if status != nil then
+            return status
+        end
+
+        if previous == nil then
+            os.remove(note_path)
+        else
+            restore_file = io.open(note_path, "w")
+            if restore_file != nil then
+                io.write(restore_file, previous)
+                io.close(restore_file)
+                sync_note_from_vault(brain_file, vault_path, subject, title)
+            end
+        end
+        if err == nil then
+            err = "Failed to update database"
+        end
+        return nil, err .. " (note file left unchanged)"
     end
 
     status, err = connect_notes(brain_file, title, subject, links)
