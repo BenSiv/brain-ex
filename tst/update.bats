@@ -226,3 +226,24 @@ EOF
     MSG_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM agent_messages WHERE session_id='session-123' AND content='Hello';")
     [ "$MSG_COUNT" -eq 1 ]
 }
+
+@test "update tolerates Lua pattern magic characters and unbalanced parens inside wiki links" {
+    mkdir -p tmp_vault/daat
+    cat <<EOF > "tmp_vault/daat/magic-links.md"
+---
+title: "magic-links"
+---
+Body before links
+[[same folder) in prod]]
+[[daat/item-1.0+beta? (a*b)]]
+EOF
+
+    run $BREX update
+    [ "$status" -eq 0 ]
+
+    LINK1=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_subject='daat' AND source_title='magic-links' AND target_subject='' AND target_title='same folder) in prod';")
+    [ "$LINK1" -eq 1 ]
+
+    LINK2=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM connections WHERE source_subject='daat' AND source_title='magic-links' AND target_subject='daat' AND target_title='item-1.0+beta? (a*b)';")
+    [ "$LINK2" -eq 1 ]
+}

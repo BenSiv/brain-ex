@@ -9,20 +9,61 @@ lfs = require("lfs")
 bx_utils = require("bx_utils")
 strip = bx_utils.strip
 
--- parse links string like "daily/note1,backend/note2,note3"
+function escape_lua_pattern(s)
+    if s == nil then
+        return ""
+    end
+    escaped = string.gsub(s, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+    return escaped
+end
+
+function parse_single_link(raw_link)
+    if raw_link == nil then
+        return nil
+    end
+    raw_link = strip(raw_link)
+    if raw_link == "" then
+        return nil
+    end
+    slash_pos = string.find(raw_link, "/", 1, true)
+    if slash_pos != nil then
+        return {
+            subject = string.sub(raw_link, 1, slash_pos - 1),
+            title = string.sub(raw_link, slash_pos + 1)
+        }
+    end
+    return {subject = "", title = raw_link}
+end
+
+-- parse links string like "daily/note1,backend/note2,note3", keeping commas
+-- inside parentheses intact so titles like "Merge/archive (a, b)" stay whole
 function parse_links_str(links_str)
     if links_str == nil or links_str == "" then
         return {}
     end
 
     links = {}
-    for raw_link in string.gmatch(links_str, "[^,]+") do
-        raw_link = strip(raw_link)  -- remove extra spaces
-        parts = split(raw_link, "/")
-        if #parts == 2 then
-            table.insert(links, {subject=parts[1], title=parts[2]})
-        else
-            table.insert(links, {subject="", title=parts[1]})
+    depth = 0
+    chunk_start = 1
+    len = string.len(links_str)
+    for i = 1, len do
+        ch = string.sub(links_str, i, i)
+        if ch == "(" or ch == "[" then
+            depth = depth + 1
+        elseif (ch == ")" or ch == "]") and depth > 0 then
+            depth = depth - 1
+        elseif ch == "," and depth == 0 then
+            parsed = parse_single_link(string.sub(links_str, chunk_start, i - 1))
+            if parsed != nil then
+                table.insert(links, parsed)
+            end
+            chunk_start = i + 1
+        end
+    end
+    if chunk_start <= len then
+        parsed = parse_single_link(string.sub(links_str, chunk_start, len))
+        if parsed != nil then
+            table.insert(links, parsed)
         end
     end
     return links
@@ -102,7 +143,7 @@ function remove_link(input_line, link)
     if input_line == nil or input_line == "" then
         return ""
     end
-    link_pattern = "%[%[" .. link .. "%]%]"
+    link_pattern = "%[%[" .. escape_lua_pattern(link) .. "%]%]"
     output_line = utils.replace(input_line, link_pattern, "")
     if utils.match(output_line, "^%s*$") != nil then
     	output_line = ""
@@ -117,9 +158,9 @@ function extract_links(line, link_found)
     processed_line = line
 
     for raw_link in utils.match_all(line, "%[%[(.-)%]%]") do
-        parsed_links = parse_links_str(raw_link)
-        for _, link in ipairs(parsed_links) do
-            table.insert(link_found, link)
+        parsed_link = parse_single_link(raw_link)
+        if parsed_link != nil then
+            table.insert(link_found, parsed_link)
         end
         processed_line = remove_link(processed_line, raw_link)
     end
