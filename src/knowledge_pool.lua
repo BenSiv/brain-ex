@@ -216,11 +216,11 @@ function knowledge_pool.record_interaction(brain_file, source_type, source_id, i
         end
     end
 
-    new_status = 'cold'
+    new_status = "cold"
     if total_weight > 10 then
-        new_status = 'hot'
+        new_status = "hot"
     elseif total_weight > 3 then
-        new_status = 'warm'
+        new_status = "warm"
     end
 
     update_status = string.format("UPDATE knowledge_pool SET weight = %f, status = '%s' WHERE source_type='%s' AND source_id='%s';",

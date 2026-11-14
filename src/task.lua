@@ -689,11 +689,11 @@ function list_tasks(brain_file, args)
 
         -- Resolve colors
         defaults = {
-            Q1 = "\027[31m",
-            Q2 = "\027[38;5;208m",
-            Q3 = "\027[33m",
-            Q4 = "\027[90m",
-            reset = "\027[0m"
+            Q1 = "\x1B[31m",
+            Q2 = "\x1B[38;5;208m",
+            Q3 = "\x1B[33m",
+            Q4 = "\x1B[90m",
+            reset = "\x1B[0m"
         }
         user_colors = settings.colors
         if user_colors == nil then

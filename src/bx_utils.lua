@@ -147,7 +147,7 @@ function parse_frontmatter(content)
                 if k != nil and v != nil then
                     k = strip(k)
                     v = strip(v)
-                    if string.sub(v, 1, 1) == '"' and string.sub(v, -1) == '"' then
+                    if string.sub(v, 1, 1) == "\"" and string.sub(v, -1) == "\"" then
                         v = string.sub(v, 2, -2)
                     elseif string.sub(v, 1, 1) == "'" and string.sub(v, -1) == "'" then
                         v = string.sub(v, 2, -2)

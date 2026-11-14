@@ -91,11 +91,11 @@ function update_config_file(home_dir, updates)
             json_template = """{
   "task_columns": ["id", "priority", "subject", "title", "due_to"],
   "colors": {
-    "Q1": "\u001b[31m",
-    "Q2": "\u001b[38;5;208m",
-    "Q3": "\u001b[33m",
-    "Q4": "\u001b[90m",
-    "reset": "\u001b[0m"
+    "Q1": "\\u001b[31m",
+    "Q2": "\\u001b[38;5;208m",
+    "Q3": "\\u001b[33m",
+    "Q4": "\\u001b[90m",
+    "reset": "\\u001b[0m"
   }
 }
 """

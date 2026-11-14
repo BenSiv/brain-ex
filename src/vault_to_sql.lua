@@ -94,10 +94,10 @@ function filter_directories(dir_path, dir_content)
     directories = {}
 
     for _, entry in pairs(dir_content) do
-        entry_path = dir_path .. '/' .. entry
+        entry_path = dir_path .. "/" .. entry
         attr = lfs.attributes(entry_path)
         if attr != nil and attr.mode == "directory" then
-            if string.sub(entry, 1, 1) != '.' then
+            if string.sub(entry, 1, 1) != "." then
                 table.insert(directories, entry)
             end
         end
@@ -174,7 +174,7 @@ function clean_content(content)
         return ""
     end
     cleaned_content = string.gsub(content, "'", "")
-    cleaned_content = string.gsub(cleaned_content, '"', "")
+    cleaned_content = string.gsub(cleaned_content, "\"", "")
     return cleaned_content
 end
 

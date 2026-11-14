@@ -479,7 +479,11 @@ brex knowledge promote 42 --tier 3
         """
     }
 
-    return help_strings[command]
+    s = help_strings[command]
+    if s == nil then
+        return nil
+    end
+    return string.dedent(s)
 end
 help.get_help_string = get_help_string
 
