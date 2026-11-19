@@ -3,6 +3,6 @@ return {
     bin = "brex",
     entry = "brex.lua",
     luam = "8c9bb857dd0b8c22b9f0dfad674130e0958ec240",
-    with = {"sqlite3", "lfs", "yaml"},
+    with = {"sqlite3", "lfs", "yaml", "hmac"},
     always_include = {"agent_providers", "agents"},
 }

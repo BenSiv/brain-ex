@@ -15,8 +15,36 @@ help = require("help")
 bx_utils = require("bx_utils")
 prettyprint = require("prettyprint")
 
+const paths = require("paths")
+
+function has_column(brain_file, table_name, col_name)
+    cols = database.query(brain_file, "PRAGMA table_info(" .. table_name .. ");")
+    if cols == nil then
+        return false
+    end
+    for _, col in pairs(cols) do
+        if col["name"] == col_name or col[2] == col_name then
+            return true
+        end
+    end
+    return false
+end
+
 function insert_note(brain_file, subject, title, content)
-    insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES (" .. db.quote(subject) .. ", " .. db.quote(title) .. ", " .. db.quote(content) .. ");"
+    body_text = content
+    if body_text == nil then
+        body_text = ""
+    end
+    insert_statement = nil
+    if has_column(brain_file, "notes", "id") and has_column(brain_file, "notes", "size") then
+        note_id = bx_utils.generate_id("notes", nil, nil, brain_file)
+        insert_statement = string.format(
+            "INSERT INTO notes ('id', 'subject', 'title', 'content', 'size') VALUES (%s, %s, %s, %s, %d);",
+            db.quote(note_id), db.quote(subject), db.quote(title), db.quote(body_text), string.len(body_text)
+        )
+    else
+        insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES (" .. db.quote(subject) .. ", " .. db.quote(title) .. ", " .. db.quote(body_text) .. ");"
+    end
     status = database.exec(brain_file, insert_statement)
     if status == nil then
         return nil, "Failed to update database"
@@ -50,7 +78,15 @@ function append_content(brain_file, subject, title, content)
     end
     new_content = old_content .. "\n" .. content
 
-    update_statement = string.format("UPDATE notes SET content=%s WHERE title=%s AND subject=%s;", db.quote(new_content), db.quote(title), db.quote(subject))
+    update_statement = nil
+    if has_column(brain_file, "notes", "size") then
+        update_statement = string.format(
+            "UPDATE notes SET content=%s, size=%d, time=datetime('now', 'localtime') WHERE title=%s AND subject=%s;",
+            db.quote(new_content), string.len(new_content), db.quote(title), db.quote(subject)
+        )
+    else
+        update_statement = string.format("UPDATE notes SET content=%s WHERE title=%s AND subject=%s;", db.quote(new_content), db.quote(title), db.quote(subject))
+    end
 
     status = database.exec(brain_file, update_statement)
     if status == nil then
@@ -294,12 +330,93 @@ function edit_note(brain_file, args)
     vault_path = get_vault_path()
 
 	if title == "" then
-	    -- edit last log note?
-    	-- subject = "log"
-    	-- iso_local = os.date("%Y-%m-%d %H:%M:%S")
-        -- title = replace(iso_local, " ", "_")
         return nil, "Must provide title of note to edit"
 	end
+
+    if vault_path == nil or vault_path == "" then
+        if editor == nil or editor == "" then
+            editor = "nano"
+        end
+        existing_rows = database.query(
+            brain_file,
+            string.format("SELECT content FROM notes WHERE title=%s AND subject=%s;", db.quote(title), db.quote(subject))
+        )
+        initial_content = ""
+        existed = false
+        if existing_rows != nil and #existing_rows > 0 then
+            existed = true
+            if existing_rows[1][1] != nil then
+                initial_content = existing_rows[1][1]
+            end
+            if existing_rows[1].content != nil then
+                initial_content = existing_rows[1].content
+            end
+        end
+
+        tmp_path = os.tmpname() .. ".md"
+        if not paths.write_file(tmp_path, initial_content) then
+            return nil, "Could not create temporary file: " .. tmp_path
+        end
+
+        edit_ok = os.execute(string.format("'%s' '%s'", editor, tmp_path))
+        if edit_ok == nil or edit_ok == false then
+            os.remove(tmp_path)
+            return nil, "Failed to open editor"
+        end
+
+        edited_body = paths.read_file(tmp_path)
+        os.remove(tmp_path)
+        if edited_body == nil then
+            edited_body = ""
+        end
+
+        if existed then
+            upd_sql = nil
+            if has_column(brain_file, "notes", "size") then
+                upd_sql = string.format(
+                    "UPDATE notes SET content=%s, size=%d, time=datetime('now', 'localtime') WHERE title=%s AND subject=%s;",
+                    db.quote(edited_body), string.len(edited_body), db.quote(title), db.quote(subject)
+                )
+            else
+                upd_sql = string.format(
+                    "UPDATE notes SET content=%s WHERE title=%s AND subject=%s;",
+                    db.quote(edited_body), db.quote(title), db.quote(subject)
+                )
+            end
+            if database.exec(brain_file, upd_sql) == nil then
+                return nil, "Failed to edit note in brain file"
+            end
+        else
+            ok_ins, ins_err = insert_note(brain_file, subject, title, edited_body)
+            if ok_ins == nil then
+                return nil, ins_err
+            end
+        end
+
+        database.exec(
+            brain_file,
+            string.format("DELETE FROM connections WHERE source_title=%s AND source_subject=%s;", db.quote(title), db.quote(subject))
+        )
+        extracted_links = {}
+        for raw_link in string.gmatch(edited_body, "%[%[([^%[%]\n]+)%]%]") do
+            trimmed_link = string.trim(raw_link)
+            if trimmed_link != "" then
+                slash_idx = string.find(trimmed_link, "/", 1, true)
+                if slash_idx != nil then
+                    table.insert(extracted_links, {
+                        subject = string.sub(trimmed_link, 1, slash_idx - 1),
+                        title = string.sub(trimmed_link, slash_idx + 1)
+                    })
+                else
+                    table.insert(extracted_links, {subject = "", title = trimmed_link})
+                end
+            end
+        end
+        if #extracted_links > 0 then
+            connect_notes(brain_file, title, subject, extracted_links)
+        end
+        return true
+    end
 	
     _, note_path = get_note_paths(vault_path, subject, title)
     

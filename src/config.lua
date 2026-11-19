@@ -79,6 +79,8 @@ function save_config_file(path, conf)
     if conf.embedding_provider != nil then io.write(file, "embedding_provider: " .. conf.embedding_provider .. "\n") end
     if conf.embedding_model != nil then io.write(file, "embedding_model: " .. conf.embedding_model .. "\n") end
     if conf.embedding_command != nil then io.write(file, "embedding_command: " .. conf.embedding_command .. "\n") end
+    if conf.daat_url != nil then io.write(file, "daat_url: " .. conf.daat_url .. "\n") end
+    if conf.daat_api_key_file != nil then io.write(file, "daat_api_key_file: " .. conf.daat_api_key_file .. "\n") end
 
     if conf.brains  !=  nil then
         io.write(file, "brains:\n")
@@ -193,6 +195,54 @@ function config.get_embedding_command()
         return nil
     end
     return cfg["embedding_command"]
+end
+
+function config.get_daat_url()
+    env_url = os.getenv("BREX_DAAT_URL")
+    if env_url != nil and env_url != "" then
+        return string.gsub(env_url, "/*$", "")
+    end
+    cfg = load_config()
+    if cfg == nil or cfg["daat_url"] == nil or cfg["daat_url"] == "" then
+        return nil
+    end
+    return string.gsub(tostring(cfg["daat_url"]), "/*$", "")
+end
+
+function config.get_daat_api_key()
+    env_key = os.getenv("BREX_DAAT_API_KEY")
+    if env_key != nil and env_key != "" then
+        return string.trim(env_key)
+    end
+    cfg = load_config()
+    if cfg == nil then
+        return nil
+    end
+    if cfg["daat_api_key"] != nil and cfg["daat_api_key"] != "" then
+        return string.trim(tostring(cfg["daat_api_key"]))
+    end
+    key_file = cfg["daat_api_key_file"]
+    if key_file == nil or key_file == "" then
+        return nil
+    end
+    if string.sub(key_file, 1, 2) == "~/" then
+        home_dir = os.getenv("HOME")
+        if home_dir != nil then
+            key_file = home_dir .. string.sub(key_file, 2)
+        end
+    end
+    if not paths.file_exists(key_file) then
+        return nil
+    end
+    raw_key = paths.read_file(key_file)
+    if raw_key == nil then
+        return nil
+    end
+    trimmed = string.trim(raw_key)
+    if trimmed == "" then
+        return nil
+    end
+    return trimmed
 end
 
 function config.reload()

@@ -10,6 +10,7 @@ brex init
 brex brain < list | use >
 brex [brain] note < add | edit | connect | last >
 brex [brain] task < add | list | done | delay | prioritize | show | last >
+brex [brain] sync [ --dry-run ]
 brex [brain] update < file >
 brex [brain] sql
 brex [brain] agent < view | ask | note | task | process_tasks >
@@ -21,6 +22,7 @@ brain     -> list configured brains
 note      -> log note add/edit
 task      -> add new task
 update    -> rebuild from vault
+sync      -> two-way incremental sync with daat deployment
 sql       -> sqlite shell
 agent     -> view log, or ask prompt
 knowledge -> search, process, and promote note knowledge
@@ -476,6 +478,18 @@ Optional:
 
 Examples:
 brex knowledge promote 42 --tier 3
+        """,
+        ["brex sync"] = """
+Description:
+Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment (/api/v1/document and /api/v1/task).
+
+Optional:
+-n --dry-run    Compute and report pending push/pull actions without mutating either side.
+-u --url <url>  Override daat_url for this invocation.
+
+Examples:
+brex sync
+brex sync --dry-run
         """
     }
 

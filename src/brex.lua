@@ -51,6 +51,8 @@ auto_update = git.auto_update
 agent = require("agent")
 do_agent = agent.do_agent
 sync = require("sync")
+daat_sync = require("daat_sync")
+do_daat_sync = daat_sync.do_sync
 
 -- is_read_only_command used before its own definition below --
 -- pre-declared, see ../../luam/doc/forward_references.md
@@ -68,7 +70,8 @@ function main()
         ["update"] = do_update,
         ["sql"] = do_sql,
         ["agent"] = do_agent,
-        ["knowledge"] = do_knowledge
+        ["knowledge"] = do_knowledge,
+        ["sync"] = do_daat_sync
     }
 
     arg[-1] = "lua" -- for the executable
@@ -180,7 +183,7 @@ function main()
 
     brain_file = get_brain_path(target_brain)
     if brain_file  !=  nil then
-        if command != "update" and not is_read_only_command(command, subcommand) then
+        if command != "update" and command != "sync" and not is_read_only_command(command, subcommand) then
             sync_status, sync_err = sync.refresh(brain_file)
             if sync_status == nil then
                 msg = "Failed to synchronize brain from vault."
