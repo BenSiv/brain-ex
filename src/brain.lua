@@ -1,7 +1,7 @@
 -- Define a module table
 brain = {}
 
-argparse = require("argparse")
+bx_utils = require("bx_utils")
 config = require("config")
 help = require("help")
 
@@ -88,14 +88,13 @@ function do_brain(cmd_args)
         subcommand = nil
     end
 
-    arg_string = """
-        -d --do arg string false
-        -n --name arg string false
-    """
+    flag_specs = {
+        {short = "d", long = "do", kind = "string"},
+        {short = "n", long = "name", kind = "string"},
+    }
 
     help_string = help.get_help_string(arg[0])
-    expected_args = argparse.def_args(arg_string)
-    args = argparse.parse_args(cmd_args, expected_args, help_string)
+    args = bx_utils.parse_cmd_args(cmd_args, flag_specs, help_string)
     if args == nil then
         return "success"
     end

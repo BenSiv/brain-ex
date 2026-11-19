@@ -1,17 +1,95 @@
 -- Define a module table
 bx_utils = {}
 
-database = require("database_adapter")
+const cli = require("cli")
+const database = require("database")
+const paths = require("paths")
+const yaml = require("yaml")
 config = require("config")
 get_brain_path = config.get_brain_path
 lfs = require("lfs")
+
+function length(containable)
+    if containable == nil then
+        return 0
+    end
+    if type(containable) == "string" then
+        return #containable
+    end
+    if type(containable) == "table" then
+        cnt = 0
+        for _, _ in pairs(containable) do
+            cnt = cnt + 1
+        end
+        return cnt
+    end
+    return 0
+end
+
+function isempty(source)
+    return source == nil or source == false or length(source) == 0
+end
+
+function readdir(dir_path)
+    entries = {}
+    if dir_path == nil or lfs.attributes(dir_path, "mode") != "directory" then
+        return entries
+    end
+    for entry in lfs.dir(dir_path) do
+        if entry != "." and entry != ".." then
+            table.insert(entries, entry)
+        end
+    end
+    table.sort(entries)
+    return entries
+end
+
+function read_yaml(path)
+    raw = paths.read_file(path)
+    if raw == nil or raw == "" then
+        return nil
+    end
+    ok, parsed = pcall(yaml.load, raw)
+    if not ok then
+        return nil
+    end
+    return parsed
+end
+
+function parse_cmd_args(cmd_args, flag_specs, help_string)
+    opts, pos, err = cli.parse_flags(cmd_args, flag_specs)
+    if err != nil then
+        print(err)
+        print("Usage: \t" .. tostring(cmd_args[0]))
+        if help_string != nil then
+            print(help_string)
+        end
+        return nil
+    end
+    if opts.help == true then
+        print("Usage: \t" .. tostring(cmd_args[0]))
+        if help_string != nil then
+            print(help_string)
+        end
+        return nil
+    end
+    if pos != nil and #pos > 0 then
+        print("Unknown argument: " .. tostring(pos[1]))
+        print("Usage: \t" .. tostring(cmd_args[0]))
+        if help_string != nil then
+            print(help_string)
+        end
+        return nil
+    end
+    return opts
+end
 
 function is_id_unique(table_name, target_id, brain_file)
     if brain_file == nil then
         brain_file = get_brain_path()
     end
-    query = string.format("SELECT COUNT(*) AS cnt FROM %s WHERE id = '%s';", table_name, target_id)
-    res = database.sqlite_query(brain_file, query)
+    query = string.format("SELECT COUNT(*) AS cnt FROM %s WHERE id = %s;", table_name, database.quote(target_id))
+    res = database.query(brain_file, query)
     if res == nil or #res == 0 then
         return true
     end
@@ -57,7 +135,7 @@ end
 
 function is_sqlite_empty(brain_file, table_name)
     query = "SELECT COUNT(*) AS cnt FROM " .. table_name .. ";"
-    res = database.sqlite_query(brain_file, query)
+    res = database.query(brain_file, query)
     if res == nil or #res == 0 then
         return true
     end
@@ -296,6 +374,11 @@ function serialize_session(session_meta, messages)
     return table.concat(sb, "\n")
 end
 
+bx_utils.length = length
+bx_utils.isempty = isempty
+bx_utils.readdir = readdir
+bx_utils.read_yaml = read_yaml
+bx_utils.parse_cmd_args = parse_cmd_args
 bx_utils.is_id_unique = is_id_unique
 bx_utils.generate_id = generate_id
 bx_utils.is_sqlite_empty = is_sqlite_empty

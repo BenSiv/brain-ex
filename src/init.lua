@@ -5,12 +5,11 @@ sql_schema = require("sql_schema")
 sql_init = sql_schema.sql_init
 init.sql_init = sql_init
 
-utils = require("utils")
-argparse = require("argparse")
-database = require("database_adapter")
+bx_utils = require("bx_utils")
+database = require("database")
 knowledge_pool = require("knowledge_pool")
-local_update = database.sqlite_update
-local_query = database.sqlite_query
+local_update = database.exec
+local_query = database.query
 lfs = require("lfs")
 vault_to_sql = require("vault_to_sql").vault_to_sql
 get_help_string = require("help").get_help_string
@@ -63,7 +62,7 @@ function update_config_file(home_dir, updates)
     f = io.open(config_file, "r")
     if f  !=  nil then
         io.close(f)
-        current_conf = utils.read_yaml(config_file)
+        current_conf = bx_utils.read_yaml(config_file)
         if current_conf == nil then
             current_conf = {}
         end
@@ -149,7 +148,7 @@ function init_bx(args)
     os.remove(brain_path)
 
     -- create database and tables
-    success = database.sqlite_update(brain_path, sql_init)
+    success = database.exec(brain_path, sql_init)
     knowledge_pool.ensure_table(brain_path)
 	if success == nil then
 		return nil, "Failed to initialize database"
@@ -195,7 +194,7 @@ function init_bx_with_vault(args)
     os.remove(brain_path)
     
     -- create database and tables
-    success = database.sqlite_update(brain_path, sql_init)
+    success = database.exec(brain_path, sql_init)
     knowledge_pool.ensure_table(brain_path)
 	if success == nil then
 		return nil, "Failed to initialize database"
@@ -258,16 +257,15 @@ function init_bx_with_vault(args)
 end
 
 function do_init(cmd_args)
-    arg_string = """
-        -n --name arg string false
-        -v --vault arg string false
-        -e --editor arg string false
-        -g --git flag string false
-    """
+    flag_specs = {
+        {short = "n", long = "name", kind = "string"},
+        {short = "v", long = "vault", kind = "string"},
+        {short = "e", long = "editor", kind = "string"},
+        {short = "g", long = "git", kind = "boolean"},
+    }
 
     help_string = get_help_string(arg[0])
-    expected_args = argparse.def_args(arg_string)
-    args = argparse.parse_args(cmd_args, expected_args, help_string)
+    args = bx_utils.parse_cmd_args(cmd_args, flag_specs, help_string)
     if args == nil then
         return "success"
     end

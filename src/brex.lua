@@ -1,9 +1,7 @@
 
-utils = require("utils")
-starts_with = utils.starts_with
-database = require("database_adapter")
+starts_with = string.starts_with
+database = require("database")
 prettyprint = require("prettyprint")
-argparse = require("argparse")
 paths = require("paths")
 dates = require("dates")
 
@@ -47,8 +45,8 @@ do_sql = sql.do_sql
 brain = require("brain")
 do_brain = brain.do_brain
 
-bx_git = require("bx_git")
-auto_update = bx_git.auto_update
+git = require("vault_git")
+auto_update = git.auto_update
 
 agent = require("agent")
 do_agent = agent.do_agent
@@ -208,7 +206,7 @@ function main()
     end
 
     if is_git() then
-        bx_git.auto_update()
+        git.auto_update()
     end
 end
 

@@ -1,17 +1,15 @@
 -- Define a module table
 update = {}
 
-utils = require("utils")
-argparse = require("argparse")
 config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
 lfs = require("lfs")
-database = require("database_adapter")
-db = require("database")
+database = require("database")
+db = database
 knowledge_pool = require("knowledge_pool")
-local_update = database.sqlite_update
-local_query = database.sqlite_query
+local_update = database.exec
+local_query = database.query
 vault_to_sql = require("vault_to_sql").vault_to_sql
 process_content = require("vault_to_sql").process_content
 sql_init = require("sql_schema").sql_init
@@ -106,7 +104,7 @@ function compute_vault_fingerprint(vault_path)
 end
 
 function get_stored_vault_fingerprint(brain_file)
-    rows = database.sqlite_query(brain_file, "SELECT value FROM sync_meta WHERE key='vault_fingerprint';")
+    rows = database.query(brain_file, "SELECT value FROM sync_meta WHERE key='vault_fingerprint';")
     if rows == nil or #rows == 0 then
         return nil
     end
@@ -118,12 +116,12 @@ function get_stored_vault_fingerprint(brain_file)
 end
 
 function store_vault_fingerprint(brain_file, fingerprint)
-    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-    database.sqlite_update(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('vault_fingerprint', '%s');", fingerprint))
+    database.exec(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+    database.exec(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('vault_fingerprint', '%s');", fingerprint))
 end
 
 function sync_sessions_from_vault(vault_path, brain_file, force)
-    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+    database.exec(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
     sessions_dir = paths.joinpath(vault_path, "agent_sessions")
     
     attr_dir = lfs.attributes(sessions_dir)
@@ -131,7 +129,7 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         return true
     end
     
-    files_raw = utils.readdir(sessions_dir)
+    files_raw = bx_utils.readdir(sessions_dir)
     files = {}
     if files_raw != nil then
         files = files_raw
@@ -144,7 +142,7 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
     stored_mod_by_file = {}
     stored_size_by_file = {}
     sess_id_by_file = {}
-    sync_meta_rows_raw = database.sqlite_query(brain_file,
+    sync_meta_rows_raw = database.query(brain_file,
         "SELECT key, value FROM sync_meta WHERE key LIKE 'session_file_mod_%' OR key LIKE 'session_file_size_%' OR key LIKE 'session_id_for_%';")
     sync_meta_rows = {}
     if sync_meta_rows_raw != nil then
@@ -216,16 +214,16 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                     esc_created_at = string.gsub(created_at, "'", "''")
                     esc_updated_at = string.gsub(updated_at, "'", "''")
                     
-                    check_sess = database.sqlite_query(brain_file, string.format("SELECT id FROM agent_sessions WHERE id='%s';", esc_id))
+                    check_sess = database.query(brain_file, string.format("SELECT id FROM agent_sessions WHERE id='%s';", esc_id))
                     if check_sess != nil and #check_sess > 0 then
-                        database.sqlite_update(brain_file, string.format("UPDATE agent_sessions SET name='%s', created_at='%s', updated_at='%s' WHERE id='%s';", esc_name, esc_created_at, esc_updated_at, esc_id))
+                        database.exec(brain_file, string.format("UPDATE agent_sessions SET name='%s', created_at='%s', updated_at='%s' WHERE id='%s';", esc_name, esc_created_at, esc_updated_at, esc_id))
                     else
-                        database.sqlite_update(brain_file, string.format("INSERT INTO agent_sessions (id, name, created_at, updated_at) VALUES ('%s', '%s', '%s', '%s');", esc_id, esc_name, esc_created_at, esc_updated_at))
+                        database.exec(brain_file, string.format("INSERT INTO agent_sessions (id, name, created_at, updated_at) VALUES ('%s', '%s', '%s', '%s');", esc_id, esc_name, esc_created_at, esc_updated_at))
                     end
                     
                     msgs = bx_utils.parse_session_body(body)
                     
-                    database.sqlite_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", esc_id))
+                    database.exec(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", esc_id))
                     
                     for _, msg in ipairs(msgs) do
                         esc_role = string.gsub(msg.role, "'", "''")
@@ -250,13 +248,13 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
                             in_context_val = msg.in_context
                         end
                         
-                        database.sqlite_update(brain_file, string.format("""
+                        database.exec(brain_file, string.format("""
                             INSERT INTO agent_messages (session_id, role, content, metadata, in_context, created_at)
                             VALUES ('%s', '%s', '%s', %s, %d, '%s');
                         """, esc_id, esc_role, esc_content, esc_meta, in_context_val, esc_msg_created))
                     end
                     
-                    database.sqlite_update(brain_file, string.format("""
+                    database.exec(brain_file, string.format("""
                         INSERT OR REPLACE INTO sync_meta (key, value) VALUES
                             ('session_file_mod_%s', '%s'),
                             ('session_file_size_%s', '%s'),
@@ -269,7 +267,7 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         end
     end
     
-    all_db_sessions_raw = database.sqlite_query(brain_file, "SELECT id FROM agent_sessions;")
+    all_db_sessions_raw = database.query(brain_file, "SELECT id FROM agent_sessions;")
     all_db_sessions = {}
     if all_db_sessions_raw != nil then
         all_db_sessions = all_db_sessions_raw
@@ -280,12 +278,12 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
             id = sess_row.id
         end
         if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
-            database.sqlite_update(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", id))
-            database.sqlite_update(brain_file, string.format("DELETE FROM agent_sessions WHERE id='%s';", id))
+            database.exec(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", id))
+            database.exec(brain_file, string.format("DELETE FROM agent_sessions WHERE id='%s';", id))
         end
     end
 
-    res_keys_raw = database.sqlite_query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';")
+    res_keys_raw = database.query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';")
     res_keys = {}
     if res_keys_raw != nil then
         res_keys = res_keys_raw
@@ -301,9 +299,9 @@ function sync_sessions_from_vault(vault_path, brain_file, force)
         end
         if seen_ids[v] == nil and seen_ids[tostring(v)] == nil then
             f_name = string.sub(k, 16)
-            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_id_for_%s';", f_name))
-            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_mod_%s';", f_name))
-            database.sqlite_update(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_size_%s';", f_name))
+            database.exec(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_id_for_%s';", f_name))
+            database.exec(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_mod_%s';", f_name))
+            database.exec(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_size_%s';", f_name))
         end
     end
     
@@ -327,11 +325,11 @@ function update_from_vault(brain_file, force)
                     DROP TABLE IF EXISTS agent_messages;
                     DROP TABLE IF EXISTS sync_meta;
                 """
-                database.sqlite_update(brain_file, reset_sql)
+                database.exec(brain_file, reset_sql)
             end
 
             -- Ensure tables exist
-            status = database.sqlite_update(brain_file, sql_init)
+            status = database.exec(brain_file, sql_init)
             knowledge_pool.ensure_table(brain_file)
             if status == nil then
                 return nil, "Failed to ensure database tables"
@@ -361,7 +359,7 @@ function update_from_vault(brain_file, force)
             -- changed since the last sync (cheap path+mtime+size sweep,
             -- no content read) -- this is what makes it safe to run this
             -- function unconditionally before every write command.
-            database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+            database.exec(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
             current_fingerprint = compute_vault_fingerprint(vault_path)
             if force != true and get_stored_vault_fingerprint(brain_file) == current_fingerprint then
                 return true
@@ -426,12 +424,16 @@ function update_note_from_file(brain_file, note_path)
 			subject = subject_match
 		end
 	else
-		title = user.input("Title: ")
-		subject = user.input("Subject: ")
+		io.write("Title: ")
+		io.flush()
+		title = io.read()
+		io.write("Subject: ")
+		io.flush()
+		subject = io.read()
 	end
 
 	-- Read content from the note file
-	raw_content = utils.read(note_path)
+	raw_content = paths.read_file(note_path)
 	if raw_content == nil then
 		return nil, "Failed to read note: " .. note_path
 	end
@@ -492,7 +494,7 @@ function update_note_from_file(brain_file, note_path)
 		""", db.quote(subject), db.quote(title))
 
 		existing_id = nil
-		result = database.sqlite_query(brain_file, note_exists_query)
+		result = database.query(brain_file, note_exists_query)
 		if result != nil and #result > 0 then
 			existing_id = result[1].id
 			if existing_id == nil then
@@ -518,14 +520,14 @@ function update_note_from_file(brain_file, note_path)
 		end
 
 		-- Execute the statement
-		success = database.sqlite_update(brain_file, stmt)
+		success = database.exec(brain_file, stmt)
 		if success == nil then
 			return nil, "Failed to update note from file: " .. note_path
 		end
 
 		if metadata != nil and metadata.is_task == "true" then
 			tasks_stmt = require("vault_to_sql").tasks_upsert_sql(note_id, metadata)
-			success = database.sqlite_update(brain_file, tasks_stmt)
+			success = database.exec(brain_file, tasks_stmt)
 			if success == nil then
 				return nil, "Failed to update task tracking from file: " .. note_path
 			end
@@ -533,7 +535,7 @@ function update_note_from_file(brain_file, note_path)
 
 		-- Clear existing connections for this note
         clear_links = string.format("DELETE FROM connections WHERE source_title = %s AND source_subject = %s;", db.quote(title), db.quote(subject))
-		success = database.sqlite_update(brain_file, clear_links)
+		success = database.exec(brain_file, clear_links)
 		if success == nil then
 			return nil, "Failed to clear note links from file: " .. note_path
 		end
@@ -556,7 +558,7 @@ function update_note_from_file(brain_file, note_path)
                 insert_links = insert_links .. statement_value
             end
             insert_links = string.sub(insert_links, 1, -3) .. ";"
-			success = database.sqlite_update(brain_file, insert_links)
+			success = database.exec(brain_file, insert_links)
 			if success == nil then
                 return nil, "Failed to update note links from file: " .. note_path
             end
@@ -570,14 +572,13 @@ function update_note_from_file(brain_file, note_path)
 end
 
 function do_update(brain_file, cmd_args)
-    arg_string = """
-        -f --file arg string false
-        -c --force flag boolean false
-    """
+    flag_specs = {
+        {short = "f", long = "file", kind = "string"},
+        {short = "c", long = "force", kind = "boolean"},
+    }
 
 	help_string = get_help_string(arg[0])
-    expected_args = argparse.def_args(arg_string)
-    args = argparse.parse_args(cmd_args, expected_args, help_string)
+    args = bx_utils.parse_cmd_args(cmd_args, flag_specs, help_string)
     if args == nil then
         return "success"
     end

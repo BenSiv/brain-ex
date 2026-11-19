@@ -4,8 +4,8 @@ bridge = {}
 task = require("task")
 note = require("note")
 sql = require("sql")
-database = require("database_adapter")
-local_query = database.sqlite_query
+database = require("database")
+local_query = database.query
 
 function normalize_rows(rows, columns)
     lines = {}
@@ -79,7 +79,7 @@ function bridge.dispatch(brain_file, tool_name, method, args)
         elseif method == "delay" then
             return task.delay_due(brain_file, args)
         elseif method == "list" then
-            rows = database.sqlite_query(brain_file, "SELECT notes.id AS id, notes.subject AS subject, notes.title AS title, tasks.due_to AS due_to, tasks.overdue AS overdue FROM notes JOIN tasks ON tasks.item_id = notes.id WHERE tasks.done IS NULL ORDER BY tasks.due_to, notes.subject;")
+            rows = database.query(brain_file, "SELECT notes.id AS id, notes.subject AS subject, notes.title AS title, tasks.due_to AS due_to, tasks.overdue AS overdue FROM notes JOIN tasks ON tasks.item_id = notes.id WHERE tasks.done IS NULL ORDER BY tasks.due_to, notes.subject;")
             return normalize_rows(rows, {"id", "subject", "title", "due_to", "overdue"})
         end
     elseif tool_name == "note" then
@@ -98,8 +98,8 @@ function bridge.dispatch(brain_file, tool_name, method, args)
             if args["title"] != nil then
                 title = args["title"]
             end
-            query = string.format("SELECT subject, title, content FROM notes WHERE subject='%s' AND title='%s';", subject, title)
-            rows = database.sqlite_query(brain_file, query)
+            query = string.format("SELECT subject, title, content FROM notes WHERE subject=%s AND title=%s;", database.quote(subject), database.quote(title))
+            rows = database.query(brain_file, query)
             return normalize_rows(rows, {"subject", "title", "content"})
         elseif method == "last" then
             subject = "log"
@@ -114,8 +114,8 @@ function bridge.dispatch(brain_file, tool_name, method, args)
             if tonumber(number_input) != nil then
                 number = tonumber(number_input)
             end
-            query = string.format("SELECT subject, title, content FROM notes WHERE subject='%s' ORDER BY title DESC LIMIT %s;", subject, number)
-            rows = database.sqlite_query(brain_file, query)
+            query = string.format("SELECT subject, title, content FROM notes WHERE subject=%s ORDER BY title DESC LIMIT %s;", database.quote(subject), number)
+            rows = database.query(brain_file, query)
             return normalize_rows(rows, {"subject", "title", "content"})
         end
     elseif tool_name == "sql" then

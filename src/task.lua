@@ -2,11 +2,9 @@
 task = {}
 
 os = require("os")
-utils = require("utils")
-argparse = require("argparse")
-database = require("database_adapter")
-local_update = database.sqlite_update
-local_query = database.sqlite_query
+database = require("database")
+local_update = database.exec
+local_query = database.query
 config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
@@ -32,7 +30,7 @@ end
 
 function column_exists(brain_file, table_name, column_name)
     query = "PRAGMA table_info(" .. table_name .. ");"
-    columns = database.sqlite_query(brain_file, query)
+    columns = database.query(brain_file, query)
     if columns == nil then
         return false
     end
@@ -46,7 +44,7 @@ end
 
 function table_exists(brain_file, table_name)
     query = string.format("SELECT name FROM sqlite_master WHERE type='table' AND name='%s';", table_name)
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     return result != nil and #result > 0
 end
 
@@ -55,7 +53,7 @@ function ensure_notes_id_column(brain_file)
         return
     end
     if not column_exists(brain_file, "notes", "id") then
-        database.sqlite_update(brain_file, "ALTER TABLE notes ADD COLUMN id INTEGER;")
+        database.exec(brain_file, "ALTER TABLE notes ADD COLUMN id INTEGER;")
     end
 end
 
@@ -81,17 +79,17 @@ function migrate_legacy_tasks(brain_file)
         return true -- already the new, tracking-only shape
     end
 
-    database.sqlite_update(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-    flag = database.sqlite_query(brain_file, "SELECT value FROM sync_meta WHERE key='tasks_migrated_to_notes';")
+    database.exec(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
+    flag = database.query(brain_file, "SELECT value FROM sync_meta WHERE key='tasks_migrated_to_notes';")
     if flag != nil and #flag > 0 then
         return true
     end
 
-    database.sqlite_update(brain_file, "ALTER TABLE tasks RENAME TO tasks_legacy_backup;")
-    database.sqlite_update(brain_file, sql_schema.sql_init)
+    database.exec(brain_file, "ALTER TABLE tasks RENAME TO tasks_legacy_backup;")
+    database.exec(brain_file, sql_schema.sql_init)
     ensure_notes_id_column(brain_file)
 
-    rows = database.sqlite_query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks_legacy_backup;")
+    rows = database.query(brain_file, "SELECT id, time, content, subject, due_to, overdue, done, comment, owner, importance, urgency FROM tasks_legacy_backup;")
     if rows == nil then
         rows = {}
     end
@@ -133,7 +131,7 @@ function migrate_legacy_tasks(brain_file)
         -- collision deterministically instead of letting the insert fail.
         esc_subject = escape_sql(subject_for_note)
         esc_title = escape_sql(title_val)
-        collision = database.sqlite_query(brain_file, string.format(
+        collision = database.query(brain_file, string.format(
             "SELECT COUNT(*) AS cnt FROM notes WHERE subject='%s' AND title='%s';", esc_subject, esc_title))
         has_collision = false
         if collision != nil and collision[1] != nil then
@@ -152,7 +150,7 @@ function migrate_legacy_tasks(brain_file)
             body = "DONE: " .. comment_val
         end
 
-        database.sqlite_update(brain_file, string.format(
+        database.exec(brain_file, string.format(
             "INSERT INTO notes (id, subject, title, content) VALUES ('%s', '%s', '%s', '%s');",
             escape_sql(tostring(id)), escape_sql(subject_for_note), escape_sql(title_val), escape_sql(body)
         ))
@@ -176,18 +174,18 @@ function migrate_legacy_tasks(brain_file)
         urgency_num = tonumber(urgency_val)
         if urgency_num == nil then urgency_num = 1 end
 
-        database.sqlite_update(brain_file, string.format(
+        database.exec(brain_file, string.format(
             "INSERT INTO tasks (item_id, due_to, overdue, done, owner, importance, urgency) VALUES ('%s', %s, %d, %s, %s, %d, %d);",
             escape_sql(tostring(id)), esc_due_to, overdue_num, esc_done, esc_owner, importance_num, urgency_num
         ))
     end
 
-    database.sqlite_update(brain_file, "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('tasks_migrated_to_notes', '1');")
+    database.exec(brain_file, "INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('tasks_migrated_to_notes', '1');")
     return true
 end
 
 function ensure_schema(brain_file)
-    database.sqlite_update(brain_file, sql_schema.sql_init)
+    database.exec(brain_file, sql_schema.sql_init)
     ensure_notes_id_column(brain_file)
     migrate_legacy_tasks(brain_file)
 end
@@ -211,7 +209,7 @@ end
 -- one on demand if the row predates the id column. nil if no such note.
 function get_note_id(brain_file, subject, title)
     query = string.format("SELECT id FROM notes WHERE title='%s' AND %s;", escape_sql(title), subject_predicate(subject))
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     if result == nil or #result == 0 then
         return nil
     end
@@ -220,14 +218,14 @@ function get_note_id(brain_file, subject, title)
     if item_id == nil then item_id = row[1] end
     if item_id == nil or item_id == "" then
         item_id = bx_utils.generate_id("notes", nil, nil, brain_file)
-        database.sqlite_update(brain_file, string.format(
+        database.exec(brain_file, string.format(
             "UPDATE notes SET id='%s' WHERE title='%s' AND %s;", item_id, escape_sql(title), subject_predicate(subject)))
     end
     return tostring(item_id)
 end
 
 function get_item_subject_title(brain_file, item_id)
-    result = database.sqlite_query(brain_file, string.format("SELECT subject, title FROM notes WHERE id='%s';", escape_sql(tostring(item_id))))
+    result = database.query(brain_file, string.format("SELECT subject, title FROM notes WHERE id='%s';", escape_sql(tostring(item_id))))
     if result == nil or #result == 0 then
         return nil, nil
     end
@@ -264,7 +262,7 @@ function find_or_create_note(brain_file, subject, title, initial_content)
         "INSERT INTO notes (id, subject, title, content) VALUES ('%s', %s, '%s', '%s');",
         new_id, esc_subject, escape_sql(title), escape_sql(body)
     )
-    status = database.sqlite_update(brain_file, insert_stmt)
+    status = database.exec(brain_file, insert_stmt)
     if status == nil then
         return nil
     end
@@ -302,7 +300,7 @@ end
 
 function update_overdue(brain_file)
     query = "SELECT item_id, due_to FROM tasks WHERE done IS NULL AND due_to IS NOT NULL;"
-    unfinished = database.sqlite_query(brain_file, query)
+    unfinished = database.query(brain_file, query)
 
     overdue = false
     update_statement = ""
@@ -323,7 +321,7 @@ function update_overdue(brain_file)
                 else
                     update_statement = nil
                 end
-                success = database.sqlite_update(brain_file, update_statement)
+                success = database.exec(brain_file, update_statement)
                 if success == nil then
                     return nil, "Failed to update overdue status for task ID: " .. tostring(task_id)
                 end
@@ -345,7 +343,7 @@ function backup_task(brain_file, task_id)
         return true
     end
 
-    row_result = database.sqlite_query(brain_file, string.format("""
+    row_result = database.query(brain_file, string.format("""
         SELECT notes.id, notes.time, notes.subject, notes.title, notes.content,
                tasks.due_to, tasks.overdue, tasks.done,
                tasks.owner, tasks.importance, tasks.urgency
@@ -480,7 +478,7 @@ function add_task(brain_file, args)
         urgency = excluded.urgency;
     """, item_id, esc_due_to, esc_overdue, esc_owner, importance, urgency)
 
-    success = database.sqlite_update(brain_file, upsert_statement)
+    success = database.exec(brain_file, upsert_statement)
     if success == nil then
         return nil, "Failed to add task"
     end
@@ -645,7 +643,7 @@ function list_tasks(brain_file, args)
         subject ASC;
     """
 
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     if result == nil then
         result = {}
     end
@@ -683,7 +681,7 @@ function list_tasks(brain_file, args)
         return true
     end
 
-    if utils.length(result) > 0 then
+    if bx_utils.length(result) > 0 then
         -- Load settings
         settings = config.load_settings()
 
@@ -811,7 +809,7 @@ function mark_done(brain_file, args)
     end
 
     update_statement = "UPDATE tasks SET done = CURRENT_TIMESTAMP WHERE item_id = " .. task_id .. ";"
-    status = database.sqlite_update(brain_file, update_statement)
+    status = database.exec(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to mark task as done"
     end
@@ -837,7 +835,7 @@ function show_task(brain_file, args)
         FROM notes JOIN tasks ON tasks.item_id = notes.id
         WHERE notes.id = '%s';
     """, escape_sql(tostring(task_id)))
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     if result == nil or #result == 0 then
         print("No such task: " .. tostring(task_id))
         return true
@@ -914,7 +912,7 @@ function delay_due(brain_file, args)
             update_statement = string.format("UPDATE tasks SET due_to='%s', overdue='%s' WHERE item_id='%s';", due_to, esc_overdue, task_id)
         end
     end
-    status = database.sqlite_update(brain_file, update_statement)
+    status = database.exec(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to delay task due date"
     end
@@ -961,7 +959,7 @@ function update_priority(brain_file, args)
         update_statement = string.format("UPDATE tasks SET %s WHERE item_id='%s';", table.concat(updates, ", "), task_id)
     end
 
-    status = database.sqlite_update(brain_file, update_statement)
+    status = database.exec(brain_file, update_statement)
     if status == nil then
         return nil, "Failed to update task priority"
     end
@@ -989,8 +987,8 @@ function last_done(brain_file, args)
         query = query .. string.format("LIMIT %s", num)
     end
 
-    result = database.sqlite_query(brain_file, query)
-    if utils.length(result) > 0 then
+    result = database.query(brain_file, query)
+    if bx_utils.length(result) > 0 then
         view(result, {columns={"subject", "title", "content"}})
     else
         print("No tasks to view")
@@ -1033,24 +1031,23 @@ function do_task(brain_file, cmd_args)
         subcommand = nil
     end
 
-    arg_string = """
-        -d --do arg string false
-        -s --subject arg string false
-        -t --title arg string false
-        -e --due_to arg string false
-        -i --id arg string false
-        -c --content arg string false
-        -n --number arg number false
-        -o --owner arg string false
-        -p --importance arg string false
-        -u --urgency arg string false
-        -q --quadrant arg string false
-        -m --summary flag boolean false
-    """
+    flag_specs = {
+        {short = "d", long = "do", kind = "string"},
+        {short = "s", long = "subject", kind = "string"},
+        {short = "t", long = "title", kind = "string"},
+        {short = "e", long = "due_to", kind = "string"},
+        {short = "i", long = "id", kind = "string"},
+        {short = "c", long = "content", kind = "string"},
+        {short = "n", long = "number", kind = "number"},
+        {short = "o", long = "owner", kind = "string"},
+        {short = "p", long = "importance", kind = "string"},
+        {short = "u", long = "urgency", kind = "string"},
+        {short = "q", long = "quadrant", kind = "string"},
+        {short = "m", long = "summary", kind = "boolean"},
+    }
 
     help_string = help.get_help_string(arg[0])
-    expected_args = argparse.def_args(arg_string)
-    args = argparse.parse_args(cmd_args, expected_args, help_string)
+    args = bx_utils.parse_cmd_args(cmd_args, flag_specs, help_string)
     if args == nil then
         return "success"
     end

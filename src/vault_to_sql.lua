@@ -1,10 +1,10 @@
 -- update brain file from obsidian vault
 vault_update = {}
 
-utils = require("utils")
-joinpath = require("paths").joinpath
-database = require("database_adapter")
-db = require("database")
+paths = require("paths")
+joinpath = paths.joinpath
+database = require("database")
+db = database
 lfs = require("lfs")
 bx_utils = require("bx_utils")
 strip = bx_utils.strip
@@ -108,11 +108,11 @@ end
 
 function get_vault_files(vault_path)
     vault_content = {}
-    dir_content = utils.readdir(vault_path)
+    dir_content = bx_utils.readdir(vault_path)
     vault_content["root"] = filter_markdown_files(dir_content)
     vault_subjects = filter_directories(vault_path, dir_content)
     for _, subject in pairs(vault_subjects) do
-        dir_content = utils.readdir(vault_path .. "/" .. subject)
+        dir_content = bx_utils.readdir(vault_path .. "/" .. subject)
         vault_content[subject] = filter_markdown_files(dir_content)
     end
     return vault_content
@@ -124,14 +124,14 @@ function read_note(vault_path, note)
     end
     note_path = joinpath(vault_path, note)
     note_name = string.gsub(note, "%.md$", "")
-    note_content = utils.read(note_path)
+    note_content = paths.read_file(note_path)
     return {name = note_name, content = note_content}
 end
 
 function get_lines(markdown_text)
     lines = {}
     
-    for line in utils.match_all(markdown_text, "[^\r\n]+") do
+    for line in string.gmatch(markdown_text, "[^\r\n]+") do
         table.insert(lines, line)
     end
 
@@ -144,8 +144,8 @@ function remove_link(input_line, link)
         return ""
     end
     link_pattern = "%[%[" .. escape_lua_pattern(link) .. "%]%]"
-    output_line = utils.replace(input_line, link_pattern, "")
-    if utils.match(output_line, "^%s*$") != nil then
+    output_line = string.gsub(input_line, link_pattern, "")
+    if string.match(output_line, "^%s*$") != nil then
     	output_line = ""
     end
     return output_line
@@ -157,7 +157,7 @@ function extract_links(line, link_found)
     end
     processed_line = line
 
-    for raw_link in utils.match_all(line, "%[%[(.-)%]%]") do
+    for raw_link in string.gmatch(line, "%[%[(.-)%]%]") do
         parsed_link = parse_single_link(raw_link)
         if parsed_link != nil then
             table.insert(link_found, parsed_link)
@@ -168,6 +168,13 @@ function extract_links(line, link_found)
     return processed_line, link_found
 end
 
+
+function unescape_string(str)
+    if str == nil then
+        return ""
+    end
+    return (string.gsub(str, "%%([%(%)%.%%%+%-%*%?%[%]%^%$])", "%1"))
+end
 
 function clean_content(content)
     if content == nil then
@@ -253,14 +260,14 @@ end
 
 function vault_to_sql(vault_path, brain_file)
     -- Ensure size/id columns exist (for upgrade path)
-    pcall(database.sqlite_update, brain_file, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
-    pcall(database.sqlite_update, brain_file, "ALTER TABLE notes ADD COLUMN id INTEGER;") -- ignore error if already exists
-    pcall(database.sqlite_update, brain_file, require("sql_schema").sql_init) -- ensure tasks exists on old brains
+    pcall(database.exec, brain_file, "ALTER TABLE notes ADD COLUMN size INTEGER DEFAULT 0;") -- ignore error if already exists
+    pcall(database.exec, brain_file, "ALTER TABLE notes ADD COLUMN id INTEGER;") -- ignore error if already exists
+    pcall(database.exec, brain_file, require("sql_schema").sql_init) -- ensure tasks exists on old brains
 
     -- Load existing note metadata for incremental update
     existing_notes = {}
     query = "SELECT id, subject, title, time, size FROM notes;"
-    rows_raw = database.sqlite_query(brain_file, query)
+    rows_raw = database.query(brain_file, query)
     rows = {}
     if rows_raw != nil then
         rows = rows_raw
@@ -378,7 +385,7 @@ function vault_to_sql(vault_path, brain_file)
             needs_update = (existing == nil) or (existing.time != last_update_time) or (existing.size != file_size)
 
             if needs_update then
-                raw_content = utils.read(note_path)
+                raw_content = paths.read_file(note_path)
                 -- Frontmatter is optional -- plain notes never have any,
                 -- and parse_frontmatter is a no-op (empty metadata, body
                 -- unchanged) when none is found, so this is safe for
@@ -446,7 +453,7 @@ function vault_to_sql(vault_path, brain_file)
                 end
 
                 -- Insert connections if any
-                if utils.length(links) > 0 then
+                if bx_utils.length(links) > 0 then
                     insert_connections = "INSERT OR IGNORE INTO connections (source_title, source_subject, target_title, target_subject) VALUES "
 
                     for _, link in pairs(links) do
@@ -496,7 +503,7 @@ function vault_to_sql(vault_path, brain_file)
         table.insert(sql_statements, 1, "BEGIN TRANSACTION;")
         table.insert(sql_statements, "COMMIT;")
         transaction_sql = table.concat(sql_statements, "\n")
-        status = database.sqlite_update(brain_file, transaction_sql)
+        status = database.exec(brain_file, transaction_sql)
         if status == nil then
             return nil
         end
