@@ -16,12 +16,13 @@ function provider.generate(model, system_prompt, prompt)
     end
     full_prompt = full_prompt .. "Task: " .. prompt
 
-    utils = require("utils")
+    ext = require("external_tool")
+    paths = require("paths")
     tmpfile = os.tmpname()
-    utils.write(tmpfile, full_prompt)
+    paths.write_file(tmpfile, full_prompt)
     
     command = "cat " .. shell_escape(tmpfile) .. " | ollama run " .. shell_escape(model) .. " 2>&1"
-    result, success = utils.exec_command(command)
+    result, success, _ = ext.exec(command)
     os.remove(tmpfile)
     
     if success == false then
@@ -38,7 +39,7 @@ end
 
 function provider.embeddings(model, input_text, command_tmpl)
     dkjson = require("dkjson")
-    utils = require("utils")
+    ext = require("external_tool")
     result = nil
     success = nil
 
@@ -51,12 +52,12 @@ function provider.embeddings(model, input_text, command_tmpl)
             command = string.gsub(command, "%%t", shell_escape(input_text))
         end
 
-        result, success = utils.exec_command(command)
+        result, success, _ = ext.exec(command)
     else
         -- Default Ollama API
         command = string.format("curl -s http://localhost:11434/api/embeddings -d '{\"model\": \"%s\", \"prompt\": %s}'",
             model, dkjson.encode(input_text))
-        result, success = utils.exec_command(command)
+        result, success, _ = ext.exec(command)
     end
 
     if success == false or result == nil or result == "" then

@@ -1,9 +1,7 @@
 
-utils = require("utils")
-starts_with = utils.starts_with
-database = require("database_adapter")
+starts_with = string.starts_with
+database = require("database")
 prettyprint = require("prettyprint")
-argparse = require("argparse")
 paths = require("paths")
 dates = require("dates")
 
@@ -47,7 +45,7 @@ do_sql = sql.do_sql
 brain = require("brain")
 do_brain = brain.do_brain
 
-git = require("git")
+git = require("vault_git")
 auto_update = git.auto_update
 
 agent = require("agent")

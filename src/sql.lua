@@ -1,10 +1,9 @@
 -- Define a module table
 sql = {}
 
-utils = require("utils")
-argparse = require("argparse")
-database = require("database_adapter")
-local_query = database.sqlite_query
+bx_utils = require("bx_utils")
+database = require("database")
+local_query = database.query
 config = require("config")
 get_brain_path = config.get_brain_path
 dataframes = require("dataframes")
@@ -15,7 +14,7 @@ function sqlite_shell(brain_file)
 end
 
 function sqlite_query(brain_file, query)
-    results = database.sqlite_query(brain_file, query)
+    results = database.query(brain_file, query)
     if results == nil then
         return nil
     end
@@ -26,14 +25,13 @@ function sqlite_query(brain_file, query)
 end
 
 function do_sql(brain_file, cmd_args)
-    arg_string = """
-        -d --do arg string false
-        -q --query arg string false
-    """
+    flag_specs = {
+        {short = "d", long = "do", kind = "string"},
+        {short = "q", long = "query", kind = "string"},
+    }
 
     help_string = help.get_help_string(arg[0])
-    expected_args = argparse.def_args(arg_string)
-    args = argparse.parse_args(cmd_args, expected_args, help_string)
+    args = bx_utils.parse_cmd_args(cmd_args, flag_specs, help_string)
 
     if args  !=  nil then
         if args["query"]  !=  nil then

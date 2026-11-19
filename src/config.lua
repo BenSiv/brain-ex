@@ -4,10 +4,20 @@ config = {}
 -- Explicit imports
 paths = require("paths")
 joinpath = paths.joinpath
-utils = require("utils")
-database = require("database_adapter")
+yaml = require("yaml")
 file_exists = paths.file_exists
-read_yaml = utils.read_yaml
+
+function read_yaml(path)
+    raw = paths.read_file(path)
+    if raw == nil or raw == "" then
+        return nil
+    end
+    ok, parsed = pcall(yaml.load, raw)
+    if not ok then
+        return nil
+    end
+    return parsed
+end
 
 -- Module-level cache
 
@@ -34,7 +44,7 @@ function load_config()
         return nil
     end
     
-    cached_config = utils.read_yaml(path)
+    cached_config = read_yaml(path)
     return cached_config
 end
 

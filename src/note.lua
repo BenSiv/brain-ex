@@ -1,12 +1,10 @@
 -- Define a module table
 note = {}
 
-utils = require("utils")
-argparse = require("argparse")
-database = require("database_adapter")
-db = require("database")
-local_update = database.sqlite_update
-local_query = database.sqlite_query
+database = require("database")
+db = database
+local_update = database.exec
+local_query = database.query
 config = require("config")
 get_brain_path = config.get_brain_path
 get_vault_path = config.get_vault_path
@@ -19,7 +17,7 @@ prettyprint = require("prettyprint")
 
 function insert_note(brain_file, subject, title, content)
     insert_statement = "INSERT INTO notes ('subject', 'title', 'content') VALUES (" .. db.quote(subject) .. ", " .. db.quote(title) .. ", " .. db.quote(content) .. ");"
-    status = database.sqlite_update(brain_file, insert_statement)
+    status = database.exec(brain_file, insert_statement)
     if status == nil then
         return nil, "Failed to update database"
     end
@@ -38,7 +36,7 @@ end
 
 function append_content(brain_file, subject, title, content)
     query = string.format("SELECT content FROM notes WHERE title=%s AND subject=%s;", db.quote(title), db.quote(subject))
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     if result == nil or #result == 0 then
         return nil, "Failed to find note for append: " .. title
     end
@@ -54,7 +52,7 @@ function append_content(brain_file, subject, title, content)
 
     update_statement = string.format("UPDATE notes SET content=%s WHERE title=%s AND subject=%s;", db.quote(new_content), db.quote(title), db.quote(subject))
 
-    status = database.sqlite_update(brain_file, update_statement)
+    status = database.exec(brain_file, update_statement)
     if status == nil then
         print("Failed to update database")
         return nil
@@ -63,7 +61,7 @@ function append_content(brain_file, subject, title, content)
 end
 
 function connect_notes(brain_file, source_title, source_subject, links)
-    if utils.isempty(links) == true then
+    if bx_utils.isempty(links) == true then
         return true
     end
 
@@ -94,7 +92,7 @@ function connect_notes(brain_file, source_title, source_subject, links)
     -- remove trailing comma + space and add semicolon
     insert_statement = string.sub(insert_statement, 1, -3) .. ";"
 
-    status = database.sqlite_update(brain_file, insert_statement)
+    status = database.exec(brain_file, insert_statement)
     if status == nil then
         return nil, "Failed to connect notes"
     end
@@ -125,7 +123,7 @@ function note_exists(brain_file, subject, title)
         safe_title = title
     end
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title=%s AND subject=%s;", db.quote(safe_title), db.quote(safe_subject))
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     if result == nil or result[1] == nil then
         return false
     end
@@ -274,7 +272,7 @@ function take_note(brain_file, args)
         end
     end
     
-    if utils.isempty(links) == false then
+    if bx_utils.isempty(links) == false then
         status, err = connect_notes(brain_file, title, subject, links)
         if status == nil then
             return nil, err
@@ -351,9 +349,9 @@ function last_notes(brain_file, args)
         num_val = 5
     end
     query = string.format("SELECT title, content FROM notes WHERE subject=%s ORDER BY title DESC LIMIT %d", db.quote(subject), num_val)
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
 
-    if result != nil and utils.length(result) > 0 then
+    if result != nil and bx_utils.length(result) > 0 then
         for i, note in pairs(result) do
             -- Handle both named and numeric column access
             note_title = ""
@@ -403,7 +401,7 @@ function log_note(brain_file, args)
 
     -- Check if the note exists
     query = string.format("SELECT COUNT(*) AS count FROM notes WHERE title=%s AND subject=%s;", db.quote(title), db.quote(subject))
-    result = database.sqlite_query(brain_file, query)
+    result = database.query(brain_file, query)
     if result == nil then
         return nil, "Failed to query note database"
     end
@@ -429,7 +427,7 @@ function log_note(brain_file, args)
     end
 
     -- Insert or append content
-    if utils.isempty(content) == false then
+    if bx_utils.isempty(content) == false then
         if note_exists then
             status, err = append_content(brain_file, subject, title, timestamped_entry(content))
             if status == nil then
@@ -443,7 +441,7 @@ function log_note(brain_file, args)
         end
     end
 
-    if utils.isempty(links) == false and vault_path == nil then
+    if bx_utils.isempty(links) == false and vault_path == nil then
         status, err = connect_notes(brain_file, title, subject, links)
         if status == nil then
             return nil, err
@@ -468,7 +466,7 @@ function do_note_connect(brain_file, args)
     end
     links = parse_links_str(links_str)
 
-    if utils.isempty(links) then
+    if bx_utils.isempty(links) then
         return nil, "No links provided to connect."
     end
 
@@ -552,19 +550,18 @@ function do_note(brain_file, cmd_args)
     else
         subcommand = nil
     end
-    arg_string = """
-        -d --do arg string false
-        -s --subject arg string false
-        -t --title arg string false
-        -c --content arg string false
-        -l --links arg string false
-        -n --number arg number false
-        -u --update flag boolean false
-    """
+    flag_specs = {
+        {short = "d", long = "do", kind = "string"},
+        {short = "s", long = "subject", kind = "string"},
+        {short = "t", long = "title", kind = "string"},
+        {short = "c", long = "content", kind = "string"},
+        {short = "l", long = "links", kind = "string"},
+        {short = "n", long = "number", kind = "number"},
+        {short = "u", long = "update", kind = "boolean"},
+    }
 
     help_string = help.get_help_string(arg[0])
-    expected_args = argparse.def_args(arg_string)
-    args = argparse.parse_args(cmd_args, expected_args, help_string)
+    args = bx_utils.parse_cmd_args(cmd_args, flag_specs, help_string)
     if args == nil then
         return "success"
     end

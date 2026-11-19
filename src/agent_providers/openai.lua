@@ -8,7 +8,8 @@ end
 
 function provider.generate(model, system_prompt, prompt)
     dkjson = require("dkjson")
-    utils = require("utils")
+    ext = require("external_tool")
+    paths = require("paths")
     
     api_key = os.getenv("OPENAI_API_KEY")
     api_base = "https://api.openai.com/v1"
@@ -36,7 +37,7 @@ function provider.generate(model, system_prompt, prompt)
     }
     payload_json = dkjson.encode(payload)
     tmpfile = os.tmpname()
-    utils.write(tmpfile, payload_json)
+    paths.write_file(tmpfile, payload_json)
 
     command = string.format(
         "curl -s %s/chat/completions " ..
@@ -45,7 +46,7 @@ function provider.generate(model, system_prompt, prompt)
         "-d @%s", api_base, api_key, tmpfile
     )
     
-    response, success = utils.exec_command(command)
+    response, success, _ = ext.exec(command)
     os.remove(tmpfile)
 
     if success == false or response == nil or response == "" then
@@ -74,14 +75,15 @@ end
 
 function provider.embeddings(model, input_text, command_tmpl)
     dkjson = require("dkjson")
-    utils = require("utils")
+    ext = require("external_tool")
+    paths = require("paths")
 
     if command_tmpl != nil and command_tmpl != "" then
         command = string.gsub(command_tmpl, "%%m", model)
         if string.match(command, "%%t") != nil then
             command = string.gsub(command, "%%t", provider.shell_escape(input_text))
         end
-        result, success = utils.exec_command(command)
+        result, success, _ = ext.exec(command)
         if success == true and result != nil and result != "" then
             embeddings = {}
             for num in string.gmatch(result, "([-?%d%.eE]+)") do
@@ -113,7 +115,7 @@ function provider.embeddings(model, input_text, command_tmpl)
     }
     payload_json = dkjson.encode(payload)
     tmpfile = os.tmpname()
-    utils.write(tmpfile, payload_json)
+    paths.write_file(tmpfile, payload_json)
 
     command = string.format(
         "curl -s %s/embeddings " ..
@@ -122,7 +124,7 @@ function provider.embeddings(model, input_text, command_tmpl)
         "-d @%s", api_base, api_key, tmpfile
     )
     
-    response, success = utils.exec_command(command)
+    response, success, _ = ext.exec(command)
     os.remove(tmpfile)
 
     if success == false or response == nil or response == "" then

@@ -1,9 +1,9 @@
 -- src/agent.lua
 agent = {}
 
-database = require("database_adapter")
-local_update = database.sqlite_update
-local_query = database.sqlite_query
+database = require("database")
+local_update = database.exec
+local_query = database.query
 bx_utils = require("bx_utils")
 generate_id = bx_utils.generate_id
 
@@ -14,7 +14,7 @@ agent_engine = require("agent_engine")
 -- Utility to check if a column exists in a table
 function column_exists(brain_file, table_name, column_name)
     query = "PRAGMA table_info(" .. table_name .. ");"
-    columns = database.sqlite_query(brain_file, query)
+    columns = database.query(brain_file, query)
     if columns == nil then return false end
     for _, col in pairs(columns) do
         -- Check both 'name' key and integer index 2 (name)
