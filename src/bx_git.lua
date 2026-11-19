@@ -41,7 +41,7 @@ end
 
 git.auto_update = auto_update
 
-if string.match(arg[0], "git.lua$") != nil then
+if string.match(arg[0], "bx_git.lua$") != nil then
     auto_update()
 else
     -- Export the module

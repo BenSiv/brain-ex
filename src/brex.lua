@@ -47,8 +47,8 @@ do_sql = sql.do_sql
 brain = require("brain")
 do_brain = brain.do_brain
 
-git = require("git")
-auto_update = git.auto_update
+bx_git = require("bx_git")
+auto_update = bx_git.auto_update
 
 agent = require("agent")
 do_agent = agent.do_agent
@@ -208,7 +208,7 @@ function main()
     end
 
     if is_git() then
-        git.auto_update()
+        bx_git.auto_update()
     end
 end
 
