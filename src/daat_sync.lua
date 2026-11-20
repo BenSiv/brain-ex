@@ -4,6 +4,7 @@
 -- Mapping:
 --   brex `subject` (non-empty) <-> top-level daat folder document (title = subject)
 --   daat "Knowledge Pool" folder <-> brex subject "knowledge-pool" (curated/synthesized/distilled docs)
+--   daat repo-synced docs (`external_id` starting with `repo:` or `repo-folder:`) -> skipped on pull
 --   brex `notes` <-> daat `document`
 --   brex `tasks` <-> daat `task` (attached via task.document = document.id)
 --   brex `connections` <-> `[[...]]` wikilinks in document.content
@@ -67,6 +68,22 @@ function trim(s)
         return ""
     end
     return string.trim(tostring(s))
+end
+
+function is_repo_folder_external_id(ext_id)
+    if ext_id == nil then
+        return false
+    end
+    s = trim(ext_id)
+    return string.sub(s, 1, 12) == "repo-folder:"
+end
+
+function is_repo_external_id(ext_id)
+    if ext_id == nil then
+        return false
+    end
+    s = trim(ext_id)
+    return string.sub(s, 1, 5) == "repo:" or string.sub(s, 1, 12) == "repo-folder:"
 end
 
 function row_val(row, key, idx, default_val)
@@ -1009,7 +1026,8 @@ function daat_sync.run(brain_file, opts)
         if d.parent_id == nil and task_by_doc_id[d.id] == nil then
             is_kp = (d.title == KNOWLEDGE_POOL_FOLDER)
             is_empty_parent = (has_children[d.id] == true and trim(d.content) == "")
-            if is_kp or is_empty_parent or is_folder_doc[d.id] == true then
+            is_top_repo_folder = is_repo_folder_external_id(d.external_id)
+            if is_kp or is_empty_parent or is_top_repo_folder or is_folder_doc[d.id] == true then
                 is_folder_doc[d.id] = true
                 mapped_subj = folder_title_to_subject(d.title)
                 if mapped_subj != "" and state.sync_folders[mapped_subj] == nil then
@@ -1019,6 +1037,28 @@ function daat_sync.run(brain_file, opts)
                         save_sync_folder(brain_file, mapped_subj, d.id)
                     end
                 end
+            end
+        end
+    end
+
+    is_repo_tree_doc = {}
+    for _, d in ipairs(remote_docs) do
+        if is_repo_external_id(d.external_id) then
+            is_repo_tree_doc[d.id] = true
+        else
+            cur_pid = d.parent_id
+            hops = 0
+            while cur_pid != nil and hops < 32 do
+                pdoc = doc_by_id[cur_pid]
+                if pdoc == nil then
+                    break
+                end
+                if pdoc.parent_id != nil and is_repo_folder_external_id(pdoc.external_id) then
+                    is_repo_tree_doc[d.id] = true
+                    break
+                end
+                cur_pid = pdoc.parent_id
+                hops = hops + 1
             end
         end
     end
@@ -1325,6 +1365,7 @@ function daat_sync.run(brain_file, opts)
     for _, d in ipairs(remote_docs) do
         if handled_remote_doc_ids[d.id] == nil
                 and is_folder_doc[d.id] != true
+                and is_repo_tree_doc[d.id] != true
                 and d.source_type != "chat_session" then
             r_subj = remote_doc_subject(d)
             r_key = r_subj .. "\0" .. tostring(d.title)

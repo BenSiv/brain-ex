@@ -281,3 +281,49 @@ EOF
     [[ "$MERGED_BREX" == *"Concurrent daat agent rewrite."* ]]
     [ "$MERGED_BREX" = "$MERGED_DAAT" ]
 }
+
+@test "repo-synced folders and markdown docs are skipped on pull while sharing top-level repo folders and pulling Knowledge Pool connections" {
+    brex note add -s daat -t "Personal daat note" -c "My design thoughts on curation."
+    run brex sync
+    [ "$status" -eq 0 ]
+
+    DAAT_FOLDER_ID=$(sqlite3 "$DAAT_DB" "SELECT id FROM document WHERE parent_id IS NULL AND title='daat';")
+
+    # Simulate repo_docs_sync adding daat/doc/architecture.md under existing top-level 'daat' folder,
+    # plus a brand-new 'software' repo folder with AGENTS.md.
+    DOC_SUB_OUT=$(daat_api_write POST "/api/v1/document" "{\"title\":\"doc\",\"parent_id\":$DAAT_FOLDER_ID,\"external_id\":\"repo-folder:daat/doc\"}")
+    DOC_SUB_ID=$(printf '%s' "$DOC_SUB_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
+    daat_api_write POST "/api/v1/document" "{\"title\":\"architecture\",\"content\":\"> **Repo:** \`daat/doc/architecture.md\`\n\nSystem architecture.\",\"parent_id\":$DOC_SUB_ID,\"external_id\":\"repo:daat:doc/architecture.md\"}" >/dev/null
+
+    SW_ROOT_OUT=$(daat_api_write POST "/api/v1/document" '{"title":"software","external_id":"repo-folder:software"}')
+    SW_ROOT_ID=$(printf '%s' "$SW_ROOT_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
+    daat_api_write POST "/api/v1/document" "{\"title\":\"AGENTS\",\"content\":\"> **Repo:** \`software/AGENTS.md\`\n\nAgent rules.\",\"parent_id\":$SW_ROOT_ID,\"external_id\":\"repo:software:AGENTS.md\"}" >/dev/null
+
+    # Simulate a Knowledge Pool connection document linking the repo doc and personal note.
+    KP_OUT=$(daat_api_write POST "/api/v1/document" '{"title":"Knowledge Pool"}')
+    KP_ID=$(printf '%s' "$KP_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
+    daat_api_write POST "/api/v1/document" "{\"title\":\"architecture ↔ Personal daat note\",\"content\":\"Connects [[architecture]] with [[Personal daat note]].\",\"parent_id\":$KP_ID}" >/dev/null
+
+    # Also add a personal note in brex with subject 'software' to verify it shares the top-level 'software' folder.
+    brex note add -s software -t "Personal software note" -c "Follow up on pipeline."
+
+    run brex sync
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"pushed 1 doc(s)/0 task(s), pulled 1 doc(s)/0 task(s)"* ]]
+
+    # Raw repo docs and repo subfolders were NOT pulled into brex!
+    REPO_PULLED=$(sqlite3 "$BREX_DB" "SELECT COUNT(*) FROM notes WHERE title IN ('doc', 'architecture', 'AGENTS', 'software');")
+    [ "$REPO_PULLED" -eq 0 ]
+
+    # Knowledge Pool connection doc WAS pulled into brex!
+    KP_PULLED=$(sqlite3 "$BREX_DB" "SELECT COUNT(*) FROM notes WHERE subject='knowledge-pool' AND title='architecture ↔ Personal daat note';")
+    [ "$KP_PULLED" -eq 1 ]
+
+    # Personal software note reused the existing top-level 'software' folder in daat!
+    SW_NOTE_PARENT=$(sqlite3 "$DAAT_DB" "SELECT parent_id FROM document WHERE title='Personal software note' AND archived_at IS NULL;")
+    [ "$SW_NOTE_PARENT" = "$SW_ROOT_ID" ]
+
+    # Repo docs remain active and untouched in daat.
+    ACTIVE_REPO_DOCS=$(sqlite3 "$DAAT_DB" "SELECT COUNT(*) FROM document WHERE external_id LIKE 'repo:%' AND archived_at IS NULL;")
+    [ "$ACTIVE_REPO_DOCS" -eq 2 ]
+}
