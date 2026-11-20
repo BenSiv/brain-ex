@@ -74,11 +74,6 @@ function save_config_file(path, conf)
     if conf.vault  !=  nil then io.write(file, "vault: " .. conf.vault .. "\n") end
     if conf.git  !=  nil then io.write(file, "git: " .. tostring(conf.git) .. "\n") end
     if conf.hide_due_to != nil then io.write(file, "hide_due_to: " .. tostring(conf.hide_due_to) .. "\n") end
-    if conf.agent_provider != nil then io.write(file, "agent_provider: " .. conf.agent_provider .. "\n") end
-    if conf.agent_model != nil then io.write(file, "agent_model: " .. conf.agent_model .. "\n") end
-    if conf.embedding_provider != nil then io.write(file, "embedding_provider: " .. conf.embedding_provider .. "\n") end
-    if conf.embedding_model != nil then io.write(file, "embedding_model: " .. conf.embedding_model .. "\n") end
-    if conf.embedding_command != nil then io.write(file, "embedding_command: " .. conf.embedding_command .. "\n") end
     if conf.daat_url != nil then io.write(file, "daat_url: " .. conf.daat_url .. "\n") end
     if conf.daat_api_key_file != nil then io.write(file, "daat_api_key_file: " .. conf.daat_api_key_file .. "\n") end
 
@@ -147,54 +142,6 @@ function config.is_git()
     else
         return false
     end
-end
-
-function config.get_agent_config()
-    cfg = load_config()
-    provider_name = "ollama"
-    if cfg != nil and cfg["agent_provider"] != nil then
-        provider_name = cfg["agent_provider"]
-    end
-    model_name = "qwen3.5:0.8b"
-    if cfg != nil and cfg["agent_model"] != nil then
-        model_name = cfg["agent_model"]
-    end
-    return provider_name, model_name
-end
-
-function config.get_compaction_threshold()
-    cfg = load_config()
-    if cfg != nil and cfg["agent_compaction_threshold"] != nil then
-        val = tonumber(cfg["agent_compaction_threshold"])
-        if val != nil then
-            return val
-        end
-    end
-    return 4000
-end
-
-function config.get_embedding_config()
-    cfg = load_config()
-    provider_name = "ollama"
-    if cfg != nil and cfg["agent_provider"] != nil then
-        provider_name = cfg["agent_provider"]
-    end
-    if cfg != nil and cfg["embedding_provider"] != nil then
-        provider_name = cfg["embedding_provider"]
-    end
-    model_name = "nomic-embed-text"
-    if cfg != nil and cfg["embedding_model"] != nil then
-        model_name = cfg["embedding_model"]
-    end
-    return provider_name, model_name
-end
-
-function config.get_embedding_command()
-    cfg = load_config()
-    if cfg == nil then
-        return nil
-    end
-    return cfg["embedding_command"]
 end
 
 function config.get_daat_url()

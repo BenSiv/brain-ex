@@ -2,8 +2,8 @@
 
 ## Opening
 
-Hi everyone, today I’m going to show you **brain-ex**, a minimalist, fast, and intuitive note-taking and task management app.  
-It's designed to be your terminal's brain extension, supporting multiple contexts, a deep knowledge pool, and integrated AI assistance.
+Hi everyone, today I’m going to show you **brain-ex**, a minimalist, fast, local-first CLI note-taking and task management app.  
+It's designed to be your terminal's offline brain extension—working standalone on SQLite, mirrored with an Obsidian vault, or synced in tandem with `daat` for web UI and AI knowledge curation.
 
 ---
 
@@ -88,34 +88,23 @@ brex task last --number 3
 
 ---
 
-## Section 4 — Knowledge Pool & RAG
+## Section 4 — Local Knowledge Pool & `daat` Sync
 
-Brain-Ex includes a "Knowledge Pool" system that indexes your notes for semantic search and refinement.
+Brain-Ex includes a local SQLite "Knowledge Pool" that tracks retrieval heat, co-retrieval links, and duplicate detection—and pairs cleanly with `brex sync` when connected to a `daat` deployment.
 
 ```bash
-# Sync your notes into the searchable pool
+# Sync your notes into the local searchable pool
 brex knowledge sync
 
-# Perform a semantic search
+# Search ranked notes offline
 brex knowledge search "Japan"
 
 # Browse and process knowledge items
 brex knowledge browse
 brex knowledge process
-```
 
----
-
-## Section 5 — AI Agent Interaction
-
-The integrated agent can help you query your knowledge and manage your tasks.
-
-```bash
-# Ask the general assistant
-brex agent "What are my upcoming travel plans?"
-
-# Use a specialized task agent
-brex agent task "Remind me to call the bank tomorrow"
+# Optional: two-way sync notes, tasks, and curated Knowledge Pool docs with daat
+brex sync --dry-run
 ```
 
 ---

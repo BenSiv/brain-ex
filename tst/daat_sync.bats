@@ -226,6 +226,12 @@ EOF
     run brex knowledge search "Distilled Curation Principles"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Distilled Curation Principles"* ]]
+    KP_TIER=$(sqlite3 "$BREX_DB" "SELECT tier || '|' || process_level FROM knowledge_items WHERE title='Distilled Curation Principles';")
+    [ "$KP_TIER" = "2|curated" ]
+
+    # Embedded brex agent surface is removed; AI/curation lives in daat.
+    run brex notes_test agent
+    [[ "$output" == *"'agent' is not a valid command"* ]]
 
     # Raw chat_session transcript NOT pulled into brex notes!
     CHAT_CNT=$(sqlite3 "$BREX_DB" "SELECT COUNT(*) FROM notes WHERE title='Chat transcript 2026-11-19';")

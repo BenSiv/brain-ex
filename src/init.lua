@@ -16,7 +16,6 @@ get_help_string = require("help").get_help_string
 update_mod = require("update")
 paths = require("paths")
 task_mod = require("task")
-agent_engine = require("agent_engine")
 
 function build_config_dir(home_dir)
     config_root = paths.joinpath(home_dir, ".config")
@@ -200,22 +199,7 @@ function init_bx_with_vault(args)
 		return nil, "Failed to initialize database"
 	end
 
-    sessions_file = paths.joinpath(vault_dir, "agent_sessions.tsv")
-    messages_file = paths.joinpath(vault_dir, "agent_messages.tsv")
-    if (paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file)) or (paths.file_exists(messages_file) != nil and paths.file_exists(messages_file)) then
-        print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
-        if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then
-            database.import_delimited(brain_path, sessions_file, "agent_sessions", "\t")
-        end
-        if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then
-            database.import_delimited(brain_path, messages_file, "agent_messages", "\t")
-        end
-        agent_engine.backup_agent_data(brain_path)
-        if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then os.remove(sessions_file) end
-        if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then os.remove(messages_file) end
-    end
-
-        -- ensure vault directory exists
+    -- ensure vault directory exists
     if lfs.attributes(vault_path, "mode") == nil then
         lfs.mkdir(vault_path)
     end
@@ -234,7 +218,6 @@ function init_bx_with_vault(args)
     end
 	
     -- store info in ~/.config/brain-ex/config.yaml
-    -- store info in ~/.config/brain-ex/config.yaml
     updates = {
         vault = vault_path,
         editor = default_editor,
@@ -247,12 +230,9 @@ function init_bx_with_vault(args)
     updates.brains[brain_name] = brain_path
     update_config_file(home_dir, updates)
 
-    -- import existing notes, tasks (a note is a task once it has a
-    -- tasks row -- vault_to_sql is frontmatter-aware and handles
-    -- both) and agent sessions if any
+    -- import existing notes and tasks (vault_to_sql is frontmatter-aware)
     vault_to_sql(vault_path, brain_path)
     knowledge_pool.sync_notes(brain_path)
-    update_mod.sync_sessions_from_vault(vault_path, brain_path)
     return true
 end
 

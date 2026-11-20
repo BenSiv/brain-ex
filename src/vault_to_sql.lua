@@ -97,7 +97,7 @@ function filter_directories(dir_path, dir_content)
         entry_path = dir_path .. "/" .. entry
         attr = lfs.attributes(entry_path)
         if attr != nil and attr.mode == "directory" then
-            if string.sub(entry, 1, 1) != "." then
+            if string.sub(entry, 1, 1) != "." and entry != "agent_sessions" and entry != "knowledge" then
                 table.insert(directories, entry)
             end
         end

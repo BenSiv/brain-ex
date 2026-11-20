@@ -134,18 +134,6 @@ pe 'brex knowledge process'
 
 pe "clear"
 
-comment "# --- Agent Interaction ---\n"
-comment "# Set mock agent for demo"
-echo "agent_provider: mock" >> ~/.config/brain-ex/config.yaml
-
-comment "# Ask the general assistant"
-pe 'brex agent "What are my upcoming travel plans?"'
-
-comment "# Use the task-focused agent"
-pe 'brex agent task "Remind me to call the bank tomorrow"'
-
-pe "clear"
-
 comment "# That’s Brain-Ex — power and simplicity in your terminal."
 comment "# All your data is stored in plain markdown and SQLite."
 

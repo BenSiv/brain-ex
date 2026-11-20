@@ -1,6 +1,6 @@
 # Knowledge Layer
 
-`brex knowledge` turns notes into a searchable, reviewable knowledge pool. It is based on the local-first model used elsewhere in `brain-ex`: SQLite stores indexes, metadata, retrieval history, and audit records; vault markdown stores durable human-readable artifacts after promotion.
+`brex knowledge` turns notes into a fast, offline, searchable knowledge pool backed purely by local SQLite—with zero external LLM or embedding network calls. SQLite stores indexes, metadata, retrieval history, and audit records; when paired with an Obsidian vault, `promote` materializes durable Markdown artifacts under `knowledge/tier2/` and `knowledge/tier3/`, and when paired with `daat` (`brex sync`), curated `Knowledge Pool` and `Tag Summaries` notes pulled from `daat` are automatically indexed at `tier = 2` (`process_level = 'curated'`).
 
 The design borrows these ideas from the Fossil knowledge-layer docs in `~/Projects/fossil-scm/doc/ai/`:
 
