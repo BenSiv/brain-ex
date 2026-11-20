@@ -481,7 +481,7 @@ brex knowledge promote 42 --tier 3
         """,
         ["brex sync"] = """
 Description:
-Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment (/api/v1/document and /api/v1/task).
+Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment (/api/v1/entities/document and /api/v1/entities/task).
 
 Optional:
 -n --dry-run    Compute and report pending push/pull actions without mutating either side.

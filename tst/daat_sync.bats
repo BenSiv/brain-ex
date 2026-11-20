@@ -190,21 +190,21 @@ EOF
     TASK_ID=$(sqlite3 "$DAAT_DB" "SELECT id FROM task WHERE archived_at IS NULL LIMIT 1;")
 
     # 1. Create a new note + task directly in daat under 'daat' folder.
-    CREATE_DOC_OUT=$(daat_api_write POST "/api/v1/document" "{\"title\":\"UI Note\",\"content\":\"Connected to [[Wire curation loop]].\",\"parent_id\":$DAAT_FOLDER_ID}")
+    CREATE_DOC_OUT=$(daat_api_write POST "/api/v1/entities/document" "{\"title\":\"UI Note\",\"content\":\"Connected to [[Wire curation loop]].\",\"parent_id\":$DAAT_FOLDER_ID}")
     NEW_DOC_ID=$(printf '%s' "$CREATE_DOC_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
-    daat_api_write POST "/api/v1/task" "{\"document\":$NEW_DOC_ID,\"subject\":\"daat\",\"due_to\":\"2026-12-15\",\"importance\":4,\"urgency\":5,\"status\":\"open\"}" >/dev/null
+    daat_api_write POST "/api/v1/entities/task" "{\"document\":$NEW_DOC_ID,\"subject\":\"daat\",\"due_to\":\"2026-12-15\",\"importance\":4,\"urgency\":5,\"status\":\"open\"}" >/dev/null
 
     # 2. Mark the existing task done in daat.
-    daat_api_write PATCH "/api/v1/task/$TASK_ID" '{"status":"done"}' >/dev/null
+    daat_api_write PATCH "/api/v1/entities/task/$TASK_ID" '{"status":"done"}' >/dev/null
 
     # 3. Simulate daat's AI agent writing a distilled note AND a chat_session transcript under "Knowledge Pool".
-    KP_OUT=$(daat_api_write POST "/api/v1/document" '{"title":"Knowledge Pool"}')
+    KP_OUT=$(daat_api_write POST "/api/v1/entities/document" '{"title":"Knowledge Pool"}')
     KP_ID=$(printf '%s' "$KP_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
-    DISTILL_OUT=$(daat_api_write POST "/api/v1/document" "{\"title\":\"Distilled Curation Principles\",\"content\":\"Key synthesis linking [[daat/UI Note]].\",\"parent_id\":$KP_ID}")
+    DISTILL_OUT=$(daat_api_write POST "/api/v1/entities/document" "{\"title\":\"Distilled Curation Principles\",\"content\":\"Key synthesis linking [[daat/UI Note]].\",\"parent_id\":$KP_ID}")
     DISTILL_ID=$(printf '%s' "$DISTILL_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
     sqlite3 "$DAAT_DB" "UPDATE document SET source_type='distilled' WHERE id=$DISTILL_ID;"
 
-    CHAT_OUT=$(daat_api_write POST "/api/v1/document" "{\"title\":\"Chat transcript 2026-11-19\",\"content\":\"User: hi\",\"parent_id\":$KP_ID}")
+    CHAT_OUT=$(daat_api_write POST "/api/v1/entities/document" "{\"title\":\"Chat transcript 2026-11-19\",\"content\":\"User: hi\",\"parent_id\":$KP_ID}")
     CHAT_ID=$(printf '%s' "$CHAT_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
     sqlite3 "$DAAT_DB" "UPDATE document SET source_type='chat_session' WHERE id=$CHAT_ID;"
 
@@ -243,13 +243,13 @@ EOF
     REMOTE_OBS_ID=$(sqlite3 "$DAAT_DB" "SELECT id FROM document WHERE title='Obsolete Remote';")
 
     # Independent edit: daat edits body of 'Deploy notes VM' while brex marks the task done!
-    daat_api_write PATCH "/api/v1/document/$DEPLOY_DOC_ID" '{"content":"Step 1.\nDistilled details from daat agent."}' >/dev/null
+    daat_api_write PATCH "/api/v1/entities/document/$DEPLOY_DOC_ID" '{"content":"Step 1.\nDistilled details from daat agent."}' >/dev/null
     DEPLOY_BREX_ID=$(sqlite3 "$BREX_DB" "SELECT id FROM notes WHERE title='Deploy notes VM';")
     sqlite3 "$BREX_DB" "UPDATE tasks SET done='2026-11-19 20:00:00' WHERE item_id=$DEPLOY_BREX_ID;"
 
     # Delete 'Obsolete Local' in brex; archive 'Obsolete Remote' in daat.
     sqlite3 "$BREX_DB" "DELETE FROM notes WHERE title='Obsolete Local';"
-    daat_api_write POST "/api/v1/document/$REMOTE_OBS_ID/archive" "" >/dev/null
+    daat_api_write POST "/api/v1/entities/document/$REMOTE_OBS_ID/archive" "" >/dev/null
 
     run brex sync
     [ "$status" -eq 0 ]
@@ -269,7 +269,7 @@ EOF
 
     # Now trigger a true concurrent body edit on 'Deploy notes VM'.
     brex note add -s ops -t "Deploy notes VM" -c "CLI follow-up note." -u
-    daat_api_write PATCH "/api/v1/document/$DEPLOY_DOC_ID" '{"content":"Concurrent daat agent rewrite."}' >/dev/null
+    daat_api_write PATCH "/api/v1/entities/document/$DEPLOY_DOC_ID" '{"content":"Concurrent daat agent rewrite."}' >/dev/null
 
     run brex sync
     [ "$status" -eq 0 ]
@@ -291,18 +291,18 @@ EOF
 
     # Simulate repo_docs_sync adding daat/doc/architecture.md under existing top-level 'daat' folder,
     # plus a brand-new 'software' repo folder with AGENTS.md.
-    DOC_SUB_OUT=$(daat_api_write POST "/api/v1/document" "{\"title\":\"doc\",\"parent_id\":$DAAT_FOLDER_ID,\"external_id\":\"repo-folder:daat/doc\"}")
+    DOC_SUB_OUT=$(daat_api_write POST "/api/v1/entities/document" "{\"title\":\"doc\",\"parent_id\":$DAAT_FOLDER_ID,\"external_id\":\"repo-folder:daat/doc\"}")
     DOC_SUB_ID=$(printf '%s' "$DOC_SUB_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
-    daat_api_write POST "/api/v1/document" "{\"title\":\"architecture\",\"content\":\"> **Repo:** \`daat/doc/architecture.md\`\n\nSystem architecture.\",\"parent_id\":$DOC_SUB_ID,\"external_id\":\"repo:daat:doc/architecture.md\"}" >/dev/null
+    daat_api_write POST "/api/v1/entities/document" "{\"title\":\"architecture\",\"content\":\"> **Repo:** \`daat/doc/architecture.md\`\n\nSystem architecture.\",\"parent_id\":$DOC_SUB_ID,\"external_id\":\"repo:daat:doc/architecture.md\"}" >/dev/null
 
-    SW_ROOT_OUT=$(daat_api_write POST "/api/v1/document" '{"title":"software","external_id":"repo-folder:software"}')
+    SW_ROOT_OUT=$(daat_api_write POST "/api/v1/entities/document" '{"title":"software","external_id":"repo-folder:software"}')
     SW_ROOT_ID=$(printf '%s' "$SW_ROOT_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
-    daat_api_write POST "/api/v1/document" "{\"title\":\"AGENTS\",\"content\":\"> **Repo:** \`software/AGENTS.md\`\n\nAgent rules.\",\"parent_id\":$SW_ROOT_ID,\"external_id\":\"repo:software:AGENTS.md\"}" >/dev/null
+    daat_api_write POST "/api/v1/entities/document" "{\"title\":\"AGENTS\",\"content\":\"> **Repo:** \`software/AGENTS.md\`\n\nAgent rules.\",\"parent_id\":$SW_ROOT_ID,\"external_id\":\"repo:software:AGENTS.md\"}" >/dev/null
 
     # Simulate a Knowledge Pool connection document linking the repo doc and personal note.
-    KP_OUT=$(daat_api_write POST "/api/v1/document" '{"title":"Knowledge Pool"}')
+    KP_OUT=$(daat_api_write POST "/api/v1/entities/document" '{"title":"Knowledge Pool"}')
     KP_ID=$(printf '%s' "$KP_OUT" | sed -n 's/.*"created_id":\([0-9]*\).*/\1/p')
-    daat_api_write POST "/api/v1/document" "{\"title\":\"architecture ↔ Personal daat note\",\"content\":\"Connects [[architecture]] with [[Personal daat note]].\",\"parent_id\":$KP_ID}" >/dev/null
+    daat_api_write POST "/api/v1/entities/document" "{\"title\":\"architecture ↔ Personal daat note\",\"content\":\"Connects [[architecture]] with [[Personal daat note]].\",\"parent_id\":$KP_ID}" >/dev/null
 
     # Also add a personal note in brex with subject 'software' to verify it shares the top-level 'software' folder.
     brex note add -s software -t "Personal software note" -c "Follow up on pipeline."

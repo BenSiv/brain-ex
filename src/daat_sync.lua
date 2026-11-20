@@ -1,5 +1,5 @@
 -- Incremental two-way synchronization between a local brex SQLite brain
--- and a daat deployment (/api/v1/document and /api/v1/task).
+-- and a daat deployment (/api/v1/entities/document and /api/v1/entities/task).
 --
 -- Mapping:
 --   brex `subject` (non-empty) <-> top-level daat folder document (title = subject)
@@ -467,7 +467,7 @@ function fetch_all_active(client, entity_type, allow_missing_type)
     offset = 0
     while true do
         query = string.format("limit=%d&offset=%d", PAGE_SIZE, offset)
-        res, err, code = api_request(client, "GET", "/api/v1/" .. entity_type, query, nil)
+        res, err, code = api_request(client, "GET", "/api/v1/entities/" .. entity_type, query, nil)
         if res == nil then
             if allow_missing_type == true and code == 404 then
                 return {}, false
@@ -862,7 +862,7 @@ function ensure_folders_exist(brain_file, client, state, subjects_needed, dry_ru
             table.insert(batch, {title = f_title})
             table.insert(batch_subjs, s)
         end
-        res, err = api_request(client, "POST", "/api/v1/document", nil, batch)
+        res, err = api_request(client, "POST", "/api/v1/entities/document", nil, batch)
         if res == nil then
             return nil, err
         end
@@ -899,7 +899,7 @@ function sync_remote_task_for_item(client, doc_id, subject, local_task, current_
     if local_task == nil then
         if remote_task != nil then
             if not dry_run then
-                res, err = api_request(client, "POST", "/api/v1/task/" .. tostring(remote_task.id) .. "/archive", "reason=brex+sync", nil)
+                res, err = api_request(client, "POST", "/api/v1/entities/task/" .. tostring(remote_task.id) .. "/archive", "reason=brex+sync", nil)
                 if res == nil then
                     return nil, err
                 end
@@ -912,7 +912,7 @@ function sync_remote_task_for_item(client, doc_id, subject, local_task, current_
     if remote_task != nil then
         if not dry_run then
             patch_body = build_daat_task_payload(doc_id, subject, local_task, true)
-            res, err = api_request(client, "PATCH", "/api/v1/task/" .. tostring(remote_task.id), "reason=brex+sync", patch_body)
+            res, err = api_request(client, "PATCH", "/api/v1/entities/task/" .. tostring(remote_task.id), "reason=brex+sync", patch_body)
             if res == nil then
                 return nil, err
             end
@@ -930,7 +930,7 @@ function sync_remote_task_for_item(client, doc_id, subject, local_task, current_
     end
 
     create_body = build_daat_task_payload(doc_id, subject, local_task, false)
-    res, err = api_request(client, "POST", "/api/v1/task", nil, create_body)
+    res, err = api_request(client, "POST", "/api/v1/entities/task", nil, create_body)
     if res == nil then
         return nil, err
     end
@@ -1139,12 +1139,12 @@ function daat_sync.run(brain_file, opts)
             else
                 if not dry_run then
                     if remote_task != nil then
-                        _, t_arch_err = api_request(client, "POST", "/api/v1/task/" .. tostring(remote_task.id) .. "/archive", "reason=brex+sync", nil)
+                        _, t_arch_err = api_request(client, "POST", "/api/v1/entities/task/" .. tostring(remote_task.id) .. "/archive", "reason=brex+sync", nil)
                         if t_arch_err != nil then
                             return nil, t_arch_err
                         end
                     end
-                    _, d_arch_err = api_request(client, "POST", "/api/v1/document/" .. tostring(d_id) .. "/archive", "reason=brex+sync", nil)
+                    _, d_arch_err = api_request(client, "POST", "/api/v1/entities/document/" .. tostring(d_id) .. "/archive", "reason=brex+sync", nil)
                     if d_arch_err != nil then
                         return nil, d_arch_err
                     end
@@ -1153,7 +1153,7 @@ function daat_sync.run(brain_file, opts)
                 stats.docs_archived = stats.docs_archived + 1
             end
         elseif local_note != nil and remote_doc == nil then
-            single_res, single_err, single_code = api_request(client, "GET", "/api/v1/document/" .. tostring(d_id), nil, nil)
+            single_res, single_err, single_code = api_request(client, "GET", "/api/v1/entities/document/" .. tostring(d_id), nil, nil)
             if single_res == nil and single_code != 404 then
                 return nil, single_err
             end
@@ -1169,7 +1169,7 @@ function daat_sync.run(brain_file, opts)
                     return nil, f_err
                 end
                 if not dry_run then
-                    _, un_err = api_request(client, "POST", "/api/v1/document/" .. tostring(d_id) .. "/unarchive", "reason=brex+sync", nil)
+                    _, un_err = api_request(client, "POST", "/api/v1/entities/document/" .. tostring(d_id) .. "/unarchive", "reason=brex+sync", nil)
                     if un_err != nil then
                         return nil, un_err
                     end
@@ -1177,7 +1177,7 @@ function daat_sync.run(brain_file, opts)
                     if local_note.subject != "" and state.sync_folders[local_note.subject] != nil then
                         target_pid = state.sync_folders[local_note.subject]
                     end
-                    patch_res, patch_err = api_request(client, "PATCH", "/api/v1/document/" .. tostring(d_id), "reason=brex+sync", {
+                    patch_res, patch_err = api_request(client, "PATCH", "/api/v1/entities/document/" .. tostring(d_id), "reason=brex+sync", {
                         title = local_note.title,
                         content = rendered_local,
                         parent_id = target_pid
@@ -1228,7 +1228,7 @@ function daat_sync.run(brain_file, opts)
                     if local_note.subject != "" and state.sync_folders[local_note.subject] != nil then
                         target_pid = state.sync_folders[local_note.subject]
                     end
-                    patch_res, patch_err = api_request(client, "PATCH", "/api/v1/document/" .. tostring(d_id), "reason=brex+sync", {
+                    patch_res, patch_err = api_request(client, "PATCH", "/api/v1/entities/document/" .. tostring(d_id), "reason=brex+sync", {
                         title = local_note.title,
                         content = rendered_local,
                         parent_id = target_pid
@@ -1249,7 +1249,7 @@ function daat_sync.run(brain_file, opts)
                         brain_file, local_note, r_subj, remote_doc.title, remote_doc.content
                     )
                     if saved_title != remote_doc.title then
-                        api_request(client, "PATCH", "/api/v1/document/" .. tostring(d_id), "reason=brex+sync", {title = saved_title})
+                        api_request(client, "PATCH", "/api/v1/entities/document/" .. tostring(d_id), "reason=brex+sync", {title = saved_title})
                     end
                     final_doc_hash = doc_hash(r_subj, saved_title, remote_doc.content)
                 else
@@ -1281,7 +1281,7 @@ function daat_sync.run(brain_file, opts)
                     if merged_subj != "" and state.sync_folders[merged_subj] != nil then
                         target_pid = state.sync_folders[merged_subj]
                     end
-                    patch_res, patch_err = api_request(client, "PATCH", "/api/v1/document/" .. tostring(d_id), "reason=brex+sync+merge", {
+                    patch_res, patch_err = api_request(client, "PATCH", "/api/v1/entities/document/" .. tostring(d_id), "reason=brex+sync+merge", {
                         title = saved_title,
                         content = merged_body,
                         parent_id = target_pid
@@ -1396,7 +1396,7 @@ function daat_sync.run(brain_file, opts)
             rendered_local = render_content_with_connections(ln.content, ln.connections)
             if trim(matching_remote.content) != trim(rendered_local) then
                 if not dry_run then
-                    api_request(client, "PATCH", "/api/v1/document/" .. tostring(matching_remote.id), "reason=brex+sync", {
+                    api_request(client, "PATCH", "/api/v1/entities/document/" .. tostring(matching_remote.id), "reason=brex+sync", {
                         content = rendered_local
                     })
                 end
@@ -1471,7 +1471,7 @@ function daat_sync.run(brain_file, opts)
                     table.insert(batch_notes, {note = ln, rendered = rendered})
                 end
 
-                doc_res, doc_err = api_request(client, "POST", "/api/v1/document", nil, doc_batch)
+                doc_res, doc_err = api_request(client, "POST", "/api/v1/entities/document", nil, doc_batch)
                 if doc_res == nil then
                     return nil, doc_err
                 end
@@ -1498,7 +1498,7 @@ function daat_sync.run(brain_file, opts)
 
                 created_task_by_k = {}
                 if #task_batch > 0 then
-                    t_res, t_err = api_request(client, "POST", "/api/v1/task", nil, task_batch)
+                    t_res, t_err = api_request(client, "POST", "/api/v1/entities/task", nil, task_batch)
                     if t_res == nil then
                         return nil, t_err
                     end
