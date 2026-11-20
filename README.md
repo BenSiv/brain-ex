@@ -36,6 +36,7 @@ brex <command> -h or --help for more info
 - `brex note add --title "standup" --subject "work" --content "daily sync" --update`
 - `brex work task add --title "finish docs" --due_to "2026-02-20" --importance 4 --urgency 3`
 - `brex work knowledge search "database indexes" --limit 5`
+- `brex work knowledge search "database indexes" --remote`
 - `brex sync --dry-run`
 - `brex brain list`
 - `brex brain use --name work`

@@ -336,16 +336,18 @@ brex knowledge process
         """,
         ["brex knowledge search"] = """
 Description:
-Searches the indexed knowledge pool for the specified query.
+Searches the indexed knowledge pool for the specified query (local SQLite by default, or remote daat semantic search with --remote).
 
 Required:
 <query> The search terms.
 
 Optional:
 -n --limit <number> Limit the number of results (default 5).
+-r --remote         Query the configured daat deployment's semantic search (/api/v1/documents/search).
 
 Examples:
 brex knowledge search "git flow" --limit 3
+brex knowledge search "cryopreservation media" --remote
         """,
         ["brex knowledge sync"] = """
 Description:
@@ -415,15 +417,17 @@ brex knowledge promote 42 --tier 3
         """,
         ["brex sync"] = """
 Description:
-Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment (/api/v1/document and /api/v1/task).
+Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment, using ?since_event=<id> delta checks when idle, mirroring daat tier/duplicate metadata into knowledge_items, and replaying recent CLI search queries to reinforce daat pool heat.
 
 Optional:
 -n --dry-run    Compute and report pending push/pull actions without mutating either side.
+-f --full       Force a full active-table metadata sweep even when no ledger events occurred.
 -u --url <url>  Override daat_url for this invocation.
 
 Examples:
 brex sync
 brex sync --dry-run
+brex sync --full
         """
     }
 

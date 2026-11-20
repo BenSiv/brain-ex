@@ -76,6 +76,7 @@ end
 function knowledge.query_from_args(args, start_index)
     parts = {}
     limit = 5
+    remote = false
     i = start_index
     while i <= #args do
         if args[i] == "--limit" or args[i] == "-n" then
@@ -86,12 +87,15 @@ function knowledge.query_from_args(args, start_index)
                 end
             end
             i = i + 2
+        elseif args[i] == "--remote" or args[i] == "-r" then
+            remote = true
+            i = i + 1
         else
             table.insert(parts, args[i])
             i = i + 1
         end
     end
-    return table.concat(parts, " "), limit
+    return table.concat(parts, " "), limit, remote
 end
 
 function knowledge.print_usage()
@@ -189,10 +193,20 @@ function do_knowledge(brain_file, cmd_args)
     end
 
     if subcommand == "search" then
-        query_str, limit = knowledge.query_from_args(cmd_args, 2)
+        query_str, limit, use_remote = knowledge.query_from_args(cmd_args, 2)
         if query_str == nil or query_str == "" then
-            print("Usage: brex knowledge search <query> [--limit N]")
+            print("Usage: brex knowledge search <query> [--limit N] [--remote]")
             return "error"
+        end
+        if use_remote == true then
+            daat_sync_mod = require("daat_sync")
+            r_rows, r_err = daat_sync_mod.remote_search(brain_file, query_str, limit)
+            if r_rows == nil then
+                print("Remote search failed: " .. tostring(r_err))
+                return "error"
+            end
+            knowledge.view(r_rows, {"id", "title", "tier", "excerpt"})
+            return "success"
         end
         results, retrieval_id = knowledge.search(brain_file, query_str, limit)
         if retrieval_id != nil and retrieval_id > 0 then

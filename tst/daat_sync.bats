@@ -227,7 +227,7 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"Distilled Curation Principles"* ]]
     KP_TIER=$(sqlite3 "$BREX_DB" "SELECT tier || '|' || process_level FROM knowledge_items WHERE title='Distilled Curation Principles';")
-    [ "$KP_TIER" = "2|curated" ]
+    [ "$KP_TIER" = "3|distilled" ]
 
     # Embedded brex agent surface is removed; AI/curation lives in daat.
     run brex notes_test agent
@@ -332,4 +332,52 @@ EOF
     # Repo docs remain active and untouched in daat.
     ACTIVE_REPO_DOCS=$(sqlite3 "$DAAT_DB" "SELECT COUNT(*) FROM document WHERE external_id LIKE 'repo:%' AND archived_at IS NULL;")
     [ "$ACTIVE_REPO_DOCS" -eq 2 ]
+}
+
+@test "sync mirrors daat tier/duplicate metadata, short-circuits via since_event when idle, replays CLI retrievals, and supports --remote search" {
+    brex note add -s bio -t "Canonical Protocol" -c "Primary vitrification protocol with glycerol."
+    brex note add -s bio -t "Duplicate Protocol" -c "Old vitrification copy."
+    run brex sync
+    [ "$status" -eq 0 ]
+
+    # Verify watermark was persisted after initial sync.
+    WM=$(sqlite3 "$BREX_DB" "SELECT value FROM daat_sync_state WHERE key='remote_event_watermark';")
+    [ -n "$WM" ] && [ "$WM" -gt 0 ]
+
+    # Run a local CLI search; next idle sync should short-circuit via since_event AND replay the search to daat!
+    run brex knowledge search "vitrification"
+    [ "$status" -eq 0 ]
+
+    run brex sync
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"pushed 0 doc(s)/0 task(s), pulled 0 doc(s)/0 task(s)"* ]]
+    [[ "$output" == *"(replayed 1 search(es))"* ]]
+
+    DAAT_RET_CNT=$(sqlite3 "$DAAT_DB" "SELECT COUNT(*) FROM knowledge_retrieval WHERE query_text='vitrification';")
+    [ "$DAAT_RET_CNT" -eq 1 ]
+
+    # Simulate daat promoting Canonical Protocol to Tier 3 ('record') and folding Duplicate Protocol into it.
+    CANON_DOC_ID=$(sqlite3 "$DAAT_DB" "SELECT id FROM document WHERE title='Canonical Protocol';")
+    DUP_DOC_ID=$(sqlite3 "$DAAT_DB" "SELECT id FROM document WHERE title='Duplicate Protocol';")
+    sqlite3 "$DAAT_DB" "UPDATE document SET tier=3, source_type='record', retrieval_count=9 WHERE id=$CANON_DOC_ID;"
+    sqlite3 "$DAAT_DB" "UPDATE document SET duplicate_of=$CANON_DOC_ID, merged_into=$CANON_DOC_ID WHERE id=$DUP_DOC_ID;"
+
+    # Force a full metadata sweep (--full) since raw non-ledger SQLite updates don't advance entity_event.
+    run brex sync --full
+    [ "$status" -eq 0 ]
+
+    CANON_META=$(sqlite3 "$BREX_DB" "SELECT tier || '|' || process_level || '|' || retrieval_count FROM knowledge_items WHERE title='Canonical Protocol';")
+    [ "$CANON_META" = "3|distilled|9" ]
+
+    DUP_META=$(sqlite3 "$BREX_DB" "SELECT process_level || '|' || (merged_into IS NOT NULL) FROM knowledge_items WHERE title='Duplicate Protocol';")
+    [ "$DUP_META" = "duplicate|1" ]
+
+    # Direct --remote search queries daat's /api/v1/documents/search and prints results without double-replaying.
+    run brex knowledge search "glycerol" --remote
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Canonical Protocol"* ]]
+
+    run brex sync
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"replayed"* ]]
 }

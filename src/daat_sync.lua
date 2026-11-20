@@ -26,6 +26,8 @@ const daat_sync = {}
 
 const PAGE_SIZE = 200
 const BATCH_SIZE = 100
+const FULL_SYNC_INTERVAL_SEC = 1800
+const MAX_RETRIEVAL_REPLAY = 20
 const KNOWLEDGE_POOL_FOLDER = "Knowledge Pool"
 const KNOWLEDGE_POOL_SUBJECT = "knowledge-pool"
 
@@ -42,6 +44,11 @@ CREATE TABLE IF NOT EXISTS daat_sync_items (
     synced_doc_hash TEXT NOT NULL,
     synced_task_hash TEXT,
     last_synced_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS daat_sync_state (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 """
 
@@ -61,6 +68,16 @@ end
 
 function shell_quote(s)
     return "'" .. string.gsub(tostring(s), "'", "'\\''") .. "'"
+end
+
+function url_encode(s)
+    if s == nil then
+        return ""
+    end
+    encoded = string.gsub(tostring(s), "([^%w%-_%.~])", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end)
+    return encoded
 end
 
 function trim(s)
@@ -314,7 +331,20 @@ function replace_note_connections(brain_file, title, subject, content)
     )
 end
 
-function api_request(client, method, path, query, body_obj)
+function rewrite_entity_path(client, path)
+    if client.use_entities_prefix != true then
+        return path
+    end
+    if path == "/api/v1/document" or string.sub(path, 1, 17) == "/api/v1/document/" then
+        return "/api/v1/entities/document" .. string.sub(path, 17)
+    end
+    if path == "/api/v1/task" or string.sub(path, 1, 13) == "/api/v1/task/" then
+        return "/api/v1/entities/task" .. string.sub(path, 13)
+    end
+    return path
+end
+
+function api_request_raw(client, method, path, query, body_obj)
     payload_str = nil
     if body_obj != nil then
         payload_str = dkjson.encode(body_obj)
@@ -444,6 +474,23 @@ function api_request(client, method, path, query, body_obj)
     return decoded_resp, nil, http_code
 end
 
+function api_request(client, method, path, query, body_obj)
+    actual_path = rewrite_entity_path(client, path)
+    res, err, code = api_request_raw(client, method, actual_path, query, body_obj)
+    if res == nil and code == 404 and client.use_entities_prefix == nil and path == "/api/v1/document" then
+        client.use_entities_prefix = true
+        retry_path = rewrite_entity_path(client, path)
+        res2, err2, code2 = api_request_raw(client, method, retry_path, query, body_obj)
+        if res2 != nil then
+            return res2, nil, code2
+        end
+        client.use_entities_prefix = false
+    elseif res != nil and client.use_entities_prefix == nil and path == "/api/v1/document" then
+        client.use_entities_prefix = false
+    end
+    return res, err, code
+end
+
 function format_api_issues(issues)
     if type(issues) != "table" or #issues == 0 then
         return "validation failed"
@@ -465,14 +512,18 @@ end
 function fetch_all_active(client, entity_type, allow_missing_type)
     all_rows = {}
     offset = 0
+    observed_max_event = nil
     while true do
         query = string.format("limit=%d&offset=%d", PAGE_SIZE, offset)
         res, err, code = api_request(client, "GET", "/api/v1/" .. entity_type, query, nil)
         if res == nil then
             if allow_missing_type == true and code == 404 then
-                return {}, false
+                return {}, false, nil
             end
-            return nil, err
+            return nil, err, nil
+        end
+        if res.max_event_id != nil and observed_max_event == nil then
+            observed_max_event = tonumber(res.max_event_id)
         end
         rows = coalesce(res.rows, {})
         for _, r in ipairs(rows) do
@@ -484,7 +535,123 @@ function fetch_all_active(client, entity_type, allow_missing_type)
             break
         end
     end
-    return all_rows, true
+    return all_rows, true, observed_max_event
+end
+
+function get_sync_state(brain_file, key)
+    rows = database.query(
+        brain_file,
+        string.format("SELECT value FROM daat_sync_state WHERE key=%s;", db.quote(key))
+    )
+    if rows == nil or rows[1] == nil then
+        return nil
+    end
+    val = row_val(rows[1], "value", 1, nil)
+    if val == nil or val == "" or val == "NULL" then
+        return nil
+    end
+    return tostring(val)
+end
+
+function set_sync_state(brain_file, key, value)
+    database.exec(
+        brain_file,
+        string.format(
+            "INSERT INTO daat_sync_state (key, value) VALUES (%s, %s) "
+            .. "ON CONFLICT(key) DO UPDATE SET value = excluded.value;",
+            db.quote(key), db.quote(tostring(value))
+        )
+    )
+end
+
+function has_local_changes(state)
+    linked_local = {}
+    for _, link_row in ipairs(state.sync_items) do
+        b_id = link_row.brex_note_id
+        ln = state.notes_by_id[b_id]
+        if ln == nil then
+            return true
+        end
+        linked_local[b_id] = true
+        rendered = render_content_with_connections(ln.content, ln.connections)
+        l_dhash = doc_hash(ln.subject, ln.title, rendered)
+        if l_dhash != link_row.synced_doc_hash then
+            return true
+        end
+        l_thash = task_hash(ln.task)
+        prev_thash = coalesce(link_row.synced_task_hash, "none")
+        if l_thash != prev_thash then
+            return true
+        end
+    end
+    for nid, _ in pairs(state.notes_by_id) do
+        if linked_local[nid] == nil then
+            return true
+        end
+    end
+    return false
+end
+
+function replay_local_retrievals(brain_file, client, dry_run)
+    knowledge_pool.ensure_table(brain_file)
+    last_str = get_sync_state(brain_file, "last_replayed_retrieval_id")
+    last_id = tonumber(last_str)
+    if last_id == nil then
+        max_rows = database.query(brain_file, "SELECT COALESCE(MAX(id), 0) AS m FROM knowledge_retrievals;")
+        cur_max = 0
+        if max_rows != nil and max_rows[1] != nil then
+            cur_max = coalesce(tonumber(row_val(max_rows[1], "m", 1, 0)), 0)
+        end
+        last_id = math.max(0, cur_max - 10)
+        if not dry_run then
+            set_sync_state(brain_file, "last_replayed_retrieval_id", tostring(last_id))
+        end
+    end
+
+    pending = coalesce(database.query(
+        brain_file,
+        string.format(
+            "SELECT id, query_text FROM knowledge_retrievals WHERE id > %d ORDER BY id ASC LIMIT %d;",
+            last_id, MAX_RETRIEVAL_REPLAY
+        )
+    ), {})
+    if #pending == 0 then
+        return 0
+    end
+
+    replayed = 0
+    seen_q = {}
+    highest_id = last_id
+    for _, r in ipairs(pending) do
+        rid = coalesce(tonumber(row_val(r, "id", 1, 0)), 0)
+        qtxt = trim(row_val(r, "query_text", 2, ""))
+        if qtxt != "" and seen_q[qtxt] == nil then
+            seen_q[qtxt] = true
+            if dry_run then
+                replayed = replayed + 1
+            else
+                s_res, _, s_code = api_request(
+                    client, "GET", "/api/v1/documents/search",
+                    "q=" .. url_encode(qtxt) .. "&limit=5", nil
+                )
+                if s_res == nil then
+                    if s_code == 404 then
+                        return 0
+                    end
+                    break
+                end
+                replayed = replayed + 1
+            end
+        end
+        if rid > highest_id then
+            highest_id = rid
+        end
+    end
+
+    if not dry_run and highest_id > last_id then
+        set_sync_state(brain_file, "last_replayed_retrieval_id", tostring(highest_id))
+    end
+    return replayed
 end
 
 function ensure_sync_schema(brain_file)
@@ -944,6 +1111,7 @@ end
 function daat_sync.run(brain_file, opts)
     opts = coalesce(opts, {})
     dry_run = (opts.dry_run == true)
+    force_full = (opts.full == true)
 
     cgi_bin = os.getenv("BREX_DAAT_CGI_BIN")
     cgi_dir = os.getenv("BREX_DAAT_CGI_DIR")
@@ -966,7 +1134,41 @@ function daat_sync.run(brain_file, opts)
         cgi_dir = cgi_dir
     }
 
-    remote_docs, docs_err = fetch_all_active(client, "document", false)
+    state = load_local_state(brain_file)
+    url_Identity = coalesce(base_url, "") .. "|" .. coalesce(cgi_dir, "")
+    stored_url = get_sync_state(brain_file, "sync_endpoint")
+    prev_watermark = tonumber(get_sync_state(brain_file, "remote_event_watermark"))
+    last_full_epoch = coalesce(tonumber(get_sync_state(brain_file, "last_full_sync_epoch")), 0)
+    now_epoch = os.time()
+
+    if not force_full
+            and stored_url == url_Identity
+            and prev_watermark != nil
+            and prev_watermark > 0
+            and (now_epoch - last_full_epoch) < FULL_SYNC_INTERVAL_SEC
+            and has_local_changes(state) == false then
+        probe_res, _, _ = api_request(
+            client, "GET", "/api/v1/document",
+            string.format("since_event=%d&limit=1", prev_watermark), nil
+        )
+        if probe_res != nil and probe_res.max_event_id != nil and tonumber(probe_res.max_event_id) == prev_watermark then
+            replayed_idle = replay_local_retrievals(brain_file, client, dry_run)
+            return {
+                folders_created = 0,
+                docs_pushed = 0,
+                docs_pulled = 0,
+                docs_archived = 0,
+                docs_deleted_local = 0,
+                tasks_pushed = 0,
+                tasks_pulled = 0,
+                conflicts_merged = 0,
+                retrievals_replayed = replayed_idle,
+                delta_short_circuit = true
+            }, nil
+        end
+    end
+
+    remote_docs, docs_err, initial_max_ev = fetch_all_active(client, "document", false)
     if remote_docs == nil then
         return nil, docs_err
     end
@@ -975,8 +1177,6 @@ function daat_sync.run(brain_file, opts)
     if remote_tasks == nil then
         return nil, task_type_registered
     end
-
-    state = load_local_state(brain_file)
 
     doc_by_id = {}
     has_children = {}
@@ -1562,16 +1762,131 @@ function daat_sync.run(brain_file, opts)
         end
     end
 
-    if pulled_any_notes and not dry_run then
+    if not dry_run then
         knowledge_pool.sync_notes(brain_file)
+
+        post_state = load_local_state(brain_file)
+        note_source_by_daat_id = {}
+        for _, si in ipairs(post_state.sync_items) do
+            ln = post_state.notes_by_id[si.brex_note_id]
+            if ln != nil then
+                note_source_by_daat_id[si.daat_doc_id] = knowledge_pool.note_source_id(ln.subject, ln.title)
+            end
+        end
+
+        meta_batch = {}
+        for _, si in ipairs(post_state.sync_items) do
+            ln = post_state.notes_by_id[si.brex_note_id]
+            rdoc = doc_by_id[si.daat_doc_id]
+            if ln != nil and rdoc != nil then
+                canon_daat_id = tonumber(rdoc.merged_into)
+                if canon_daat_id == nil then
+                    canon_daat_id = tonumber(rdoc.duplicate_of)
+                end
+                canon_sid = nil
+                if canon_daat_id != nil then
+                    canon_sid = note_source_by_daat_id[canon_daat_id]
+                end
+                table.insert(meta_batch, {
+                    subject = ln.subject,
+                    title = ln.title,
+                    remote_tier = rdoc.tier,
+                    remote_source_type = rdoc.source_type,
+                    remote_retrieval_count = rdoc.retrieval_count,
+                    canonical_source_id = canon_sid
+                })
+            end
+        end
+        if #meta_batch > 0 then
+            knowledge_pool.apply_remote_metadata(brain_file, meta_batch)
+        end
+    end
+
+    stats.retrievals_replayed = replay_local_retrievals(brain_file, client, dry_run)
+
+    if not dry_run then
+        final_wm = initial_max_ev
+        any_mutations = (stats.docs_pushed > 0 or stats.tasks_pushed > 0 or stats.docs_archived > 0 or stats.folders_created > 0 or stats.conflicts_merged > 0)
+        if any_mutations then
+            wm_res, _, _ = api_request(client, "GET", "/api/v1/document", "limit=1&offset=0", nil)
+            if wm_res != nil and wm_res.max_event_id != nil then
+                final_wm = tonumber(wm_res.max_event_id)
+            end
+        end
+        if final_wm != nil and final_wm > 0 then
+            set_sync_state(brain_file, "remote_event_watermark", tostring(final_wm))
+            set_sync_state(brain_file, "sync_endpoint", url_Identity)
+            set_sync_state(brain_file, "last_full_sync_epoch", tostring(os.time()))
+        end
     end
 
     return stats, nil
 end
 
+function daat_sync.remote_search(brain_file, query_str, limit, opts)
+    opts = coalesce(opts, {})
+    cgi_bin = os.getenv("BREX_DAAT_CGI_BIN")
+    cgi_dir = os.getenv("BREX_DAAT_CGI_DIR")
+    base_url = coalesce(opts.url, config.get_daat_url())
+    if (cgi_bin == nil or cgi_bin == "") and (base_url == nil or base_url == "") then
+        return nil, "No daat_url configured (set daat_url in ~/.config/brain-ex/config.yaml or BREX_DAAT_URL)."
+    end
+    api_key = coalesce(opts.api_key, config.get_daat_api_key())
+    if api_key == nil or api_key == "" then
+        return nil, "No daat API key found (set daat_api_key_file in config.yaml or BREX_DAAT_API_KEY)."
+    end
+
+    ensure_sync_schema(brain_file)
+    knowledge_pool.ensure_table(brain_file)
+
+    client = {
+        base_url = base_url,
+        api_key = api_key,
+        cgi_bin = cgi_bin,
+        cgi_dir = cgi_dir
+    }
+    s_limit = coalesce(tonumber(limit), 5)
+    q_params = string.format("q=%s&limit=%d", url_encode(query_str), s_limit)
+    res, err, code = api_request(client, "GET", "/api/v1/documents/search", q_params, nil)
+    if res == nil then
+        if code == 404 then
+            return nil, "Remote daat server does not expose /api/v1/documents/search yet (redeploy daat)."
+        end
+        return nil, err
+    end
+
+    prev_replayed = tonumber(get_sync_state(brain_file, "last_replayed_retrieval_id"))
+    max_before_rows = database.query(brain_file, "SELECT COALESCE(MAX(id), 0) AS m FROM knowledge_retrievals;")
+    max_before = 0
+    if max_before_rows != nil and max_before_rows[1] != nil then
+        max_before = coalesce(tonumber(row_val(max_before_rows[1], "m", 1, 0)), 0)
+    end
+    new_ret_id = knowledge_pool.insert_retrieval(brain_file, query_str)
+    if prev_replayed == nil or prev_replayed >= max_before then
+        set_sync_state(brain_file, "last_replayed_retrieval_id", tostring(new_ret_id))
+    end
+
+    out_rows = {}
+    for _, r in ipairs(coalesce(res.results, {})) do
+        snippet = trim(coalesce(r.excerpt, ""))
+        snippet = string.gsub(snippet, "[\r\n\t]+", " ")
+        if string.len(snippet) > 90 then
+            snippet = string.sub(snippet, 1, 87) .. "..."
+        end
+        table.insert(out_rows, {
+            id = coalesce(tonumber(r.id), 0),
+            title = coalesce(r.title, ""),
+            tier = coalesce(tonumber(r.tier), 0),
+            excerpt = snippet
+        })
+    end
+    return out_rows, nil
+end
+
 function do_sync(brain_file, cmd_args)
     flag_specs = {
         {short = "n", long = "dry-run", key = "dry_run", kind = "boolean"},
+        {short = "f", long = "full", key = "full", kind = "boolean"},
         {short = "u", long = "url", kind = "string"},
     }
     help_string = help.get_help_string(arg[0])
@@ -1582,6 +1897,7 @@ function do_sync(brain_file, cmd_args)
 
     stats, err = daat_sync.run(brain_file, {
         dry_run = (parsed.dry_run == true),
+        full = (parsed.full == true),
         url = parsed.url
     })
     if stats == nil then
@@ -1593,14 +1909,18 @@ function do_sync(brain_file, cmd_args)
     if parsed.dry_run == true then
         prefix = "Dry-run sync with daat"
     end
-    print(string.format(
+    msg = string.format(
         "%s: pushed %d doc(s)/%d task(s), pulled %d doc(s)/%d task(s), archived %d, deleted_local %d, folders_created %d, merged %d.",
         prefix,
         stats.docs_pushed, stats.tasks_pushed,
         stats.docs_pulled, stats.tasks_pulled,
         stats.docs_archived, stats.docs_deleted_local,
         stats.folders_created, stats.conflicts_merged
-    ))
+    )
+    if coalesce(stats.retrievals_replayed, 0) > 0 then
+        msg = msg .. string.format(" (replayed %d search(es))", stats.retrievals_replayed)
+    end
+    print(msg)
     return "success"
 end
 

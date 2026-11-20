@@ -289,6 +289,96 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
     return true
 end
 
+function knowledge_pool.apply_remote_metadata(brain_file, items_meta)
+    if items_meta == nil or #items_meta == 0 then
+        return 0
+    end
+    knowledge_pool.ensure_table(brain_file)
+
+    ki_id_by_source = {}
+    ki_rows = database.query(brain_file, "SELECT id, source_id, artifact_status, tier, retrieval_count FROM knowledge_items WHERE source_type='note';")
+    if ki_rows != nil then
+        for _, r in ipairs(ki_rows) do
+            sid = knowledge_pool.row_value(r, "source_id", 2, "")
+            if sid != "" then
+                ki_id_by_source[sid] = {
+                    id = knowledge_pool.number_value(knowledge_pool.row_value(r, "id", 1, 0), 0),
+                    artifact_status = knowledge_pool.row_value(r, "artifact_status", 3, "none"),
+                    tier = knowledge_pool.number_value(knowledge_pool.row_value(r, "tier", 4, 1), 1),
+                    retrieval_count = knowledge_pool.number_value(knowledge_pool.row_value(r, "retrieval_count", 5, 0), 0)
+                }
+            end
+        end
+    end
+
+    updated = 0
+    for _, m in ipairs(items_meta) do
+        sid = knowledge_pool.note_source_id(m.subject, m.title)
+        local_ki = ki_id_by_source[sid]
+        if local_ki != nil and local_ki.id > 0 then
+            r_tier = knowledge_pool.number_value(m.remote_tier, 0)
+            r_stype = m.remote_source_type
+            if r_stype == nil then
+                r_stype = ""
+            end
+            r_ret = knowledge_pool.number_value(m.remote_retrieval_count, 0)
+
+            target_tier = local_ki.tier
+            target_process = nil
+            target_promo = nil
+
+            has_vault_artifact = (local_ki.artifact_status != nil and local_ki.artifact_status != "" and local_ki.artifact_status != "none")
+            if not has_vault_artifact then
+                if r_tier >= 3 or r_stype == "record" or r_stype == "distilled" then
+                    target_tier = 3
+                    target_process = "distilled"
+                    target_promo = "materialized"
+                elseif r_tier == 2 or r_stype == "curated" or m.subject == "knowledge-pool" or m.subject == "Tag Summaries" then
+                    target_tier = 2
+                    target_process = "curated"
+                    target_promo = "curated"
+                elseif r_tier == 1 then
+                    target_tier = math.max(local_ki.tier, 1)
+                end
+            end
+
+            canon_ki_id = nil
+            if m.canonical_source_id != nil and m.canonical_source_id != "" then
+                canon_entry = ki_id_by_source[m.canonical_source_id]
+                if canon_entry != nil and canon_entry.id > 0 and canon_entry.id != local_ki.id then
+                    canon_ki_id = canon_entry.id
+                end
+            end
+
+            merged_ret = local_ki.retrieval_count
+            if r_ret > merged_ret then
+                merged_ret = r_ret
+            end
+
+            set_parts = {
+                string.format("tier=%d", target_tier),
+                string.format("retrieval_count=%d", merged_ret)
+            }
+            if canon_ki_id != nil then
+                table.insert(set_parts, string.format("duplicate_of=%d", canon_ki_id))
+                table.insert(set_parts, string.format("merged_into=%d", canon_ki_id))
+                table.insert(set_parts, "process_level='duplicate'")
+                table.insert(set_parts, "promotion_status='duplicate'")
+            elseif target_process != nil and target_promo != nil then
+                table.insert(set_parts, string.format("process_level='%s'", knowledge_pool.escape_sql(target_process)))
+                table.insert(set_parts, string.format("promotion_status='%s'", knowledge_pool.escape_sql(target_promo)))
+            end
+
+            database.exec(
+                brain_file,
+                string.format("UPDATE knowledge_items SET %s WHERE id=%d;", table.concat(set_parts, ", "), local_ki.id)
+            )
+            updated = updated + 1
+        end
+    end
+    return updated
+end
+
 function knowledge_pool.mark_duplicates(brain_file)
     database.exec(brain_file, "UPDATE knowledge_items SET duplicate_of=NULL WHERE merged_into IS NULL;")
 
@@ -404,8 +494,13 @@ function knowledge_pool.review_status_for_item(item)
         promotion_status = "stale"
         process_level = "review"
     elseif tier >= 3 then
-        promotion_status = "materialized"
-        process_level = "atomic"
+        if artifact_status == nil or artifact_status == "" or artifact_status == "none" then
+            promotion_status = "materialized"
+            process_level = "distilled"
+        else
+            promotion_status = "materialized"
+            process_level = "atomic"
+        end
     elseif tier == 2 and (artifact_status == nil or artifact_status == "" or artifact_status == "none") then
         promotion_status = "curated"
         process_level = "curated"
