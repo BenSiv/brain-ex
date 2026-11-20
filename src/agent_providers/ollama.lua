@@ -54,10 +54,14 @@ function provider.embeddings(model, input_text, command_tmpl)
 
         result, success, _ = ext.exec(command)
     else
-        -- Default Ollama API
-        command = string.format("curl -s http://localhost:11434/api/embeddings -d '{\"model\": \"%s\", \"prompt\": %s}'",
-            model, dkjson.encode(input_text))
+        -- Default Ollama API: pass JSON payload via a temp file so apostrophes
+        -- and shell metacharacters inside input_text never break single quoting.
+        paths = require("paths")
+        tmpfile = os.tmpname()
+        paths.write_file(tmpfile, dkjson.encode({model = model, prompt = input_text}))
+        command = "curl -s http://localhost:11434/api/embeddings -H 'Content-Type: application/json' --data-binary @" .. shell_escape(tmpfile)
         result, success, _ = ext.exec(command)
+        os.remove(tmpfile)
     end
 
     if success == false or result == nil or result == "" then
