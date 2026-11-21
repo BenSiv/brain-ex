@@ -17,7 +17,6 @@ get_help_string = require("help").get_help_string
 bx_utils = require("bx_utils")
 paths = require("paths")
 task_mod = require("task")
-agent_engine = require("agent_engine")
 
 function read_raw(path)
     f = io.open(path, "r")
@@ -80,7 +79,7 @@ function with_db_lock(brain_file, callback)
 end
 
 -- Cheap stat-only fingerprint of every markdown file under the vault
--- (notes, tasks, agent_sessions): path+mtime+size, no file content read.
+-- (notes and tasks): path+mtime+size, no file content read.
 -- Lets update_from_vault skip the expensive parse/diff/resync of every
 -- subsystem when nothing has changed on disk since the last sync.
 function compute_vault_fingerprint(vault_path)
@@ -120,194 +119,6 @@ function store_vault_fingerprint(brain_file, fingerprint)
     database.exec(brain_file, string.format("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('vault_fingerprint', '%s');", fingerprint))
 end
 
-function sync_sessions_from_vault(vault_path, brain_file, force)
-    database.exec(brain_file, "CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY, value TEXT);")
-    sessions_dir = paths.joinpath(vault_path, "agent_sessions")
-    
-    attr_dir = lfs.attributes(sessions_dir)
-    if attr_dir == nil or attr_dir.mode != "directory" then
-        return true
-    end
-    
-    files_raw = bx_utils.readdir(sessions_dir)
-    files = {}
-    if files_raw != nil then
-        files = files_raw
-    end
-    seen_ids = {}
-
-    -- Perf: same fix as sync_tasks_from_vault above -- one batched
-    -- read of every session file's sync_meta row up front, instead of
-    -- 3 separate SELECTs per file on every single write call.
-    stored_mod_by_file = {}
-    stored_size_by_file = {}
-    sess_id_by_file = {}
-    sync_meta_rows_raw = database.query(brain_file,
-        "SELECT key, value FROM sync_meta WHERE key LIKE 'session_file_mod_%' OR key LIKE 'session_file_size_%' OR key LIKE 'session_id_for_%';")
-    sync_meta_rows = {}
-    if sync_meta_rows_raw != nil then
-        sync_meta_rows = sync_meta_rows_raw
-    end
-    for _, row in ipairs(sync_meta_rows) do
-        k = row[1]
-        if row.key != nil then
-            k = row.key
-        end
-        v = row[2]
-        if row.value != nil then
-            v = row.value
-        end
-        if string.sub(k, 1, 17) == "session_file_mod_" then
-            stored_mod_by_file[string.sub(k, 18)] = v
-        elseif string.sub(k, 1, 18) == "session_file_size_" then
-            stored_size_by_file[string.sub(k, 19)] = v
-        elseif string.sub(k, 1, 15) == "session_id_for_" then
-            sess_id_by_file[string.sub(k, 16)] = v
-        end
-    end
-
-    for _, file in ipairs(files) do
-        if string.match(file, "%.md$") != nil then
-            file_path = paths.joinpath(sessions_dir, file)
-            attr = lfs.attributes(file_path)
-            if attr != nil then
-                current_mod = tostring(attr.modification)
-                file_size = attr.size
-
-                stored_mod = stored_mod_by_file[file]
-                stored_size = stored_size_by_file[file]
-                sess_id = sess_id_by_file[file]
-
-                needs_parse = (force == true) or (stored_mod == nil) or (stored_mod != current_mod) or (stored_size == nil) or (tostring(stored_size) != tostring(file_size)) or (sess_id == nil)
-                
-                if needs_parse then
-                    file_content_raw = read_raw(file_path)
-                    file_content = ""
-                    if file_content_raw != nil then
-                        file_content = file_content_raw
-                    end
-                    metadata, body = bx_utils.parse_frontmatter(file_content)
-
-                    id = metadata.id
-                    if id == nil or id == "" then
-                        id = string.gsub(file, "%.md$", "")
-                    end
-                    
-                    sess_id = id
-                    seen_ids[sess_id] = true
-                    
-                    name = "Unnamed Session"
-                    if metadata.name != nil then
-                        name = metadata.name
-                    end
-                    created_at = metadata.created_at
-                    if created_at == nil then
-                        created_at = os.date("%Y-%m-%d %H:%M:%S")
-                    end
-                    updated_at = metadata.updated_at
-                    if updated_at == nil then
-                        updated_at = os.date("%Y-%m-%d %H:%M:%S")
-                    end
-                    
-                    esc_id = string.gsub(sess_id, "'", "''")
-                    esc_name = string.gsub(name, "'", "''")
-                    esc_created_at = string.gsub(created_at, "'", "''")
-                    esc_updated_at = string.gsub(updated_at, "'", "''")
-                    
-                    check_sess = database.query(brain_file, string.format("SELECT id FROM agent_sessions WHERE id='%s';", esc_id))
-                    if check_sess != nil and #check_sess > 0 then
-                        database.exec(brain_file, string.format("UPDATE agent_sessions SET name='%s', created_at='%s', updated_at='%s' WHERE id='%s';", esc_name, esc_created_at, esc_updated_at, esc_id))
-                    else
-                        database.exec(brain_file, string.format("INSERT INTO agent_sessions (id, name, created_at, updated_at) VALUES ('%s', '%s', '%s', '%s');", esc_id, esc_name, esc_created_at, esc_updated_at))
-                    end
-                    
-                    msgs = bx_utils.parse_session_body(body)
-                    
-                    database.exec(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", esc_id))
-                    
-                    for _, msg in ipairs(msgs) do
-                        esc_role = string.gsub(msg.role, "'", "''")
-                        msg_content = ""
-                        if msg.content != nil then
-                            msg_content = msg.content
-                        end
-                        esc_content = string.gsub(msg_content, "'", "''")
-                        msg_created = created_at
-                        if msg.created_at != nil then
-                            msg_created = msg.created_at
-                        end
-                        esc_msg_created = string.gsub(msg_created, "'", "''")
-
-                        esc_meta = "NULL"
-                        if msg.metadata != nil and msg.metadata != "" then
-                            esc_meta = "'" .. string.gsub(msg.metadata, "'", "''") .. "'"
-                        end
-
-                        in_context_val = 1
-                        if msg.in_context != nil then
-                            in_context_val = msg.in_context
-                        end
-                        
-                        database.exec(brain_file, string.format("""
-                            INSERT INTO agent_messages (session_id, role, content, metadata, in_context, created_at)
-                            VALUES ('%s', '%s', '%s', %s, %d, '%s');
-                        """, esc_id, esc_role, esc_content, esc_meta, in_context_val, esc_msg_created))
-                    end
-                    
-                    database.exec(brain_file, string.format("""
-                        INSERT OR REPLACE INTO sync_meta (key, value) VALUES
-                            ('session_file_mod_%s', '%s'),
-                            ('session_file_size_%s', '%s'),
-                            ('session_id_for_%s', '%s');
-                    """, file, current_mod, file, tostring(file_size), file, sess_id))
-                else
-                    seen_ids[sess_id] = true
-                end
-            end
-        end
-    end
-    
-    all_db_sessions_raw = database.query(brain_file, "SELECT id FROM agent_sessions;")
-    all_db_sessions = {}
-    if all_db_sessions_raw != nil then
-        all_db_sessions = all_db_sessions_raw
-    end
-    for _, sess_row in ipairs(all_db_sessions) do
-        id = sess_row[1]
-        if sess_row.id != nil then
-            id = sess_row.id
-        end
-        if seen_ids[id] == nil and seen_ids[tostring(id)] == nil then
-            database.exec(brain_file, string.format("DELETE FROM agent_messages WHERE session_id='%s';", id))
-            database.exec(brain_file, string.format("DELETE FROM agent_sessions WHERE id='%s';", id))
-        end
-    end
-
-    res_keys_raw = database.query(brain_file, "SELECT key, value FROM sync_meta WHERE key LIKE 'session_id_for_%';")
-    res_keys = {}
-    if res_keys_raw != nil then
-        res_keys = res_keys_raw
-    end
-    for _, r in ipairs(res_keys) do
-        k = r[1]
-        if r.key != nil then
-            k = r.key
-        end
-        v = r[2]
-        if r.value != nil then
-            v = r.value
-        end
-        if seen_ids[v] == nil and seen_ids[tostring(v)] == nil then
-            f_name = string.sub(k, 16)
-            database.exec(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_id_for_%s';", f_name))
-            database.exec(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_mod_%s';", f_name))
-            database.exec(brain_file, string.format("DELETE FROM sync_meta WHERE key='session_file_size_%s';", f_name))
-        end
-    end
-    
-    return true
-end
-
 function update_from_vault(brain_file, force)
     vault_path = get_vault_path()
 
@@ -319,10 +130,7 @@ function update_from_vault(brain_file, force)
                     DROP TABLE IF EXISTS connections;
                     DROP TABLE IF EXISTS tasks;
                     DROP TABLE IF EXISTS notes;
-                    DROP TABLE IF EXISTS tasks;
                     DROP TABLE IF EXISTS tasks_legacy_backup;
-                    DROP TABLE IF EXISTS agent_sessions;
-                    DROP TABLE IF EXISTS agent_messages;
                     DROP TABLE IF EXISTS sync_meta;
                 """
                 database.exec(brain_file, reset_sql)
@@ -335,26 +143,6 @@ function update_from_vault(brain_file, force)
                 return nil, "Failed to ensure database tables"
             end
 
-            -- Migrate legacy TSVs if they exist. tasks.tsv support was
-            -- removed with the notes/tasks unification -- its
-            -- column shape (a flat tasks row) no longer maps onto
-            -- anything a current brain has.
-            sessions_file = paths.joinpath(vault_path, "agent_sessions.tsv")
-            messages_file = paths.joinpath(vault_path, "agent_messages.tsv")
-
-            if (paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file)) or (paths.file_exists(messages_file) != nil and paths.file_exists(messages_file)) then
-                print("WARNING: TSV support is deprecated and will be removed in a future release. Migrating legacy agent sessions/messages to Markdown...")
-                if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then
-                    database.import_delimited(brain_file, sessions_file, "agent_sessions", "\t")
-                end
-                if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then
-                    database.import_delimited(brain_file, messages_file, "agent_messages", "\t")
-                end
-                agent_engine.backup_agent_data(brain_file)
-                if paths.file_exists(sessions_file) != nil and paths.file_exists(sessions_file) then os.remove(sessions_file) end
-                if paths.file_exists(messages_file) != nil and paths.file_exists(messages_file) then os.remove(messages_file) end
-            end
-
             -- Skip the full resync below entirely if nothing on disk has
             -- changed since the last sync (cheap path+mtime+size sweep,
             -- no content read) -- this is what makes it safe to run this
@@ -365,19 +153,13 @@ function update_from_vault(brain_file, force)
                 return true
             end
 
-            -- vault_to_sql now handles incremental updates
+            -- vault_to_sql handles incremental updates for notes and tasks
             status = vault_to_sql(vault_path, brain_file)
             if status == nil then
                 return nil, "Failed to update from vault"
             end
 
             knowledge_pool.sync_notes(brain_file)
-
-            -- Tasks are notes with a tasks row attached; vault_to_sql
-            -- above already syncs them (it's frontmatter-aware -- see
-            -- doc/unified-items-design.md). Only agent sessions still
-            -- need their own pass.
-            sync_sessions_from_vault(vault_path, brain_file, force)
 
             store_vault_fingerprint(brain_file, compute_vault_fingerprint(vault_path))
             return true

@@ -193,38 +193,20 @@ EOF
     [ "$COUNT" -eq 1 ]
 }
 
-@test "migrate legacy agent_sessions.tsv, agent_messages.tsv to Markdown" {
-    # tasks.tsv migration was removed along with the flat tasks table
-    # (see doc/unified-items-design.md) -- its column shape no longer
-    # maps onto anything a current brain has.
+@test "update ignores knowledge and legacy agent_sessions directories in vault" {
+    mkdir -p tmp_vault/knowledge/tier2 tmp_vault/agent_sessions
+    echo "Promoted artifact" > tmp_vault/knowledge/tier2/item-1.md
+    echo "Legacy session transcript" > tmp_vault/agent_sessions/session-123.md
+    echo "Real vault note" > tmp_vault/real_note.md
 
-    # 1. Create legacy TSV files
-    cat <<EOF > tmp_vault/agent_sessions.tsv
-id	name	created_at	updated_at
-session-123	Test Session	2026-06-05 10:00:00	2026-06-05 10:00:00
-EOF
-
-    cat <<EOF > tmp_vault/agent_messages.tsv
-id	session_id	role	content	metadata
-1	session-123	user	Hello	NULL
-EOF
-
-    # 2. Run update to trigger migration
     run $BREX update
     [ "$status" -eq 0 ]
 
-    # 3. Verify TSVs are deleted
-    [ ! -f tmp_vault/agent_sessions.tsv ]
-    [ ! -f tmp_vault/agent_messages.tsv ]
+    REAL_CNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE title='real_note' AND subject='';")
+    [ "$REAL_CNT" -eq 1 ]
 
-    # 4. Verify Markdown files are generated
-    [ -f tmp_vault/agent_sessions/session-123.md ]
-
-    # 5. Verify data is preserved in DB
-    SESSION_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM agent_sessions WHERE id='session-123';")
-    [ "$SESSION_COUNT" -eq 1 ]
-    MSG_COUNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM agent_messages WHERE session_id='session-123' AND content='Hello';")
-    [ "$MSG_COUNT" -eq 1 ]
+    IGNORED_CNT=$(sqlite3 tmp_vault.db "SELECT COUNT(*) FROM notes WHERE subject IN ('knowledge', 'agent_sessions');")
+    [ "$IGNORED_CNT" -eq 0 ]
 }
 
 @test "update tolerates Lua pattern magic characters and unbalanced parens inside wiki links" {

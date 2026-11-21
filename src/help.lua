@@ -13,7 +13,6 @@ brex [brain] task < add | list | done | delay | prioritize | show | last >
 brex [brain] sync [ --dry-run ]
 brex [brain] update < file >
 brex [brain] sql
-brex [brain] agent < view | ask | note | task | process_tasks >
 brex [brain] knowledge < search | sync | browse | show | history | process | queue | promote >
 
 defaults:
@@ -24,7 +23,6 @@ task      -> add new task
 update    -> rebuild from vault
 sync      -> two-way incremental sync with daat deployment
 sql       -> sqlite shell
-agent     -> view log, or ask prompt
 knowledge -> search, process, and promote note knowledge
 
 brex <command> -h or --help for more info
@@ -310,70 +308,6 @@ Examples:
 brex sql
 brex sql --query "SELECT notes.title, tasks.due_to FROM notes JOIN tasks ON tasks.item_id = notes.id;"
         """,
-        ["brex agent"] = """
-Description:
-Manage and interact with the Brain-Ex AI agent.
-Defaults to 'view' if no arguments are provided.
-Defaults to 'ask' if a prompt is provided without a subcommand.
-
-Subcommands:
-view             Displays the agent log file in a pager.
-ask <prompt>     Ask the general brain assistant.
-note <prompt>    Run the note-focused assistant.
-task <prompt>    Run the task-focused assistant.
-process_tasks    Run the agent task processing loop.
-
-Examples:
-brex agent
-brex agent "what did I write about retries?"
-brex agent note "capture meeting notes for backend"
-brex agent task "create follow-ups from yesterday"
-brex agent process_tasks
-        """,
-        ["brex agent view"] = """
-Description:
-Displays the agent log file in a pager.
-
-Examples:
-brex agent view
-        """,
-        ["brex agent ask"] = """
-Description:
-Asks the general brain assistant a question or prompt.
-
-Required:
-<prompt> The question or instruction for the agent.
-
-Examples:
-brex agent ask "how do I use SQLite?"
-        """,
-        ["brex agent note"] = """
-Description:
-Runs the note-focused assistant with the specified prompt.
-
-Required:
-<prompt> The instruction for the note agent.
-
-Examples:
-brex agent note "summarize my recent logs"
-        """,
-        ["brex agent task"] = """
-Description:
-Runs the task-focused assistant with the specified prompt.
-
-Required:
-<prompt> The instruction for the task agent.
-
-Examples:
-brex agent task "what are my most urgent tasks?"
-        """,
-        ["brex agent process_tasks"] = """
-Description:
-Gathers background tasks (owner="agent") and executes them.
-
-Examples:
-brex agent process_tasks
-        """,
         ["brex knowledge"] = """
 Description:
 Search, review, and promote notes through the knowledge pool.
@@ -402,16 +336,18 @@ brex knowledge process
         """,
         ["brex knowledge search"] = """
 Description:
-Searches the indexed knowledge pool for the specified query.
+Searches the indexed knowledge pool for the specified query (local SQLite by default, or remote daat semantic search with --remote).
 
 Required:
 <query> The search terms.
 
 Optional:
 -n --limit <number> Limit the number of results (default 5).
+-r --remote         Query the configured daat deployment's semantic search (/api/v1/documents/search).
 
 Examples:
 brex knowledge search "git flow" --limit 3
+brex knowledge search "cryopreservation media" --remote
         """,
         ["brex knowledge sync"] = """
 Description:
@@ -481,15 +417,17 @@ brex knowledge promote 42 --tier 3
         """,
         ["brex sync"] = """
 Description:
-Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment (/api/v1/entities/document and /api/v1/entities/task).
+Runs incremental two-way synchronization between the local SQLite brain and a configured daat deployment (/api/v1/entities/document and /api/v1/entities/task), using ?since_event=<id> delta checks when idle, mirroring daat tier/duplicate metadata into knowledge_items, and replaying recent CLI search queries to reinforce daat pool heat.
 
 Optional:
 -n --dry-run    Compute and report pending push/pull actions without mutating either side.
+-f --full       Force a full active-table metadata sweep even when no ledger events occurred.
 -u --url <url>  Override daat_url for this invocation.
 
 Examples:
 brex sync
 brex sync --dry-run
+brex sync --full
         """
     }
 

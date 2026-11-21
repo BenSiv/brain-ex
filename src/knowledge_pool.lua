@@ -178,22 +178,6 @@ function knowledge_pool.ensure_table(brain_file)
         CREATE INDEX IF NOT EXISTS idx_knowledge_reviews_item ON knowledge_reviews(knowledge_id);
     """
     res = database.exec(brain_file, create_tables)
-
-    -- Migration: check if embedding column exists in knowledge_items
-    has_emb = false
-    check_emb = database.query(brain_file, "PRAGMA table_info(knowledge_items);")
-    if check_emb != nil then
-        for _, col in pairs(check_emb) do
-            if col.name == "embedding" or col[2] == "embedding" then
-                has_emb = true
-                break
-            end
-        end
-    end
-    if has_emb == false then
-        database.exec(brain_file, "ALTER TABLE knowledge_items ADD COLUMN embedding TEXT;")
-    end
-
     return res
 end
 
@@ -246,24 +230,6 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
     source_ref = knowledge_pool.note_source_ref(subject, title)
     content_hash = knowledge_pool.content_hash(content)
 
-    provider_name, model_name = config.get_embedding_config()
-    command_tmpl = config.get_embedding_command()
-
-    embedding_json = ""
-    if provider_name != nil and provider_name != "" then
-        status, provider = pcall(require, "agent_providers." .. provider_name)
-        if status == false or provider == nil or type(provider) != "table" then
-            status, provider = pcall(require, provider_name)
-        end
-        if status == true and provider != nil and provider.embeddings != nil then
-            vec, err = provider.embeddings(model_name, content, command_tmpl)
-            if vec != nil then
-                dkjson = require("dkjson")
-                embedding_json = dkjson.encode(vec)
-            end
-        end
-    end
-
     existing = database.query(brain_file, "SELECT id, content_hash, artifact_status FROM knowledge_items WHERE source_type='note' AND source_id='%s';", source_id)
 
     if existing != nil and existing[1] != nil then
@@ -280,7 +246,6 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
                 title='%%s',
                 content='%%s',
                 content_hash='%%s',
-                embedding='%%s',
                 updated_at=datetime('now', 'localtime')
                 %s
             WHERE source_type='note' AND source_id='%%s';
@@ -291,19 +256,26 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
             title,
             content,
             content_hash,
-            embedding_json,
             source_id)
     else
-        insert_sql = """
+        default_tier = 1
+        default_process = "working"
+        default_promotion = "pool"
+        if subject == "knowledge-pool" or subject == "Tag Summaries" then
+            default_tier = 2
+            default_process = "curated"
+            default_promotion = "curated"
+        end
+        insert_sql = string.format("""
             INSERT INTO knowledge_items
                 (source_type, source_id, source_ref, subject, title, content,
-                 content_hash, embedding, tier, process_level, heat, retrieval_count,
+                 content_hash, tier, process_level, heat, retrieval_count,
                  artifact_status, promotion_status, created_at, updated_at)
             VALUES
-                ('note', '%s', '%s', '%s', '%s', '%s',
-                 '%s', '%s', 1, 'working', 1.0, 0,
-                 'none', 'pool', '%s', datetime('now', 'localtime'));
-        """
+                ('note', '%%s', '%%s', '%%s', '%%s', '%%s',
+                 '%%s', %d, '%s', 1.0, 0,
+                 'none', '%s', '%%s', datetime('now', 'localtime'));
+        """, default_tier, default_process, default_promotion)
         database.exec(brain_file, insert_sql,
             source_id,
             source_ref,
@@ -311,11 +283,100 @@ function knowledge_pool.upsert_note(brain_file, subject, title, content, note_ti
             title,
             content,
             content_hash,
-            embedding_json,
             note_time)
     end
 
     return true
+end
+
+function knowledge_pool.apply_remote_metadata(brain_file, items_meta)
+    if items_meta == nil or #items_meta == 0 then
+        return 0
+    end
+    knowledge_pool.ensure_table(brain_file)
+
+    ki_id_by_source = {}
+    ki_rows = database.query(brain_file, "SELECT id, source_id, artifact_status, tier, retrieval_count FROM knowledge_items WHERE source_type='note';")
+    if ki_rows != nil then
+        for _, r in ipairs(ki_rows) do
+            sid = knowledge_pool.row_value(r, "source_id", 2, "")
+            if sid != "" then
+                ki_id_by_source[sid] = {
+                    id = knowledge_pool.number_value(knowledge_pool.row_value(r, "id", 1, 0), 0),
+                    artifact_status = knowledge_pool.row_value(r, "artifact_status", 3, "none"),
+                    tier = knowledge_pool.number_value(knowledge_pool.row_value(r, "tier", 4, 1), 1),
+                    retrieval_count = knowledge_pool.number_value(knowledge_pool.row_value(r, "retrieval_count", 5, 0), 0)
+                }
+            end
+        end
+    end
+
+    updated = 0
+    for _, m in ipairs(items_meta) do
+        sid = knowledge_pool.note_source_id(m.subject, m.title)
+        local_ki = ki_id_by_source[sid]
+        if local_ki != nil and local_ki.id > 0 then
+            r_tier = knowledge_pool.number_value(m.remote_tier, 0)
+            r_stype = m.remote_source_type
+            if r_stype == nil then
+                r_stype = ""
+            end
+            r_ret = knowledge_pool.number_value(m.remote_retrieval_count, 0)
+
+            target_tier = local_ki.tier
+            target_process = nil
+            target_promo = nil
+
+            has_vault_artifact = (local_ki.artifact_status != nil and local_ki.artifact_status != "" and local_ki.artifact_status != "none")
+            if not has_vault_artifact then
+                if r_tier >= 3 or r_stype == "record" or r_stype == "distilled" then
+                    target_tier = 3
+                    target_process = "distilled"
+                    target_promo = "materialized"
+                elseif r_tier == 2 or r_stype == "curated" or m.subject == "knowledge-pool" or m.subject == "Tag Summaries" then
+                    target_tier = 2
+                    target_process = "curated"
+                    target_promo = "curated"
+                elseif r_tier == 1 then
+                    target_tier = math.max(local_ki.tier, 1)
+                end
+            end
+
+            canon_ki_id = nil
+            if m.canonical_source_id != nil and m.canonical_source_id != "" then
+                canon_entry = ki_id_by_source[m.canonical_source_id]
+                if canon_entry != nil and canon_entry.id > 0 and canon_entry.id != local_ki.id then
+                    canon_ki_id = canon_entry.id
+                end
+            end
+
+            merged_ret = local_ki.retrieval_count
+            if r_ret > merged_ret then
+                merged_ret = r_ret
+            end
+
+            set_parts = {
+                string.format("tier=%d", target_tier),
+                string.format("retrieval_count=%d", merged_ret)
+            }
+            if canon_ki_id != nil then
+                table.insert(set_parts, string.format("duplicate_of=%d", canon_ki_id))
+                table.insert(set_parts, string.format("merged_into=%d", canon_ki_id))
+                table.insert(set_parts, "process_level='duplicate'")
+                table.insert(set_parts, "promotion_status='duplicate'")
+            elseif target_process != nil and target_promo != nil then
+                table.insert(set_parts, string.format("process_level='%s'", knowledge_pool.escape_sql(target_process)))
+                table.insert(set_parts, string.format("promotion_status='%s'", knowledge_pool.escape_sql(target_promo)))
+            end
+
+            database.exec(
+                brain_file,
+                string.format("UPDATE knowledge_items SET %s WHERE id=%d;", table.concat(set_parts, ", "), local_ki.id)
+            )
+            updated = updated + 1
+        end
+    end
+    return updated
 end
 
 function knowledge_pool.mark_duplicates(brain_file)
@@ -433,8 +494,16 @@ function knowledge_pool.review_status_for_item(item)
         promotion_status = "stale"
         process_level = "review"
     elseif tier >= 3 then
-        promotion_status = "materialized"
-        process_level = "atomic"
+        if artifact_status == nil or artifact_status == "" or artifact_status == "none" then
+            promotion_status = "materialized"
+            process_level = "distilled"
+        else
+            promotion_status = "materialized"
+            process_level = "atomic"
+        end
+    elseif tier == 2 and (artifact_status == nil or artifact_status == "" or artifact_status == "none") then
+        promotion_status = "curated"
+        process_level = "curated"
     elseif retrieval_count >= 2 and atomicity_status == "atomic" then
         promotion_status = "ready"
         process_level = "draft-ready"
@@ -530,25 +599,7 @@ function knowledge_pool.tier_weight(tier)
     return 0.7
 end
 
-function knowledge_pool.cosine_similarity(v1, v2)
-    if v1 == nil or v2 == nil or #v1 == 0 or #v2 == 0 or #v1 != #v2 then
-        return 0.0
-    end
-    dot_product = 0.0
-    norm_a = 0.0
-    norm_b = 0.0
-    for i = 1, #v1 do
-        dot_product = dot_product + v1[i] * v2[i]
-        norm_a = norm_a + v1[i] * v1[i]
-        norm_b = norm_b + v2[i] * v2[i]
-    end
-    if norm_a == 0.0 or norm_b == 0.0 then
-        return 0.0
-    end
-    return dot_product / (math.sqrt(norm_a) * math.sqrt(norm_b))
-end
-
-function knowledge_pool.search_score(item, query_terms, query_text, query_vector)
+function knowledge_pool.search_score(item, query_terms, query_text)
     title = knowledge_pool.row_value(item, "title", 5, "")
     subject = knowledge_pool.row_value(item, "subject", 4, "")
     content = knowledge_pool.row_value(item, "content", 6, "")
@@ -557,21 +608,6 @@ function knowledge_pool.search_score(item, query_terms, query_text, query_vector
     retrieval_count = knowledge_pool.number_value(knowledge_pool.row_value(item, "retrieval_count", 10, 0), 0)
     duplicate_of = knowledge_pool.row_value(item, "duplicate_of", 12, nil)
     artifact_status = knowledge_pool.row_value(item, "artifact_status", 16, "none")
-    embedding_str = knowledge_pool.row_value(item, "embedding", 19, "")
-
-    item_vector = nil
-    if embedding_str != nil and embedding_str != "" then
-        dkjson = require("dkjson")
-        decoded, _, err = dkjson.decode(embedding_str)
-        if decoded != nil then
-            item_vector = decoded
-        end
-    end
-
-    similarity = 0.0
-    if query_vector != nil and item_vector != nil then
-        similarity = knowledge_pool.cosine_similarity(query_vector, item_vector)
-    end
 
     score = 0
     searchable = title .. " " .. subject .. " " .. content
@@ -593,18 +629,12 @@ function knowledge_pool.search_score(item, query_terms, query_text, query_vector
         end
     end
 
-    lexical_score = score
-    if lexical_score <= 0 and similarity <= 0.45 then
+    if score <= 0 then
         return 0, knowledge_pool.tier_weight(tier)
     end
 
-    final_score = lexical_score
-    if similarity > 0 then
-        final_score = final_score + (similarity * 8.0)
-    end
-
     tier_weight = knowledge_pool.tier_weight(tier)
-    final_score = (final_score * tier_weight) + (heat * 0.2) + (retrieval_count * 0.05)
+    final_score = (score * tier_weight) + (heat * 0.2) + (retrieval_count * 0.05)
 
     if duplicate_of != nil and tostring(duplicate_of) != "" then
         final_score = final_score * 0.25
@@ -756,27 +786,11 @@ function knowledge_pool.search(brain_file, query_text, limit)
         return {}, 0
     end
 
-    query_vector = nil
-    provider_name, model_name = config.get_embedding_config()
-    command_tmpl = config.get_embedding_command()
-    if provider_name != nil and provider_name != "" then
-        status, provider = pcall(require, "agent_providers." .. provider_name)
-        if status == false then
-            status, provider = pcall(require, provider_name)
-        end
-        if status == true and provider != nil and provider.embeddings != nil then
-            vec, err = provider.embeddings(model_name, query_text, command_tmpl)
-            if vec != nil then
-                query_vector = vec
-            end
-        end
-    end
-
     rows = database.query(brain_file, """
         SELECT id, source_type, source_id, subject, title, content, tier,
                process_level, heat, retrieval_count, last_retrieved_at,
                duplicate_of, merged_into, artifact_ref, artifact_path,
-               artifact_status, promotion_status, source_ref, embedding
+               artifact_status, promotion_status, source_ref
         FROM knowledge_items
         WHERE merged_into IS NULL
         ORDER BY tier DESC, heat DESC, title;
@@ -785,7 +799,7 @@ function knowledge_pool.search(brain_file, query_text, limit)
     scored = {}
     if rows != nil then
         for _, row in ipairs(rows) do
-            score, tier_weight = knowledge_pool.search_score(row, query_terms, query_text, query_vector)
+            score, tier_weight = knowledge_pool.search_score(row, query_terms, query_text)
             if score > 0 then
                 item = {
                     id = knowledge_pool.number_value(knowledge_pool.row_value(row, "id", 1, 0), 0),

@@ -48,8 +48,6 @@ do_brain = brain.do_brain
 git = require("vault_git")
 auto_update = git.auto_update
 
-agent = require("agent")
-do_agent = agent.do_agent
 sync = require("sync")
 daat_sync = require("daat_sync")
 do_daat_sync = daat_sync.do_sync
@@ -69,7 +67,6 @@ function main()
         ["task"] = do_task,
         ["update"] = do_update,
         ["sql"] = do_sql,
-        ["agent"] = do_agent,
         ["knowledge"] = do_knowledge,
         ["sync"] = do_daat_sync
     }
@@ -226,8 +223,6 @@ function is_read_only_command(command, subcommand)
         return subcommand == "search" or subcommand == "browse" or subcommand == "show" or subcommand == "history" or subcommand == "queue" or subcommand == nil or subcommand == ""
     elseif command == "sql" then
         return true
-    elseif command == "agent" then
-        return subcommand == "view" or subcommand == nil or subcommand == ""
     end
     return false
 end
